@@ -57,8 +57,10 @@ client.on('message', async (message) => {
     if (message.body.toLowerCase() === '/lista') {
 
         const chat = await message.getChat();
+        console.log('chat', chat);
+        
         if (chat.isGroup) {
-            console.log('[ACAO] Enviando a lista');
+            console.log('[ACAO] Enviando a lista, ID:', ID_GRUPO_TERCA);
             if (message.from === ID_GRUPO_TERCA) {
                 console.log('[COMANDO] /lista recebido no grupo da Terça.');
                 const proximaTerca = getProximoDiaDaSemana(2);

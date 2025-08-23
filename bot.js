@@ -55,6 +55,8 @@ client.on('message', async (message) => {
     console.log(`[MSG] Mensagem recebida de: ${message.from} | Conteúdo: "${message.body}"`);
 
     if (message.body.toLowerCase() === '/lista') {
+        console.log('[ACAO] Enviando a lista');
+        
         const chat = await message.getChat();
         if (chat.isGroup) {
             if (message.from === ID_GRUPO_TERCA) {

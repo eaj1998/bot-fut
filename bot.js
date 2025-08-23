@@ -22,7 +22,22 @@ app.listen(PORT, () => {
 console.log('⚽ Iniciando o Bot de Futebol...');
 
 const client = new Client({
-    authStrategy: new LocalAuth()
+    authStrategy: new LocalAuth({
+        dataPath: "/wwebjs_auth" // ou /var/data/wwebjs_auth
+    }),
+    puppeteer: {
+        headless: true, 
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu'
+        ],
+    }
 });
 
 client.on('qr', (qr) => {

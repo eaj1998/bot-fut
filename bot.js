@@ -26,7 +26,7 @@ const client = new Client({
         dataPath: "/wwebjs_auth" // ou /var/data/wwebjs_auth
     }),
     puppeteer: {
-        headless: true, 
+        headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -55,21 +55,33 @@ client.on('message', async (message) => {
     console.log(`[MSG] Mensagem recebida de: ${message.from} | Conteúdo: "${message.body}"`);
 
     if (message.body.toLowerCase() === '/lista') {
-        console.log('[ACAO] Enviando a lista');
-        
+
         const chat = await message.getChat();
         if (chat.isGroup) {
+            console.log('[ACAO] Enviando a lista');
             if (message.from === ID_GRUPO_TERCA) {
                 console.log('[COMANDO] /lista recebido no grupo da Terça.');
-                const proximaTerca = getProximoDiaDaSemana(2); // 2 = Terça-feira
+                const proximaTerca = getProximoDiaDaSemana(2);
                 const lista = gerarLista(proximaTerca);
-                client.sendMessage(message.from, lista);
-            } 
+
+                console.log('[ACAO] Tentando enviar a lista...');
+                client.sendMessage(message.from, lista).then((response) => {
+                    console.log('✅ [SUCESSO] Mensagem enviada com sucesso!', response.id.id);
+                }).catch(err => {
+                    console.error('❌ [FALHA] Erro ao enviar a mensagem:', err);
+                });
+            }
             else if (message.from === ID_GRUPO_QUINTA) {
                 console.log('[COMANDO] /lista recebido no grupo da Quinta.');
-                const proximaQuinta = getProximoDiaDaSemana(4); // 4 = Quinta-feira
+                const proximaQuinta = getProximoDiaDaSemana(4);
                 const lista = gerarLista(proximaQuinta);
-                client.sendMessage(message.from, lista);
+
+                console.log('[ACAO] Tentando enviar a lista...');
+                client.sendMessage(message.from, lista).then((response) => {
+                    console.log('✅ [SUCESSO] Mensagem enviada com sucesso!', response.id.id);
+                }).catch(err => {
+                    console.error('❌ [FALHA] Erro ao enviar a mensagem:', err);
+                });
             }
         }
     }
@@ -82,7 +94,7 @@ function agendarMensagens() {
         console.log('[AGENDAMENTO] Executando tarefa: Enviar lista para o grupo da Terça.');
         const dataDoJogo = new Date();
         dataDoJogo.setDate(dataDoJogo.getDate() + 2); // Data de hoje (Domingo) + 2 dias = Terça
-        
+
         const lista = gerarLista(dataDoJogo);
         client.sendMessage(ID_GRUPO_TERCA, lista).catch(err => console.error('Erro ao enviar lista de Terça:', err));
     }, {

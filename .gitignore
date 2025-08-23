@@ -1,0 +1,8 @@
+# Ignorar dependências do Node
+node_modules
+
+# Ignorar arquivo de variáveis de ambiente
+.env
+
+# Ignorar pasta da sessão do WhatsApp
+.wwebjs_auth/

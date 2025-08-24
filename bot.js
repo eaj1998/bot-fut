@@ -13,10 +13,10 @@ const ADMIN_NUMBERS = (process.env.ADMIN_NUMBERS || "").split(',');
 const requiredEnvVars = ['ID_GRUPO_TERCA', 'ID_GRUPO_QUINTA', 'ADMIN_NUMBERS', 'ID_GRUPO_TESTE'];
 
 for (const varName of requiredEnvVars) {
-  if (!process.env[varName]) {
-    console.error(`ERRO: A variável ${varName} é obrigatória`);
-    process.exit(1);
-  }
+    if (!process.env[varName]) {
+        console.error(`ERRO: A variável ${varName} é obrigatória`);
+        process.exit(1);
+    }
 }
 
 const app = express();
@@ -101,22 +101,22 @@ client.on('message', async (message) => {
     if (command === '/marcar') {
         if (!isUserAdmin) {
             console.log(`[AUTH] Tentativa de uso do /marcar por usuário não autorizado: ${message.author}`);
-            return; 
+            return;
         }
-
+        
         const chat = await message.getChat();
         if (chat.isGroup) {
             let text = "A lista saiu! 📢\n\n";
             let mentions = [];
             console.log(`[COMANDO] /marcar recebido no grupo "${chat.name}". Coletando participantes...`);
+            
             for (let participant of chat.participants) {
-                const contact = await client.getContactById(participant.id._serialized);
-                mentions.push(contact);
+                mentions.push(participant.id._serialized);
                 text += `@${participant.id.user} `;
             }
+
             console.log(`[ACAO] Enviando menção para ${mentions.length} participantes.`);
             chat.sendMessage(text.trim(), { mentions })
-                .then(() => console.log('✅ [SUCESSO] Mensagem com menções enviada!'))
                 .catch(err => console.error('❌ [FALHA] Erro ao enviar menções:', err));
         } else {
             message.reply('O comando /marcar só funciona em grupos.');

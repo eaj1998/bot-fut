@@ -6,3 +6,4 @@ node_modules
 
 # Ignorar pasta da sessão do WhatsApp
 .wwebjs_auth/
+.wwebjs_cache

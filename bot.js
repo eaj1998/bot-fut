@@ -7,6 +7,17 @@ require('dotenv').config();
 
 const ID_GRUPO_TERCA = process.env.ID_GRUPO_TERCA;
 const ID_GRUPO_QUINTA = process.env.ID_GRUPO_QUINTA;
+const ID_GRUPO_TESTE = process.env.ID_GRUPO_TESTE;
+const ADMIN_NUMBERS = (process.env.ADMIN_NUMBERS || "").split(',');
+
+const requiredEnvVars = ['ID_GRUPO_TERCA', 'ID_GRUPO_QUINTA', 'ADMIN_NUMBERS', 'ID_GRUPO_TESTE'];
+
+for (const varName of requiredEnvVars) {
+  if (!process.env[varName]) {
+    console.error(`ERRO: A variável ${varName} é obrigatória`);
+    process.exit(1);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -52,39 +63,63 @@ client.on('ready', () => {
 });
 
 client.on('message', async (message) => {
-    console.log(`[MSG] Mensagem recebida de: ${message.from} | Conteúdo: "${message.body}"`);
+    console.log(`[MSG] De: ${message.from} | Autor: ${message.author} | Conteúdo: "${message.body}"`);
 
-    if (message.body.toLowerCase() === '/lista') {
+    const isUserAdmin = ADMIN_NUMBERS.length === 0 || ADMIN_NUMBERS.includes(message.author);
+    const command = message.body.toLowerCase();
+
+    if (command === '/lista') {
+        if (!isUserAdmin) {
+            console.log(`[AUTH] Tentativa de uso do /lista por usuário não autorizado: ${message.author}`);
+            return;
+        }
+
+        let targetGroup = null;
+        let gameDate = null;
+
+        if (message.from === ID_GRUPO_TERCA) {
+            targetGroup = 'Terça';
+            gameDate = getProximoDiaDaSemana(2); // Próxima Terça
+        } else if (message.from === ID_GRUPO_QUINTA) {
+            targetGroup = 'Quinta';
+            gameDate = getProximoDiaDaSemana(4); // Próxima Quinta
+        } else if (message.from === ID_GRUPO_TESTE) { // <-- LÓGICA PARA O GRUPO DE TESTE
+            targetGroup = 'Teste';
+            gameDate = new Date();
+            gameDate.setDate(gameDate.getDate() + 3); // Data de hoje + 3 dias
+        }
+
+        if (targetGroup && gameDate) {
+            console.log(`[COMANDO] /lista recebido no grupo de ${targetGroup}.`);
+            const lista = gerarLista(gameDate);
+            client.sendMessage(message.from, lista)
+                .then(() => console.log(`✅ [SUCESSO] Lista de ${targetGroup} enviada!`))
+                .catch(err => console.error(`❌ [FALHA] Erro ao enviar a lista de ${targetGroup}:`, err));
+        }
+    }
+
+    if (command === '/marcar') {
+        if (!isUserAdmin) {
+            console.log(`[AUTH] Tentativa de uso do /marcar por usuário não autorizado: ${message.author}`);
+            return; 
+        }
 
         const chat = await message.getChat();
-        console.log('chat', chat);
-        
         if (chat.isGroup) {
-            console.log('[ACAO] Enviando a lista, ID:', ID_GRUPO_TERCA);
-            if (message.from === ID_GRUPO_TERCA) {
-                console.log('[COMANDO] /lista recebido no grupo da Terça.');
-                const proximaTerca = getProximoDiaDaSemana(2);
-                const lista = gerarLista(proximaTerca);
-
-                console.log('[ACAO] Tentando enviar a lista...');
-                client.sendMessage(message.from, lista).then((response) => {
-                    console.log('✅ [SUCESSO] Mensagem enviada com sucesso!', response.id.id);
-                }).catch(err => {
-                    console.error('❌ [FALHA] Erro ao enviar a mensagem:', err);
-                });
+            let text = "A lista saiu! 📢\n\n";
+            let mentions = [];
+            console.log(`[COMANDO] /marcar recebido no grupo "${chat.name}". Coletando participantes...`);
+            for (let participant of chat.participants) {
+                const contact = await client.getContactById(participant.id._serialized);
+                mentions.push(contact);
+                text += `@${participant.id.user} `;
             }
-            else if (message.from === ID_GRUPO_QUINTA) {
-                console.log('[COMANDO] /lista recebido no grupo da Quinta.');
-                const proximaQuinta = getProximoDiaDaSemana(4);
-                const lista = gerarLista(proximaQuinta);
-
-                console.log('[ACAO] Tentando enviar a lista...');
-                client.sendMessage(message.from, lista).then((response) => {
-                    console.log('✅ [SUCESSO] Mensagem enviada com sucesso!', response.id.id);
-                }).catch(err => {
-                    console.error('❌ [FALHA] Erro ao enviar a mensagem:', err);
-                });
-            }
+            console.log(`[ACAO] Enviando menção para ${mentions.length} participantes.`);
+            chat.sendMessage(text.trim(), { mentions })
+                .then(() => console.log('✅ [SUCESSO] Mensagem com menções enviada!'))
+                .catch(err => console.error('❌ [FALHA] Erro ao enviar menções:', err));
+        } else {
+            message.reply('O comando /marcar só funciona em grupos.');
         }
     }
 });

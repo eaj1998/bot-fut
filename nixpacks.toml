@@ -1,0 +1,10 @@
+# nixpacks.toml
+
+[phases.setup]
+# Lista de pacotes do sistema (Debian/Ubuntu) necessários para o Puppeteer/Chrome rodar.
+aptPkgs = [
+  "libnss3", "libatk1.0-0", "libatk-bridge2.0-0", "libcups2",
+  "libgbm1", "libasound2", "libpangocairo-1.0-0", "libxshmfence1",
+  "libxcomposite1", "libxdamage1", "libxfixes3", "libxrandr2",
+  "libx11-xcb1", "libxtst6", "libdrm2", "libxkbcommon0", "lsb-release"
+]

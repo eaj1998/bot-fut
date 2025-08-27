@@ -18,7 +18,8 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        timeout: 60000
     }
 });
 
@@ -56,7 +57,6 @@ async function verificarEAnunciar() {
             }
         });
 
-        console.log(response.data);
         
         const videos = response.data.items;
         if (!videos || videos.length === 0) {

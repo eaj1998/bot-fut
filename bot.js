@@ -2,6 +2,8 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const cron = require('node-cron');
 const express = require('express');
+const axios = require('axios');
+const fs = require('fs/promises');
 
 require('dotenv').config();
 
@@ -9,6 +11,9 @@ const ID_GRUPO_TERCA = process.env.ID_GRUPO_TERCA;
 const ID_GRUPO_QUINTA = process.env.ID_GRUPO_QUINTA;
 const ID_GRUPO_TESTE = process.env.ID_GRUPO_TESTE;
 const ADMIN_NUMBERS = (process.env.ADMIN_NUMBERS || "").split(',');
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const YOUTUBE_CHANNEL_ID = 'UCxKaWJLsEIFmdfV2OmnNUTA';
+const YOUTUBE_TARGET_GROUP_ID = process.env.YOUTUBE_TARGET_GROUP_ID;
 
 const requiredEnvVars = ['ID_GRUPO_TERCA', 'ID_GRUPO_QUINTA', 'ADMIN_NUMBERS', 'ID_GRUPO_TESTE'];
 
@@ -34,7 +39,7 @@ console.log('⚽ Iniciando o Bot de Futebol...');
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: "/wwebjs_auth" // ou /var/data/wwebjs_auth
+        dataPath: "wwebjs_auth"
     }),
     puppeteer: {
         headless: true,
@@ -76,13 +81,16 @@ client.on('message', async (message) => {
 
         let targetGroup = null;
         let gameDate = null;
+        let gameTime = '20h30';
 
         if (message.from === ID_GRUPO_TERCA) {
             targetGroup = 'Terça';
             gameDate = getProximoDiaDaSemana(2); // Próxima Terça
+            gameTime = '21h30';
         } else if (message.from === ID_GRUPO_QUINTA) {
             targetGroup = 'Quinta';
             gameDate = getProximoDiaDaSemana(4); // Próxima Quinta
+            gameTime = '20h30';
         } else if (message.from === ID_GRUPO_TESTE) { // <-- LÓGICA PARA O GRUPO DE TESTE
             targetGroup = 'Teste';
             gameDate = new Date();
@@ -91,7 +99,7 @@ client.on('message', async (message) => {
 
         if (targetGroup && gameDate) {
             console.log(`[COMANDO] /lista recebido no grupo de ${targetGroup}.`);
-            const lista = gerarLista(gameDate);
+            const lista = gerarLista(gameDate, gameTime);
             client.sendMessage(message.from, lista)
                 .then(() => console.log(`✅ [SUCESSO] Lista de ${targetGroup} enviada!`))
                 .catch(err => console.error(`❌ [FALHA] Erro ao enviar a lista de ${targetGroup}:`, err));
@@ -103,13 +111,13 @@ client.on('message', async (message) => {
             console.log(`[AUTH] Tentativa de uso do /marcar por usuário não autorizado: ${message.author}`);
             return;
         }
-        
+
         const chat = await message.getChat();
         if (chat.isGroup) {
             let text = "A lista saiu! 📢\n\n";
             let mentions = [];
             console.log(`[COMANDO] /marcar recebido no grupo "${chat.name}". Coletando participantes...`);
-            
+
             for (let participant of chat.participants) {
                 mentions.push(participant.id._serialized);
                 text += `@${participant.id.user} `;
@@ -122,15 +130,85 @@ client.on('message', async (message) => {
             message.reply('O comando /marcar só funciona em grupos.');
         }
     }
+
+    if (command === '/testeyt') {
+        console.log('[COMANDO] /testeyt recebido. Executando verificação do YouTube sob demanda.');
+        message.reply('Ok, iniciando a verificação do YouTube agora. Acompanhe os logs...');
+        verificarEAnunciarYouTube();
+    }
 });
 
+async function verificarEAnunciarYouTube() {
+    console.log('[YOUTUBE] Iniciando verificação de novos vídeos...');
+    if (!YOUTUBE_API_KEY) return;
+
+    const ANUNCIADOS_FILE_PATH = `videos_anunciados.json`;
+    try {
+        let anunciados = [];
+        try {
+            const data = await fs.readFile(ANUNCIADOS_FILE_PATH, 'utf8');
+            anunciados = JSON.parse(data);
+        } catch (error) {
+            console.warn('[YOUTUBE] Arquivo de anunciados não encontrado. Criando um novo.');
+            await fs.writeFile(ANUNCIADOS_FILE_PATH, JSON.stringify([]));
+        }
+
+        const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+            params: { key: YOUTUBE_API_KEY, channelId: YOUTUBE_CHANNEL_ID, part: 'snippet', order: 'date', maxResults: 4, type: 'video' }
+        });
+
+        const videos = response.data.items;
+        if (!videos || videos.length === 0) {
+            console.log('[YOUTUBE] Nenhum vídeo encontrado na busca da API.');
+            return;
+        }
+
+        let videosParaAnunciar = [];
+        for (const video of videos) {
+            const videoId = video.id.videoId;
+            const videoTitle = video.snippet.title;
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            const padraoTitulo = /Viana - (\d{2}\/\d{2}\/\d{4}) - (A|B)/i;
+            const match = videoTitle.match(padraoTitulo);
+
+            if (!anunciados.includes(videoId) && match) {
+                let targetGroupId = YOUTUBE_TARGET_GROUP_ID; // Prioriza o modo de teste
+                if (!targetGroupId) {
+                    const [_, dataStr] = match;
+                    const [dia, mes, ano] = dataStr.split('/');
+                    const dataJogo = new Date(`${ano}-${mes}-${dia}`);
+                    const diaDaSemana = dataJogo.getDay();
+                    if (diaDaSemana === 2) targetGroupId = ID_GRUPO_TERCA;
+                    if (diaDaSemana === 4) targetGroupId = ID_GRUPO_QUINTA;
+                }
+                if (targetGroupId) {
+                    videosParaAnunciar.push({ videoId, videoTitle, videoUrl, targetGroupId });
+                }
+            }
+        }
+
+        if (videosParaAnunciar.length > 0) {
+            console.log(`[YOUTUBE] ${videosParaAnunciar.length} vídeo(s) novo(s) encontrado(s).`);
+            for (const video of videosParaAnunciar) {
+                const mensagem = `🎥 Vídeo novo no canal!\n\n*${video.videoTitle}*\n\n${video.videoUrl}`;
+                await client.sendMessage(video.targetGroupId, mensagem);
+                console.log(`[YOUTUBE] Mensagem enviada para o grupo ${video.targetGroupId}`);
+                anunciados.push(video.videoId);
+            }
+            await fs.writeFile(ANUNCIADOS_FILE_PATH, JSON.stringify(anunciados, null, 2));
+        } else {
+            console.log('[YOUTUBE] Nenhum vídeo NOVO encontrado para anunciar.');
+        }
+    } catch (error) {
+        console.error('[YOUTUBE] Ocorreu um erro:', error.response ? error.response.data.error.message : error.message);
+    }
+}
+
 function agendarMensagens() {
-    // AGENDA PARA O GRUPO DA TERÇA (Enviar no Domingo às 10h00)
-    // Sintaxe: 'Minuto Hora DiaDoMês Mês DiaDaSemana'
     cron.schedule('0 10 * * 0', () => { // 0 = Domingo
         console.log('[AGENDAMENTO] Executando tarefa: Enviar lista para o grupo da Terça.');
         const dataDoJogo = new Date();
-        dataDoJogo.setDate(dataDoJogo.getDate() + 2); // Data de hoje (Domingo) + 2 dias = Terça
+        dataDoJogo.setDate(dataDoJogo.getDate() + 2, '21h30'); // Data de hoje (Domingo) + 2 dias = Terça
 
         const lista = gerarLista(dataDoJogo);
         client.sendMessage(ID_GRUPO_TERCA, lista).catch(err => console.error('Erro ao enviar lista de Terça:', err));
@@ -139,52 +217,34 @@ function agendarMensagens() {
         timezone: "America/Sao_Paulo"
     });
 
-    // AGENDA PARA O GRUPO DA QUINTA (Enviar na Terça às 10h00)
     cron.schedule('0 10 * * 2', () => { // 2 = Terça-feira
         console.log('[AGENDAMENTO] Executando tarefa: Enviar lista para o grupo da Quinta.');
         const dataDoJogo = new Date();
         dataDoJogo.setDate(dataDoJogo.getDate() + 2); // Data de hoje (Terça) + 2 dias = Quinta
 
-        const lista = gerarLista(dataDoJogo);
+        const lista = gerarLista(dataDoJogo, '20h30');
         client.sendMessage(ID_GRUPO_QUINTA, lista).catch(err => console.error('Erro ao enviar lista de Quinta:', err));
     }, {
         scheduled: true,
         timezone: "America/Sao_Paulo"
     });
 
-    console.log('✅ Tarefas de Domingo (10h) e Terça (10h) agendadas com sucesso!');
+    cron.schedule('0 8-22/2 * * 3,5', verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
+
+    console.log('✅ Tarefas de Domingo (10h), Terça (10h) e Vigia Youtube agendadas com sucesso!');
 }
 
 
 /**
  * Gera a string da lista formatada para uma data específica.
  * @param {Date} dataDoJogo - O objeto Date do dia do jogo.
+ * @param {String} horario - Horario do jogo
  * @returns {string} A mensagem da lista pronta para ser enviada.
  */
-function gerarLista(dataDoJogo) {
-    // Formata a data para o padrão dd/mm
+function gerarLista(dataDoJogo, horario) {
     const dia = String(dataDoJogo.getDate()).padStart(2, '0');
     const mes = String(dataDoJogo.getMonth() + 1).padStart(2, '0');
-
-    return `⚽ CAMPO DO VIANA
-${dia}/${mes} às 20h30
-
-1 - 🧤
-2 - 🧤
-3 - 
-4 - 
-5 - 
-6 - 
-7 - 
-8 - 
-9 - 
-10 - 
-11 - 
-12 - 
-13 - 
-14 - 
-15 - 
-16 -`;
+    return `⚽ CAMPO DO VIANA\n${dia}/${mes} às ${horario}\n\n1 - 🧤\n2 - 🧤\n3 - \n4 - \n5 - \n6 - \n7 - \n8 - \n9 - \n10 - \n11 - \n12 - \n13 - \n14 - \n15 - \n16 -`;
 }
 
 /**

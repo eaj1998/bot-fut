@@ -229,7 +229,7 @@ function agendarMensagens() {
         timezone: "America/Sao_Paulo"
     });
 
-    cron.schedule('0 8-22/2 * * 3,5', verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
+    cron.schedule('0 8-23/2 * * 3,5', verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
 
     console.log('✅ Tarefas de Domingo (10h), Terça (10h) e Vigia Youtube agendadas com sucesso!');
 }

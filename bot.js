@@ -264,4 +264,10 @@ function getProximoDiaDaSemana(diaDaSemana) {
     return hoje;
 }
 
-client.initialize();
+console.log('[INITIALIZE] Preparando para inicializar o cliente do WhatsApp...');
+
+client.initialize().catch(err => {
+    console.error('❌ [INITIALIZE] FALHA CRÍTICA AO INICIALIZAR O CLIENTE:', err);
+});
+
+console.log('[INITIALIZE] Chamada de client.initialize() foi feita. Aguardando eventos do cliente (QR ou Ready)...');

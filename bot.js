@@ -14,6 +14,7 @@ const ADMIN_NUMBERS = (process.env.ADMIN_NUMBERS || "").split(',');
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_CHANNEL_ID = 'UCxKaWJLsEIFmdfV2OmnNUTA';
 const YOUTUBE_TARGET_GROUP_ID = process.env.YOUTUBE_TARGET_GROUP_ID;
+const YOUTUBE_CHECKER_SCHEDULE = process.env.YOUTUBE_CHECKER_SCHEDULE || '0 8-23/2 * * 3,5';
 
 const requiredEnvVars = ['ID_GRUPO_TERCA', 'ID_GRUPO_QUINTA', 'ADMIN_NUMBERS', 'ID_GRUPO_TESTE'];
 
@@ -243,7 +244,7 @@ function agendarMensagens() {
         timezone: "America/Sao_Paulo"
     });
 
-    cron.schedule('0 8-23/2 * * 3,5,6', verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
+    cron.schedule(YOUTUBE_CHECKER_SCHEDULE, verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
 
     console.log('✅ Tarefas de Domingo (10h), Terça (10h) e Vigia Youtube agendadas com sucesso!');
 }

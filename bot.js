@@ -39,10 +39,11 @@ console.log('⚽ Iniciando o Bot de Futebol...');
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: "wwebjs_auth"
+        dataPath: "./.wwebjs_auth"
     }),
     puppeteer: {
-        headless: true,
+        headless: false,
+        dumpio: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -50,7 +51,7 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process',
+            // '--single-process',
             '--disable-gpu'
         ],
     }
@@ -65,6 +66,18 @@ client.on('ready', () => {
     console.log('✅ Bot conectado e pronto para operar!');
     console.log('Agendando as tarefas automáticas de envio das listas...');
     agendarMensagens();
+});
+
+client.on('loading_screen', (percent, message) => {
+    console.log('LOADING SCREEN', percent, message);
+});
+
+client.on('auth_failure', msg => {
+    console.error('Falha na autenticação:', msg);
+});
+
+client.on('disconnected', reason => {
+    console.log('Cliente desconectado:', reason);
 });
 
 client.on('message', async (message) => {

@@ -42,7 +42,7 @@ const client = new Client({
         dataPath: "./.wwebjs_auth"
     }),
     puppeteer: {
-        headless: false,
+        headless: true,
         dumpio: true,
         args: [
             '--no-sandbox',
@@ -62,19 +62,20 @@ client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => {
+
+client.on('ready', async () => {
     console.log('✅ Bot conectado e pronto para operar!');
     console.log('Agendando as tarefas automáticas de envio das listas...');
     agendarMensagens();
 });
 
-client.on('loading_screen', (percent, message) => {
-    console.log('LOADING SCREEN', percent, message);
-});
+// client.on('loading_screen', (percent, message) => {
+//     console.log('LOADING SCREEN', percent, message);
+// });
 
-client.on('auth_failure', msg => {
-    console.error('Falha na autenticação:', msg);
-});
+// client.on('auth_failure', msg => {
+//     console.error('Falha na autenticação:', msg);
+// });
 
 client.on('disconnected', reason => {
     console.log('Cliente desconectado:', reason);
@@ -242,7 +243,7 @@ function agendarMensagens() {
         timezone: "America/Sao_Paulo"
     });
 
-    cron.schedule('0 8-23/2 * * 3,5', verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
+    cron.schedule('0 8-23/2 * * 3,5,6', verificarEAnunciarYouTube, { timezone: "America/Sao_Paulo" });
 
     console.log('✅ Tarefas de Domingo (10h), Terça (10h) e Vigia Youtube agendadas com sucesso!');
 }

@@ -7,5 +7,5 @@ node_modules
 # Ignorar pasta da sessão do WhatsApp
 .wwebjs_auth/
 .wwebjs_cache
-
+wwebjs_auth
 videos_anunciados.json

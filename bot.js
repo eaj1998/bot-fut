@@ -86,6 +86,38 @@ client.on('message', async (message) => {
         }
     }
 
+    if (command === '/goleiro') {
+        const groupId = message.from;
+        const contato = await message.getContact();
+        const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
+
+        if (!listasAtuais[groupId]) {
+            message.reply('Nenhuma lista de jogo ativa no momento. Aguarde um admin enviar com o comando /lista.');
+            return;
+        }
+
+        if (listasAtuais[groupId].jogadores.some(j => j && j.includes(nomeAutor)) || listasAtuais[groupId].suplentes.includes(nomeAutor)) {
+            message.reply('Você já está na lista!');
+            return;
+        }
+
+        let vagaEncontrada = false;
+        for (let i = 0; i < 2; i++) {
+            if (listasAtuais[groupId].jogadores[i] === '🧤' || listasAtuais[groupId].jogadores[i] === null) {
+                listasAtuais[groupId].jogadores[i] = `🧤 ${nomeAutor}`;
+                vagaEncontrada = true;
+                break;
+            }
+        }
+
+        if (vagaEncontrada) {
+            const listaAtualizada = formatarLista(groupId);
+            client.sendMessage(groupId, listaAtualizada);
+        } else {
+            message.reply('Vagas de goleiro já preenchidas!');
+        }
+    }
+
     if (command === '/desistir') {
         const groupId = message.from;
         const contato = await message.getContact();
@@ -99,14 +131,18 @@ client.on('message', async (message) => {
         let jogadorRemovido = false;
         let mensagemPromocao = '';
 
-        const indexPrincipal = listasAtuais[groupId].jogadores.indexOf(nomeAutor);
+        const indexPrincipal = listasAtuais[groupId].jogadores.findIndex(j => j && j.includes(nomeAutor));
         if (indexPrincipal > -1) {
-            listasAtuais[groupId].jogadores[indexPrincipal] = null;
+            if (indexPrincipal < 2) {
+                listasAtuais[groupId].jogadores[indexPrincipal] = '🧤';
+            } else {
+                listasAtuais[groupId].jogadores[indexPrincipal] = null;
+            }
             jogadorRemovido = true;
 
-            if (listasAtuais[groupId].suplentes.length > 0) {
-                const promovido = listasAtuais[groupId].suplentes.shift(); // Remove o primeiro suplente da lista
-                listasAtuais[groupId].jogadores[indexPrincipal] = promovido; // Coloca na vaga que abriu
+            if (indexPrincipal >= 2 && listasAtuais[groupId].suplentes.length > 0) {
+                const promovido = listasAtuais[groupId].suplentes.shift();
+                listasAtuais[groupId].jogadores[indexPrincipal] = promovido;
                 mensagemPromocao = `\n\n📢 Atenção: ${promovido} foi promovido da suplência para a lista principal!`;
             }
         } else {
@@ -184,14 +220,12 @@ client.on('message', async (message) => {
 
             console.log(`[COMANDO] /carregar recebido. Sincronizando memória para ${groupId}.`);
 
-            // Correção do Bug de Data (Fuso Horário)
             const dateRegex = /(\d{2}\/\d{2}) às (\d{2}h\d{2})/;
             const dateMatch = contentToParse.match(dateRegex);
             if (dateMatch) {
                 const [_, dataStr, horarioStr] = dateMatch;
                 const [dia, mes] = dataStr.split('/');
                 const anoAtual = new Date().getFullYear();
-                // Adicionamos T12:00:00 para evitar problemas de fuso horário
                 listasAtuais[groupId].data = new Date(`${anoAtual}-${mes}-${dia}T12:00:00`);
                 listasAtuais[groupId].horario = horarioStr;
                 console.log(`[SINC] Data e horário da lista atualizados para: ${dataStr} às ${horarioStr}`);
@@ -212,13 +246,12 @@ client.on('message', async (message) => {
 
                 if (match) {
                     const posicao = parseInt(match[1], 10) - 1;
-                    const emoji = match[2] || ''; // O emoji capturado (ex: '💌') ou string vazia
+                    const emoji = match[2] || '';
                     const nome = match[3].trim();
 
                     console.log(`[DEBUG] -> VÁLIDA. Posição: ${posicao + 1}, Emoji: "${emoji}", Nome: "${nome}"`);
 
                     if (posicao >= 0 && posicao < 16 && nome) {
-                        // Remonta o nome com o emoji, se houver
                         novosJogadores[posicao] = `${emoji ? emoji + ' ' : ''}${nome}`;
                         jogadoresCarregados++;
                     }
@@ -295,15 +328,13 @@ function formatarLista(groupId) {
     return textoLista.trim();
 }
 
-
-// --- AGENDAMENTO E OUTRAS FUNÇÕES ---
 function agendarTarefas() {
     cron.schedule('0 10 * * 0', () => { // 0 = Domingo
         console.log('[AGENDAMENTO] Executando tarefa: Enviar lista para o grupo da Terça.');
         const dataDoJogo = new Date();
         dataDoJogo.setDate(dataDoJogo.getDate() + 2, '21h30'); // Data de hoje (Domingo) + 2 dias = Terça
 
-        const lista = gerarLista(dataDoJogo);
+        const lista = inicializarLista(ID_GRUPO_TERCA, dataDoJogo, '21h30');
         client.sendMessage(ID_GRUPO_TERCA, lista).catch(err => console.error('Erro ao enviar lista de Terça:', err));
     }, {
         scheduled: true,
@@ -315,7 +346,7 @@ function agendarTarefas() {
         const dataDoJogo = new Date();
         dataDoJogo.setDate(dataDoJogo.getDate() + 2); // Data de hoje (Terça) + 2 dias = Quinta
 
-        const lista = gerarLista(dataDoJogo, '20h30');
+        const lista = inicializarLista(ID_GRUPO_QUINTA, dataDoJogo, '20h30');
         client.sendMessage(ID_GRUPO_QUINTA, lista).catch(err => console.error('Erro ao enviar lista de Quinta:', err));
     }, {
         scheduled: true,
@@ -398,7 +429,7 @@ function getProximoDiaDaSemana(diaDaSemana) {
     let diasAAdicionar = diaDaSemana - diaAtual;
 
     if (diasAAdicionar <= 0) {
-        diasAAdicionar += 7; // Garante que será na próxima semana se o dia já passou ou é hoje
+        diasAAdicionar += 7;
     }
     hoje.setDate(hoje.getDate() + diasAAdicionar);
     return hoje;

@@ -16,6 +16,10 @@ const YOUTUBE_CHANNEL_ID = 'UCxKaWJLsEIFmdfV2OmnNUTA';
 const YOUTUBE_TARGET_GROUP_ID = process.env.YOUTUBE_TARGET_GROUP_ID;
 const YOUTUBE_CHECKER_SCHEDULE = process.env.YOUTUBE_CHECKER_SCHEDULE || '0 8-23/2 * * 3,5,6';
 const DATA_PATH = process.env.DATA_PATH || ".";
+const ORGANIZE_EMAIL = process.env.ORGANIZE_EMAIL;
+const ORGANIZE_API_KEY = process.env.ORGANIZE_API_KEY;
+const ORGANIZE_VALOR_JOGO = process.env.ORGANIZE_API_KEY;
+
 
 let listasAtuais = {};
 
@@ -203,20 +207,46 @@ client.on('message', async (message) => {
         case '/pago':
         case '/desmarcar': {
             const groupId = message.from;
-            if (!listasAtuais[groupId]) { message.reply('Nenhuma lista ativa. Use /lista primeiro.'); return; }
-            if (args.length === 0) { message.reply(`Uso correto: ${command} <número do jogador>`); return; }
+            if (!listasAtuais[groupId]) {
+                message.reply('Nenhuma lista ativa. Use /lista primeiro.'); return;
+            }
+
+            if (args.length === 0) {
+                message.reply(`Uso correto: ${command} <número do jogador>`); return;
+            }
             const playerNumber = parseInt(args[0], 10);
-            if (isNaN(playerNumber) || playerNumber < 1 || playerNumber > 16) { message.reply('Número inválido. Use de 1 a 16.'); return; }
+
+            if (isNaN(playerNumber) || playerNumber < 1 || playerNumber > 16) {
+                message.reply('Número inválido. Use de 1 a 16.');
+                return;
+            }
+
             const playerIndex = playerNumber - 1;
             const playerName = listasAtuais[groupId].jogadores[playerIndex];
-            if (!playerName) { message.reply(`A posição ${playerNumber} está vazia.`); return; }
+            if (!playerName) {
+                message.reply(`A posição ${playerNumber} está vazia.`);
+                return;
+            }
             if (command === '/pago') {
-                if (playerName.includes('✅')) { message.reply('Jogador já marcado como pago.'); return; }
+                if (playerName.includes('✅')) {
+                    message.reply('Jogador já marcado como pago.');
+                    return;
+                }
+                const nomeLimpo = playerName.replace('🧤', '').trim();
+
                 listasAtuais[groupId].jogadores[playerIndex] = `${playerName.trim()} ✅`;
+                console.log(`[PAGAMENTO] Jogador ${playerNumber} (${nomeLimpo}) marcado como pago no grupo ${groupId}.`);
+               
+                const dataDoJogo = listasAtuais[groupId].data;
+                criarMovimentacaoOrganizze(nomeLimpo, dataDoJogo);
             } else {
-                if (!playerName.includes('✅')) { message.reply('Jogador não estava marcado como pago.'); return; }
+                if (!playerName.includes('✅')) {
+                    message.reply('Jogador não estava marcado como pago.');
+                    return;
+                }
                 listasAtuais[groupId].jogadores[playerIndex] = playerName.replace('✅', '').trim();
             }
+
             const listaAtualizada = formatarLista(groupId);
             client.sendMessage(groupId, listaAtualizada);
             break;
@@ -313,6 +343,57 @@ client.on('message', async (message) => {
     }
 });
 
+/**
+ * Cria uma nova transação na API do Organizze.
+ * @param {string} nomeJogador O nome do jogador que pagou.
+ * @param {Date} dataDoJogo A data do jogo.
+ */
+async function criarMovimentacaoOrganizze(nomeJogador, dataDoJogo) {
+    if (!ORGANIZE_EMAIL || !ORGANIZE_API_KEY) {
+        console.log('[ORGANIZZE] Credenciais não configuradas. Pulando integração.');
+        return;
+    }
+
+    const hoje = new Date();
+    const dataPagamento = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    const dataJogoFormatada = `${String(dataDoJogo.getDate()).padStart(2, '0')}/${String(dataDoJogo.getMonth() + 1).padStart(2, '0')}`;
+
+    const payload = {
+        description: `${nomeJogador} - Jogo ${dataJogoFormatada}`,
+        amount_cents: 1400,
+        date: dataPagamento,
+        account_id: 9099386,
+        category_id: 152977750,
+        paid: true
+    };
+
+    console.log('[ORGANIZZE] Enviando transação:', payload);
+
+    try {
+        await axios.post('https://api.organizze.com.br/rest/v2/transactions',
+            payload,
+            {
+                auth: {
+                    username: ORGANIZE_EMAIL,
+                    password: ORGANIZE_API_KEY
+                },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'BotFutebol (edipo1998@gmail.com)'
+                }
+            }
+        );
+        console.log('✅ [ORGANIZZE] Transação criada com sucesso!');
+    } catch (error) {
+        console.error('❌ [ORGANIZZE] Falha ao criar transação:', error.response ? error.response.data : error.message);
+    }
+}
+/**
+ * Inicializa a lista do jogo.
+ * @param {string} groupId ID do grupo que solicitou a lista.
+ * @param {Date} gameDate A data do jogo.
+ * @param {string} gameTime Horario do Jogo.
+ */
 function inicializarLista(groupId, gameDate, gameTime) {
     console.log(`[LISTA] Inicializando lista para o grupo ${groupId}`);
     const jogadores = Array(16).fill(null);

@@ -18,7 +18,8 @@ const YOUTUBE_CHECKER_SCHEDULE = process.env.YOUTUBE_CHECKER_SCHEDULE || '0 8-23
 const DATA_PATH = process.env.DATA_PATH || ".";
 const ORGANIZE_EMAIL = process.env.ORGANIZE_EMAIL;
 const ORGANIZE_API_KEY = process.env.ORGANIZE_API_KEY;
-const ORGANIZE_VALOR_JOGO = process.env.ORGANIZE_API_KEY;
+// const ORGANIZE_VALOR_JOGO = process.env.ORGANIZE_API_KEY;
+const AMBIENTE = process.env.AMBIENTE;
 
 
 let listasAtuais = {};
@@ -53,7 +54,7 @@ client.on('message', async (message) => {
     const command = firstLineParts[0].toLowerCase();
     const args = firstLineParts.slice(1);
 
-    if (command === '/bora') {
+    if (command === '/bora' + AMBIENTE) {
         const groupId = message.from;
         const contato = await message.getContact();
         const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
@@ -90,7 +91,7 @@ client.on('message', async (message) => {
         }
     }
 
-    if (command === '/goleiro') {
+    if (command === '/goleiro' + AMBIENTE) {
         const groupId = message.from;
         const contato = await message.getContact();
         const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
@@ -122,7 +123,7 @@ client.on('message', async (message) => {
         }
     }
 
-    if (command === '/desistir') {
+    if (command === '/desistir' + AMBIENTE) {
         const groupId = message.from;
         const contato = await message.getContact();
         const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
@@ -166,8 +167,61 @@ client.on('message', async (message) => {
         }
     }
 
+    if (command === '/convidado' + AMBIENTE) {
+
+        const groupId = message.from;
+        const nomeConvidado = args.join(' ');
+
+        if (!listasAtuais[groupId]) {
+            message.reply('Nenhuma lista de jogo ativa no momento. Use /lista primeiro.');
+            return;
+        }
+
+        if (!nomeConvidado) {
+            message.reply('Uso correto: /convidado <nome do convidado>');
+            return;
+        }
+
+        let vagaEncontrada = false;
+        const isGoleiro = nomeConvidado.includes('🧤');
+
+        if (isGoleiro) {
+            console.log(`[CONVIDADO] Tentando adicionar convidado GOLEIRO: "${nomeConvidado}"`);
+            for (let i = 0; i < 2; i++) {
+                if (listasAtuais[groupId].jogadores[i] === '🧤' || listasAtuais[groupId].jogadores[i] === null) {
+                    listasAtuais[groupId].jogadores[i] = nomeConvidado;
+                    vagaEncontrada = true;
+                    break;
+                }
+            }
+            if (!vagaEncontrada) {
+                message.reply('Vagas de goleiro já preenchidas!');
+                return;
+            }
+
+        } else {
+            console.log(`[CONVIDADO] Tentando adicionar convidado de LINHA: "${nomeConvidado}"`);
+            for (let i = 2; i < 16; i++) {
+                if (listasAtuais[groupId].jogadores[i] === null) {
+                    listasAtuais[groupId].jogadores[i] = nomeConvidado;
+                    vagaEncontrada = true;
+                    break;
+                }
+            }
+            if (!vagaEncontrada) {
+                listasAtuais[groupId].suplentes.push(nomeConvidado);
+                const posicaoSuplente = listasAtuais[groupId].suplentes.length;
+                message.reply(`Lista principal cheia! O convidado "${nomeConvidado}" foi adicionado como o ${posicaoSuplente}º suplente.`);
+            }
+        }
+
+        message.reply(`✅ Convidado "${nomeConvidado}" adicionado!`);
+        const listaAtualizada = formatarLista(groupId);
+        client.sendMessage(groupId, listaAtualizada);
+    }
+
     const stickers = {
-        '/mepoe': './assets/joao.webp',
+        '/joao': './assets/joao.webp',
     };
 
     if (stickers[command]) {
@@ -188,7 +242,7 @@ client.on('message', async (message) => {
     }
 
     switch (command) {
-        case '/lista': {
+        case '/lista' + AMBIENTE: {
             const groupId = message.from;
             let gameTime = '20h30';
             let gameDate = new Date();
@@ -204,8 +258,8 @@ client.on('message', async (message) => {
             client.sendMessage(groupId, listaFormatada);
             break;
         }
-        case '/pago':
-        case '/desmarcar': {
+        case '/pago' + AMBIENTE:
+        case '/desmarcar' + AMBIENTE: {
             const groupId = message.from;
             if (!listasAtuais[groupId]) {
                 message.reply('Nenhuma lista ativa. Use /lista primeiro.'); return;
@@ -227,7 +281,7 @@ client.on('message', async (message) => {
                 message.reply(`A posição ${playerNumber} está vazia.`);
                 return;
             }
-            if (command === '/pago') {
+            if (command === '/pago' + AMBIENTE) {
                 if (playerName.includes('✅')) {
                     message.reply('Jogador já marcado como pago.');
                     return;
@@ -236,7 +290,7 @@ client.on('message', async (message) => {
 
                 listasAtuais[groupId].jogadores[playerIndex] = `${playerName.trim()} ✅`;
                 console.log(`[PAGAMENTO] Jogador ${playerNumber} (${nomeLimpo}) marcado como pago no grupo ${groupId}.`);
-               
+
                 const dataDoJogo = listasAtuais[groupId].data;
                 criarMovimentacaoOrganizze(nomeLimpo, dataDoJogo);
             } else {
@@ -251,7 +305,7 @@ client.on('message', async (message) => {
             client.sendMessage(groupId, listaAtualizada);
             break;
         }
-        case '/carregar': {
+        case '/carregar' + AMBIENTE: {
             const groupId = message.from;
             if (!listasAtuais[groupId]) {
                 inicializarLista(groupId, new Date(), '00h00');
@@ -311,7 +365,7 @@ client.on('message', async (message) => {
             }
             break;
         }
-        case '/marcar': {
+        case '/marcar' + AMBIENTE: {
             const chat = await message.getChat();
             if (chat.isGroup) {
                 let text = "Chamada geral! 📢\n\n";

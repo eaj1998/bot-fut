@@ -54,7 +54,7 @@ client.on('message', async (message) => {
     const command = firstLineParts[0].toLowerCase();
     const args = firstLineParts.slice(1);
 
-    if (command === '/bora' + AMBIENTE) {
+    if (command === '/bora') {
         const groupId = message.from;
         const contato = await message.getContact();
         const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
@@ -91,7 +91,7 @@ client.on('message', async (message) => {
         }
     }
 
-    if (command === '/goleiro' + AMBIENTE) {
+    if (command === '/goleiro') {
         const groupId = message.from;
         const contato = await message.getContact();
         const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
@@ -123,7 +123,7 @@ client.on('message', async (message) => {
         }
     }
 
-    if (command === '/desistir' + AMBIENTE) {
+    if (command === '/desistir') {
         const groupId = message.from;
         const contato = await message.getContact();
         const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
@@ -167,7 +167,7 @@ client.on('message', async (message) => {
         }
     }
 
-    if (command === '/convidado' + AMBIENTE) {
+    if (command === '/convidado') {
 
         const groupId = message.from;
         const nomeConvidado = args.join(' ');
@@ -240,9 +240,9 @@ client.on('message', async (message) => {
         console.log(`[AUTH] Tentativa de comando por usuário não autorizado: ${message.author}`);
         return;
     }
-
+    
     switch (command) {
-        case '/lista' + AMBIENTE: {
+        case '/lista': {
             const groupId = message.from;
             let gameTime = '20h30';
             let gameDate = new Date();
@@ -258,8 +258,8 @@ client.on('message', async (message) => {
             client.sendMessage(groupId, listaFormatada);
             break;
         }
-        case '/pago' + AMBIENTE:
-        case '/desmarcar' + AMBIENTE: {
+        case '/pago':
+        case '/desmarcar': {
             const groupId = message.from;
             if (!listasAtuais[groupId]) {
                 message.reply('Nenhuma lista ativa. Use /lista primeiro.'); return;
@@ -281,7 +281,7 @@ client.on('message', async (message) => {
                 message.reply(`A posição ${playerNumber} está vazia.`);
                 return;
             }
-            if (command === '/pago' + AMBIENTE) {
+            if (command === '/pago') {
                 if (playerName.includes('✅')) {
                     message.reply('Jogador já marcado como pago.');
                     return;
@@ -305,7 +305,7 @@ client.on('message', async (message) => {
             client.sendMessage(groupId, listaAtualizada);
             break;
         }
-        case '/carregar' + AMBIENTE: {
+        case '/carregar': {
             const groupId = message.from;
             if (!listasAtuais[groupId]) {
                 inicializarLista(groupId, new Date(), '00h00');
@@ -365,7 +365,7 @@ client.on('message', async (message) => {
             }
             break;
         }
-        case '/marcar' + AMBIENTE: {
+        case '/marcar': {
             const chat = await message.getChat();
             if (chat.isGroup) {
                 let text = "Chamada geral! 📢\n\n";

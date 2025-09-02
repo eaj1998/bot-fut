@@ -13,10 +13,13 @@ Bot inteligente para WhatsApp que automatiza a gestão de listas de jogos de fut
 - **Sincronização**: Comando para carregar listas existentes e sincronizar dados
 
 ### 👥 Controle de Jogadores
-- **Sistema de inscrição**: `/bora` para se inscrever automaticamente
+- **Sistema de inscrição**: `/bora` para se inscrever automaticamente (vagas de linha)
+- **Sistema de goleiros**: `/goleiro` para se inscrever especificamente como goleiro
+- **Sistema de convidados**: `/convidado` para adicionar jogadores externos à lista
 - **Sistema de desistência**: `/desistir` para sair da lista
 - **Promoção automática**: Suplentes são promovidos automaticamente quando há vagas
 - **Controle de pagamentos**: Marca jogadores como pagos com `/pago`
+- **Chamada geral**: `/marcar` para notificar todos os participantes do grupo
 
 ### 🎥 Integração com YouTube
 - **Monitoramento automático**: Verifica novos vídeos no canal do Viana
@@ -31,18 +34,50 @@ Bot inteligente para WhatsApp que automatiza a gestão de listas de jogos de fut
 ## 📱 Comandos Disponíveis
 
 ### 👤 Para Todos os Jogadores
-- **`/bora`** - Inscreve-se na lista de jogo
-- **`/goleiro`** - Inscreve-se como Goleiro na lista de jogo
+- **`/bora`** - Inscreve-se na lista de jogo (vagas de linha)
+- **`/goleiro`** - Inscreve-se especificamente como goleiro (vagas 1-2)
 - **`/desistir`** - Remove-se da lista de jogo
-
+- **`/convidado <nome>`** - Adiciona um convidado à lista (ex: `/convidado João Silva` para linha ou `/convidado 🧤 Pedro` para goleiro)
 
 ### 👑 Apenas para Administradores
 - **`/lista`** - Cria uma nova lista de jogo
 - **`/carregar`** - Sincroniza lista existente com o bot
 - **`/pago <número>`** - Marca jogador como pago (ex: `/pago 5`)
 - **`/desmarcar <número>`** - Remove marcação de pagamento
+- **`/marcar`** - Marca todos os participantes do grupo (chamada geral)
 - **`/testeyt`** - Testa verificação do YouTube manualmente
 - **`/resetvideos`** - Reseta histórico de vídeos anunciados
+
+## 📖 Como Usar os Comandos
+
+### 🎯 Comandos de Inscrição
+- **`/bora`**: Inscreve-se automaticamente nas vagas de linha (posições 3-16)
+- **`/goleiro`**: Inscreve-se especificamente como goleiro (posições 1-2)
+- **`/convidado João Silva`**: Adiciona um convidado nas vagas de linha
+- **`/convidado 🧤 Pedro`**: Adiciona um convidado como goleiro (⚠️ **Obrigatório usar a luva 🧤**)
+
+### 💰 Comandos de Pagamento
+- **`/pago 5`**: Marca o jogador da posição 5 como pago (aparece com ✅)
+- **`/desmarcar 5`**: Remove a marcação de pagamento da posição 5
+
+### 📢 Comandos de Comunicação
+- **`/marcar`**: Marca todos os participantes do grupo (útil para chamadas gerais)
+
+### 🔄 Comandos de Gestão
+- **`/carregar`**: Sincroniza uma lista existente com o bot
+  ```
+  /carregar
+  ⚽ CAMPO DO VIANA
+  15/12 às 20h30
+  ...
+  ```
+
+### 👥 Comando de Convidados
+- **`/convidado <nome>`**: Adiciona jogadores externos à lista
+  - **Para jogadores de linha**: `/convidado João Silva`
+  - **Para goleiros**: `/convidado 🧤 Pedro` (⚠️ **A luva 🧤 é obrigatória**)
+  - O bot identifica automaticamente se é goleiro pela presença da luva
+  - Se não houver vagas na lista principal, o convidado vai para suplência
 
 ## ⚙️ Configuração
 
@@ -67,12 +102,19 @@ DATA_PATH=./dados
 
 ```
 bot-grupo-futebol/
-├── bot.js              # Bot principal com todas as funcionalidades
-├── package.json        # Dependências e configurações
-├── videos_anunciados.json  # Histórico de vídeos do YouTube
-├── .env                # Configurações de ambiente (criar)
-├── wwebjs_auth/        # Autenticação do WhatsApp Web
-└── .wwebjs_cache/      # Cache do WhatsApp Web
+├── bot.js                    # Bot principal com todas as funcionalidades
+├── package.json              # Dependências e configurações do Node.js
+├── package-lock.json         # Lock file das dependências
+├── nixpacks.toml             # Configuração de deploy (Nixpacks)
+├── README.md                 # Documentação do projeto
+├── assets/                   # Arquivos de mídia e recursos
+│   └── joao.webp            # Imagem de exemplo
+├── data/                     # Dados persistentes do bot
+│   ├── videos_anunciados.json  # Histórico de vídeos do YouTube
+│   └── wwebjs_auth/         # Autenticação do WhatsApp Web
+│       └── session/         # Sessões e cache do WhatsApp
+├── node_modules/             # Dependências instaladas (npm)
+└── .env                      # Configurações de ambiente (criar)
 ```
 
 ## 🚀 Instalação e Uso

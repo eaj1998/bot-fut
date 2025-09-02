@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const cron = require('node-cron');
 const express = require('express');
@@ -162,6 +162,22 @@ client.on('message', async (message) => {
         }
     }
 
+    const stickers = {
+        '/mepoe': './assets/joao.webp',
+    };
+
+    if (stickers[command]) {
+        console.log(`[COMANDO] Figurinha "${command}" recebida.`);
+        try {
+            const stickerPath = stickers[command];
+            const sticker = MessageMedia.fromFilePath(stickerPath);
+            client.sendMessage(message.from, sticker, { sendMediaAsSticker: true });
+        } catch (error) {
+            console.error(`❌ [FALHA] Erro ao enviar a figurinha ${command}:`, error);
+            message.reply(`Desculpe, não consegui encontrar a figurinha para o comando ${command}.`);
+        }
+    }
+
     if (command.startsWith('/') && !isUserAdmin) {
         console.log(`[AUTH] Tentativa de comando por usuário não autorizado: ${message.author}`);
         return;
@@ -237,10 +253,8 @@ client.on('message', async (message) => {
             const linhas = contentToParse.split('\n');
             let jogadoresCarregados = 0;
 
-            console.log('--- [DEBUG /carregar] Analisando linhas da mensagem ---');
             for (const linha of linhas) {
                 const trimmedLine = linha.trim();
-                console.log(`[DEBUG] Lendo linha: "${trimmedLine}"`);
 
                 const match = trimmedLine.match(/^(\d{1,2})\s*-\s*(\p{Emoji})?\s*(.*)/u);
 
@@ -249,19 +263,12 @@ client.on('message', async (message) => {
                     const emoji = match[2] || '';
                     const nome = match[3].trim();
 
-                    console.log(`[DEBUG] -> VÁLIDA. Posição: ${posicao + 1}, Emoji: "${emoji}", Nome: "${nome}"`);
-
                     if (posicao >= 0 && posicao < 16 && nome) {
                         novosJogadores[posicao] = `${emoji ? emoji + ' ' : ''}${nome}`;
                         jogadoresCarregados++;
                     }
-                } else {
-                    if (trimmedLine !== '') {
-                        console.log(`[DEBUG] -> INVÁLIDA. A linha não correspondeu ao padrão.`);
-                    }
                 }
             }
-            console.log('--- [DEBUG /carregar] Fim da análise ---');
 
 
             if (jogadoresCarregados > 0) {
@@ -271,6 +278,22 @@ client.on('message', async (message) => {
                 client.sendMessage(groupId, listaFormatada);
             } else {
                 message.reply('Não consegui encontrar nenhum jogador válido na lista que você enviou.');
+            }
+            break;
+        }
+        case '/marcar': {
+            const chat = await message.getChat();
+            if (chat.isGroup) {
+                let text = "Chamada geral! 📢\n\n";
+                let mentions = [];
+                console.log(`[COMANDO] /marcar recebido no grupo "${chat.name}".`);
+                for (let participant of chat.participants) {
+                    mentions.push(participant.id._serialized);
+                    text += `@${participant.id.user} `;
+                }
+                chat.sendMessage(text.trim(), { mentions }).catch(err => console.error('❌ [FALHA] Erro ao enviar menções:', err));
+            } else {
+                message.reply('O comando /marcar só funciona em grupos.');
             }
             break;
         }

@@ -240,7 +240,7 @@ client.on('message', async (message) => {
         console.log(`[AUTH] Tentativa de comando por usuário não autorizado: ${message.author}`);
         return;
     }
-    
+
     switch (command) {
         case '/lista': {
             const groupId = message.from;
@@ -519,20 +519,29 @@ function agendarTarefas() {
 async function verificarEAnunciarYouTube() {
     console.log('[YOUTUBE] Iniciando verificação de novos vídeos...');
     if (!YOUTUBE_API_KEY) return;
-
     const ANUNCIADOS_FILE_PATH = `videos_anunciados.json`;
+
     try {
         let anunciados = [];
         try {
             const data = await fs.readFile(ANUNCIADOS_FILE_PATH, 'utf8');
             anunciados = JSON.parse(data);
+            console.log(`[DEBUG] Vídeos já anunciados: ${anunciados.length}`);
+            console.log(`[DEBUG] IDs anunciados:`, anunciados);
         } catch (error) {
             console.warn('[YOUTUBE] Arquivo de anunciados não encontrado. Criando um novo.');
             await fs.writeFile(ANUNCIADOS_FILE_PATH, JSON.stringify([]));
         }
 
         const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
-            params: { key: YOUTUBE_API_KEY, channelId: YOUTUBE_CHANNEL_ID, part: 'snippet', order: 'date', maxResults: 4, type: 'video' }
+            params: {
+                key: YOUTUBE_API_KEY,
+                channelId: YOUTUBE_CHANNEL_ID,
+                part: 'snippet',
+                order: 'date',
+                maxResults: 4,
+                type: 'video'
+            }
         });
 
         const videos = response.data.items;
@@ -541,39 +550,85 @@ async function verificarEAnunciarYouTube() {
             return;
         }
 
+        console.log(`[DEBUG] Total de vídeos retornados pela API: ${videos.length}`);
+
+        videos.forEach((video, index) => {
+            console.log(`[DEBUG] Vídeo ${index + 1}:`);
+            console.log(`  - ID: ${video.id.videoId}`);
+            console.log(`  - Título: ${video.snippet.title}`);
+            console.log(`  - Data de publicação: ${video.snippet.publishedAt}`);
+            console.log(`  - Já anunciado: ${anunciados.includes(video.id.videoId) ? 'SIM' : 'NÃO'}`);
+        });
+
         let videosParaAnunciar = [];
+
         for (const video of videos) {
             const videoId = video.id.videoId;
             const videoTitle = video.snippet.title;
             const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
             const padraoTitulo = /Viana - (\d{2}\/\d{2}\/\d{4}) - (A|B)/i;
             const match = videoTitle.match(padraoTitulo);
 
+            console.log(`[DEBUG] Processando: ${videoTitle}`);
+            console.log(`[DEBUG] Match do padrão: ${match ? 'SIM' : 'NÃO'}`);
+            console.log(`[DEBUG] Já anunciado: ${anunciados.includes(videoId) ? 'SIM' : 'NÃO'}`);
+
             if (!anunciados.includes(videoId) && match) {
                 let targetGroupId = YOUTUBE_TARGET_GROUP_ID; // Prioriza o modo de teste
+
                 if (!targetGroupId) {
                     const [_, dataStr] = match;
                     const [dia, mes, ano] = dataStr.split('/');
                     const dataJogo = new Date(`${ano}-${mes}-${dia}`);
                     const diaDaSemana = dataJogo.getDay();
-                    if (diaDaSemana === 2) targetGroupId = ID_GRUPO_TERCA;
-                    if (diaDaSemana === 4) targetGroupId = ID_GRUPO_QUINTA;
+
+                    console.log(`[DEBUG] Data do jogo: ${dataStr}`);
+                    console.log(`[DEBUG] Dia da semana: ${diaDaSemana} (0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb)`);
+
+                    if (diaDaSemana === 2) {
+                        targetGroupId = ID_GRUPO_TERCA;
+                        console.log(`[DEBUG] ✅ Enviando para grupo da TERÇA`);
+                    } else if (diaDaSemana === 4) {
+                        targetGroupId = ID_GRUPO_QUINTA;
+                        console.log(`[DEBUG] ✅ Enviando para grupo da QUINTA`);
+                    } else {
+                        console.log(`[DEBUG] ❌ Data não corresponde aos dias de jogo (dia ${diaDaSemana})`);
+                    }
                 }
+
                 if (targetGroupId) {
                     videosParaAnunciar.push({ videoId, videoTitle, videoUrl, targetGroupId });
+                    console.log(`[DEBUG] ✅ Vídeo adicionado à lista para anunciar`);
+                } else {
+                    console.log(`[DEBUG] ❌ Nenhum grupo alvo definido`);
+                }
+            } else {
+                if (anunciados.includes(videoId)) {
+                    console.log(`[DEBUG] ❌ Vídeo JÁ foi anunciado anteriormente`);
+                }
+                if (!match) {
+                    console.log(`[DEBUG] ❌ Título não corresponde ao padrão esperado`);
                 }
             }
+            console.log(`[DEBUG] =====================================`);
         }
+
+        console.log(`[DEBUG] Total de vídeos para anunciar: ${videosParaAnunciar.length}`);
 
         if (videosParaAnunciar.length > 0) {
             console.log(`[YOUTUBE] ${videosParaAnunciar.length} vídeo(s) novo(s) encontrado(s).`);
+
             for (const video of videosParaAnunciar) {
                 const mensagem = `🎥 Vídeo novo no canal!\n\n*${video.videoTitle}*\n\n${video.videoUrl}`;
                 await client.sendMessage(video.targetGroupId, mensagem);
                 console.log(`[YOUTUBE] Mensagem enviada para o grupo ${video.targetGroupId}`);
+                console.log(`[DEBUG] Adicionando ${video.videoId} à lista de anunciados`);
                 anunciados.push(video.videoId);
             }
+
             await fs.writeFile(ANUNCIADOS_FILE_PATH, JSON.stringify(anunciados, null, 2));
+            console.log(`[DEBUG] Arquivo de anunciados atualizado com ${anunciados.length} vídeos`);
         } else {
             console.log('[YOUTUBE] Nenhum vídeo NOVO encontrado para anunciar.');
         }
@@ -581,6 +636,7 @@ async function verificarEAnunciarYouTube() {
         console.error('[YOUTUBE] Ocorreu um erro:', error.response ? error.response.data.error.message : error.message);
     }
 }
+
 function getProximoDiaDaSemana(diaDaSemana) {
     const hoje = new Date();
     const diaAtual = hoje.getDay();

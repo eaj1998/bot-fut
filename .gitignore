@@ -9,3 +9,5 @@ node_modules
 .wwebjs_cache
 wwebjs_auth
 videos_anunciados.json
+
+dist/

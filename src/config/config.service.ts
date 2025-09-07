@@ -8,7 +8,7 @@ export class ConfigService {
 
   localServer = {
     port: process.env.PORT || 3000,
-  }
+  };
 
   whatsApp = {
     sessionPath: process.env.DATA_PATH || '.',

@@ -18,7 +18,7 @@ export class HttpServer extends IBotServerPort {
 
   constructor(
     @inject(LoggerService) private readonly loggerService: LoggerService,
-    @inject(ConfigService) private readonly configService: ConfigService,
+    @inject(ConfigService) private readonly configService: ConfigService
   ) {
     super();
     loggerService.setName('HTTPServer');
@@ -38,7 +38,7 @@ export class HttpServer extends IBotServerPort {
       if (!this.events.message) return;
 
       const msg: Partial<Message> = {
-        from: user.id,
+        from: '1',
         author: user.name,
         body: input,
         getContact: async () =>

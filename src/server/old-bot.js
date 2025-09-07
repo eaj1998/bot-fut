@@ -1,32 +1,11 @@
 require('dotenv').config();
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
 const cron = require('node-cron');
-const express = require('express');
 const axios = require('axios');
 const fs = require('fs/promises');
 
-const ID_GRUPO_TERCA = process.env.ID_GRUPO_TERCA;
-const ID_GRUPO_QUINTA = process.env.ID_GRUPO_QUINTA;
-const ID_GRUPO_TESTE = process.env.ID_GRUPO_TESTE;
-const ADMIN_NUMBERS = (process.env.ADMIN_NUMBERS || '').split(',');
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
-const YOUTUBE_CHANNEL_ID = 'UCxKaWJLsEIFmdfV2OmnNUTA';
-const YOUTUBE_TARGET_GROUP_ID = process.env.YOUTUBE_TARGET_GROUP_ID;
-const YOUTUBE_CHECKER_SCHEDULE = process.env.YOUTUBE_CHECKER_SCHEDULE || '0 8-23/2 * * 3,5,6';
-const DATA_PATH = process.env.DATA_PATH || '.';
-const ORGANIZE_EMAIL = process.env.ORGANIZE_EMAIL;
-const ORGANIZE_API_KEY = process.env.ORGANIZE_API_KEY;
-// const ORGANIZE_VALOR_JOGO = process.env.ORGANIZE_API_KEY;
-const AMBIENTE = process.env.AMBIENTE;
-
 let listasAtuais = {};
-
-const app = express();
-const PORT = process.env.PORT || 8080;
-app.get('/', (req, res) => res.send('⚽ Bot de Futebol está online e operando!'));
-app.listen(PORT, () => console.log(`[SERVER] Servidor web rodando na porta ${PORT}.`));
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: `${DATA_PATH}/wwebjs_auth` }),
@@ -35,13 +14,6 @@ const client = new Client({
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
     timeout: 60000,
   },
-});
-
-client.on('qr', (qr) => qrcode.generate(qr, { small: true }));
-
-client.on('ready', () => {
-  console.log('✅ Bot conectado e pronto para operar!');
-  agendarTarefas();
 });
 
 client.on('message', async (message) => {
@@ -54,47 +26,7 @@ client.on('message', async (message) => {
   const args = firstLineParts.slice(1);
 
   if (command === '/bora') {
-    const groupId = message.from;
-    const contato = await message.getContact();
-    const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
-
-    if (!listasAtuais[groupId]) {
-      message.reply(
-        'Nenhuma lista de jogo ativa no momento. Aguarde um admin enviar com o comando /lista.'
-      );
-      return;
-    }
-
-    if (
-      listasAtuais[groupId].jogadores.includes(nomeAutor) ||
-      listasAtuais[groupId].suplentes.includes(nomeAutor)
-    ) {
-      message.reply('Você já está na lista!');
-      return;
-    }
-
-    let vagaPrincipalEncontrada = false;
-    for (let i = 2; i < 16; i++) {
-      if (listasAtuais[groupId].jogadores[i] === null) {
-        listasAtuais[groupId].jogadores[i] = nomeAutor;
-        vagaPrincipalEncontrada = true;
-        break;
-      }
-    }
-
-    if (vagaPrincipalEncontrada) {
-      const listaAtualizada = formatarLista(groupId);
-      client.sendMessage(groupId, listaAtualizada);
-    } else {
-      listasAtuais[groupId].suplentes.push(nomeAutor);
-      const posicaoSuplente = listasAtuais[groupId].suplentes.length;
-      message.reply(
-        `Lista principal cheia! Você foi adicionado como o ${posicaoSuplente}º suplente.`
-      );
-
-      const listaAtualizada = formatarLista(groupId);
-      client.sendMessage(groupId, listaAtualizada);
-    }
+    
   }
 
   if (command === '/goleiro') {
@@ -262,23 +194,7 @@ client.on('message', async (message) => {
 
   switch (command) {
     case '/lista': {
-      const groupId = message.from;
-      let gameTime = '20h30';
-      let gameDate = new Date();
-      if (groupId === ID_GRUPO_TERCA) {
-        gameTime = '21h30';
-        gameDate = getProximoDiaDaSemana(2);
-      } else if (groupId === ID_GRUPO_QUINTA) {
-        gameTime = '20h30';
-        gameDate = getProximoDiaDaSemana(4);
-      } else if (groupId === ID_GRUPO_TESTE) {
-        gameDate.setDate(gameDate.getDate() + 3);
-      } else {
-        return;
-      }
-      inicializarLista(groupId, gameDate, gameTime);
-      const listaFormatada = formatarLista(groupId);
-      client.sendMessage(groupId, listaFormatada);
+      
       break;
     }
     case '/pago':
@@ -684,18 +600,6 @@ async function verificarEAnunciarYouTube() {
       error.response ? error.response.data.error.message : error.message
     );
   }
-}
-
-function getProximoDiaDaSemana(diaDaSemana) {
-  const hoje = new Date();
-  const diaAtual = hoje.getDay();
-  let diasAAdicionar = diaDaSemana - diaAtual;
-
-  if (diasAAdicionar <= 0) {
-    diasAAdicionar += 7;
-  }
-  hoje.setDate(hoje.getDate() + diasAAdicionar);
-  return hoje;
 }
 
 client.initialize();

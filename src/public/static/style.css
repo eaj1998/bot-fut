@@ -86,7 +86,7 @@ body{
 }
 
 .chat .chat-history .message-data {
-    margin-bottom: 5px
+    margin-bottom: 5px;
 }
 
 .chat .chat-history .message-data img {
@@ -126,7 +126,7 @@ body{
 
 .chat .chat-history .other-message {
     background: #e8f1f3;
-    text-align: right
+    text-align: left;
 }
 
 .chat .chat-history .other-message:after {
@@ -149,7 +149,7 @@ body{
 }
 
 .chat .chat-message {
-    padding: 20px
+    padding: 20px;
 }
 
 .chat .chat-message .form-control {

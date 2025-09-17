@@ -27,6 +27,50 @@ let listasAtuais = {};
 const app = express();
 const PORT = process.env.PORT || 8080;
 app.get('/', (req, res) => res.send('⚽ Bot de Futebol está online e operando!'));
+
+app.get('/files', (req, res) => {
+    const exploreDir = (dirPath) => {
+        try {
+            if (fs.existsSync(dirPath)) {
+                const items = fs.readdirSync(dirPath, { withFileTypes: true });
+                return items.map(item => ({
+                    name: item.name,
+                    type: item.isDirectory() ? 'directory' : 'file',
+                    path: path.join(dirPath, item.name)
+                }));
+            }
+        } catch (e) {
+            return `Erro: ${e.message}`;
+        }
+        return null;
+    };
+
+    const result = {
+        '/data': exploreDir('/data'),
+        '/app': exploreDir('/app'),
+        '/app/data': exploreDir('/app/data'),
+        '/volume': exploreDir('/volume'),
+        './': exploreDir('./'),
+        './data': exploreDir('./data')
+    };
+
+    res.json(result);
+});
+
+app.get('/download', (req, res) => {
+    const filePath = req.query.path;
+    
+    if (!filePath) {
+        return res.status(400).send('Parâmetro "path" é obrigatório');
+    }
+    
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        res.download(filePath);
+    } else {
+        res.status(404).send('Arquivo não encontrado: ' + filePath);
+    }
+});
+
 app.listen(PORT, () => console.log(`[SERVER] Servidor web rodando na porta ${PORT}.`));
 
 const client = new Client({

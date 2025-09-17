@@ -5,7 +5,8 @@ const qrcode = require('qrcode-terminal');
 const cron = require('node-cron');
 const express = require('express');
 const axios = require('axios');
-const fs = require('fs/promises');
+const fs = require('fs');
+const fsPromises = require('fs/promises');
 const path = require('path');
 
 const ID_GRUPO_TERCA = process.env.ID_GRUPO_TERCA;
@@ -29,7 +30,23 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 app.get('/', (req, res) => res.send('⚽ Bot de Futebol está online e operando!'));
 
-app.get('/files', (req, res) => {
+app.get('/admin/simple', (req, res) => {
+    try {
+        const fs = require('fs');
+        
+        const currentDir = fs.readdirSync('.');
+        
+        res.json({
+            'diretorio_atual': currentDir,
+            'working_directory': process.cwd(),
+            'env_vars': process.env
+        });
+    } catch (error) {
+        res.json({ error: error.message });
+    }
+});
+
+app.get('/admin/files', (req, res) => {
     const exploreDir = (dirPath) => {
         try {
             if (fs.existsSync(dirPath)) {
@@ -37,13 +54,14 @@ app.get('/files', (req, res) => {
                 return items.map(item => ({
                     name: item.name,
                     type: item.isDirectory() ? 'directory' : 'file',
+                    size: item.isFile() ? fs.statSync(path.join(dirPath, item.name)).size : null,
                     path: path.join(dirPath, item.name)
                 }));
             }
         } catch (e) {
             return `Erro: ${e.message}`;
         }
-        return null;
+        return 'Diretório não existe';
     };
 
     const result = {
@@ -52,23 +70,33 @@ app.get('/files', (req, res) => {
         '/app/data': exploreDir('/app/data'),
         '/volume': exploreDir('/volume'),
         './': exploreDir('./'),
-        './data': exploreDir('./data')
+        './data': exploreDir('./data'),
+        'working_directory': exploreDir(process.cwd()),
+        'process_env_info': {
+            NODE_ENV: process.env.NODE_ENV,
+            PWD: process.env.PWD,
+            HOME: process.env.HOME
+        }
     };
 
     res.json(result);
 });
 
-app.get('/download', (req, res) => {
+app.get('/admin/download', (req, res) => {
     const filePath = req.query.path;
     
     if (!filePath) {
-        return res.status(400).send('Parâmetro "path" é obrigatório');
+        return res.status(400).send('Use: /admin/download?path=/caminho/completo/do/arquivo');
     }
     
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        res.download(filePath);
-    } else {
-        res.status(404).send('Arquivo não encontrado: ' + filePath);
+    try {
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            res.download(filePath);
+        } else {
+            res.status(404).send('Arquivo não encontrado: ' + filePath);
+        }
+    } catch (error) {
+        res.status(500).send('Erro: ' + error.message);
     }
 });
 

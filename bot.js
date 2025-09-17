@@ -6,6 +6,7 @@ const cron = require('node-cron');
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs/promises');
+const path = require('path');
 
 const ID_GRUPO_TERCA = process.env.ID_GRUPO_TERCA;
 const ID_GRUPO_QUINTA = process.env.ID_GRUPO_QUINTA;

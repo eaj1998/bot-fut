@@ -103,14 +103,12 @@ app.get('/admin/download', (req, res) => {
 app.listen(PORT, () => console.log(`[SERVER] Servidor web rodando na porta ${PORT}.`));
 
 const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: `${DATA_PATH}/wwebjs_auth` }),
+    authStrategy: new LocalAuth({ clientId: "fcjogasimples", dataPath: `${DATA_PATH}/wwebjs_auth` }),
     puppeteer: {
         headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu'
         ],
         timeout: 60000
     }

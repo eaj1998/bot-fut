@@ -106,7 +106,12 @@ const client = new Client({
     authStrategy: new LocalAuth({ dataPath: `${DATA_PATH}/wwebjs_auth` }),
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ],
         timeout: 60000
     }
 });
@@ -117,6 +122,12 @@ client.on('ready', () => {
     console.log('✅ Bot conectado e pronto para operar!');
     agendarTarefas();
 });
+
+['authenticated','auth_failure','message_ciphertext','message_create','message_revoke_everyone','message_revoke_me','message_ack','message_edit','media_uploaded','contact_changed','group_join','group_leave','group_admin_changed','group_membership_request','group_update','loading_screen','disconnected','change_state','change_battery','remote_session_saved','call'].map(evt => {
+	client.on(evt, () => {
+		console.log('Evento invocado', evt)
+	});
+})
 
 client.on('message', async (message) => {
     console.log(`[MSG] De: ${message.from} | Autor: ${message.author} | Conteúdo: "${message.body}"`);

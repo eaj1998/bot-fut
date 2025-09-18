@@ -25,6 +25,7 @@ const AMBIENTE = process.env.AMBIENTE;
 
 
 let listasAtuais = {};
+let jogadoresForaDaSemana = {};
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -33,9 +34,9 @@ app.get('/', (req, res) => res.send('⚽ Bot de Futebol está online e operando!
 app.get('/admin/simple', (req, res) => {
     try {
         const fs = require('fs');
-        
+
         const currentDir = fs.readdirSync('.');
-        
+
         res.json({
             'diretorio_atual': currentDir,
             'working_directory': process.cwd(),
@@ -84,11 +85,11 @@ app.get('/admin/files', (req, res) => {
 
 app.get('/admin/download', (req, res) => {
     const filePath = req.query.path;
-    
+
     if (!filePath) {
         return res.status(400).send('Use: /admin/download?path=/caminho/completo/do/arquivo');
     }
-    
+
     try {
         if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
             res.download(filePath);
@@ -121,10 +122,10 @@ client.on('ready', () => {
     agendarTarefas();
 });
 
-['authenticated','auth_failure','message_ciphertext','message_create','message_revoke_everyone','message_revoke_me','message_ack','message_edit','media_uploaded','contact_changed','group_join','group_leave','group_admin_changed','group_membership_request','group_update','loading_screen','disconnected','change_state','change_battery','remote_session_saved','call'].map(evt => {
-	client.on(evt, () => {
-		console.log('Evento invocado', evt)
-	});
+['authenticated', 'auth_failure', 'message_ciphertext', 'message_create', 'message_revoke_everyone', 'message_revoke_me', 'message_ack', 'message_edit', 'media_uploaded', 'contact_changed', 'group_join', 'group_leave', 'group_admin_changed', 'group_membership_request', 'group_update', 'loading_screen', 'disconnected', 'change_state', 'change_battery', 'remote_session_saved', 'call'].map(evt => {
+    client.on(evt, () => {
+        console.log('Evento invocado', evt)
+    });
 })
 
 client.on('message', async (message) => {
@@ -135,6 +136,33 @@ client.on('message', async (message) => {
     const firstLineParts = commandParts[0].split(' ');
     const command = firstLineParts[0].toLowerCase();
     const args = firstLineParts.slice(1);
+
+    if (command === '/fora') {
+        const groupId = message.from;
+        const autorNumero = message.author;
+
+        if (!listasAtuais[groupId]) {
+            message.reply('Não há nenhuma lista ativa no momento.');
+            return;
+        }
+
+        if (!jogadoresForaDaSemana[groupId]) {
+            jogadoresForaDaSemana[groupId] = [];
+        }
+
+        if (jogadoresForaDaSemana[groupId].includes(autorNumero)) {
+            message.reply('Você já está marcado como "fora" para esta semana.');
+            return;
+        }
+
+        jogadoresForaDaSemana[groupId].push(autorNumero);
+
+        const contato = await message.getContact();
+        const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
+
+        message.reply(`✅ ${nomeAutor}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
+    }
+
 
     if (command === '/bora') {
         const groupId = message.from;
@@ -335,7 +363,8 @@ client.on('message', async (message) => {
             } else if (groupId === ID_GRUPO_TESTE) {
                 gameDate.setDate(gameDate.getDate() + 3);
             } else { return; }
-            inicializarLista(groupId, gameDate, gameTime);
+
+            inicializarLista(groupId, gameDate, gameTime, true);
             const listaFormatada = formatarLista(groupId);
             client.sendMessage(groupId, listaFormatada);
             break;
@@ -390,7 +419,7 @@ client.on('message', async (message) => {
         case '/carregar': {
             const groupId = message.from;
             if (!listasAtuais[groupId]) {
-                inicializarLista(groupId, new Date(), '00h00');
+                inicializarLista(groupId, new Date(), '00h00', false);
             }
 
             const contentToParse = message.body.substring(message.body.indexOf('\n') + 1);
@@ -401,6 +430,7 @@ client.on('message', async (message) => {
             }
 
             console.log(`[COMANDO] /carregar recebido. Sincronizando memória para ${groupId}.`);
+            console.log(`[COMANDO] Mantendo lista de jogadores "fora" existente.`);
 
             const dateRegex = /(\d{2}\/\d{2}) às (\d{2}h\d{2})/;
             const dateMatch = contentToParse.match(dateRegex);
@@ -421,7 +451,6 @@ client.on('message', async (message) => {
 
             for (const linha of linhas) {
                 const trimmedLine = linha.trim();
-
                 const match = trimmedLine.match(/^(\d{1,2})\s*-\s*(\p{Emoji})?\s*(.*)/u);
 
                 if (match) {
@@ -436,12 +465,16 @@ client.on('message', async (message) => {
                 }
             }
 
-
             if (jogadoresCarregados > 0) {
                 listasAtuais[groupId].jogadores = novosJogadores;
                 const listaFormatada = formatarLista(groupId);
                 message.reply('✅ Lista carregada e sincronizada! A nova lista oficial é:');
                 client.sendMessage(groupId, listaFormatada);
+
+                const jogadoresForaCount = jogadoresForaDaSemana[groupId] ? jogadoresForaDaSemana[groupId].length : 0;
+                if (jogadoresForaCount > 0) {
+                    message.reply(`ℹ️ Obs: ${jogadoresForaCount} jogador(es) continuam marcados como "fora" para esta semana.`);
+                }
             } else {
                 message.reply('Não consegui encontrar nenhum jogador válido na lista que você enviou.');
             }
@@ -452,11 +485,29 @@ client.on('message', async (message) => {
             if (chat.isGroup) {
                 let text = "Chamada geral! 📢\n\n";
                 let mentions = [];
+                let jogadoresForaCount = 0;
+
                 console.log(`[COMANDO] /marcar recebido no grupo "${chat.name}".`);
-                for (let participant of chat.participants) {
-                    mentions.push(participant.id._serialized);
-                    text += `@${participant.id.user} `;
+
+                if (!jogadoresForaDaSemana[message.from]) {
+                    jogadoresForaDaSemana[message.from] = [];
                 }
+
+                for (let participant of chat.participants) {
+                    const participantNumber = participant.id._serialized;
+
+                    if (!jogadoresForaDaSemana[message.from].includes(participantNumber)) {
+                        mentions.push(participantNumber);
+                        text += `@${participant.id.user} `;
+                    } else {
+                        jogadoresForaCount++;
+                    }
+                }
+
+                if (jogadoresForaCount > 0) {
+                    text += `\n\n(${jogadoresForaCount} jogador(es) estão marcados como "fora" para esta semana)`;
+                }
+
                 chat.sendMessage(text.trim(), { mentions }).catch(err => console.error('❌ [FALHA] Erro ao enviar menções:', err));
             } else {
                 message.reply('O comando /marcar só funciona em grupos.');
@@ -529,8 +580,9 @@ async function criarMovimentacaoOrganizze(nomeJogador, dataDoJogo) {
  * @param {string} groupId ID do grupo que solicitou a lista.
  * @param {Date} gameDate A data do jogo.
  * @param {string} gameTime Horario do Jogo.
+ * @param {boolean} resetarListaFora Resetar ou nao lista de fora.
  */
-function inicializarLista(groupId, gameDate, gameTime) {
+function inicializarLista(groupId, gameDate, gameTime, resetarListaFora = true) {
     console.log(`[LISTA] Inicializando lista para o grupo ${groupId}`);
     const jogadores = Array(16).fill(null);
     jogadores[0] = '🧤'; // Posição 1 para goleiro
@@ -542,6 +594,13 @@ function inicializarLista(groupId, gameDate, gameTime) {
         jogadores: jogadores,
         suplentes: []
     };
+
+    if (resetarListaFora) {
+        jogadoresForaDaSemana[groupId] = [];
+        console.log(`[LISTA] Lista de jogadores "fora" resetada para o grupo ${groupId}`);
+    } else {
+        console.log(`[LISTA] Lista de jogadores "fora" mantida para o grupo ${groupId}`);
+    }
 }
 
 function formatarLista(groupId) {

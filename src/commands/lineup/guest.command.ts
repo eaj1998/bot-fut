@@ -15,20 +15,17 @@ export class GuestCommand implements Command {
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
-        console.log('GuestCommand called');
-        
         const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
         if (!groupLineUp) return;
 
         const nomeAutor = await this.lineupSvc.getAuthorName(message);
-        const commandParts = message.body.split('\n');
-        const firstLineParts = commandParts[0].split(' ');
-        const nomeConvidado = firstLineParts.slice(1).join(' ');;
-        console.log('Nome do convidado:', nomeConvidado);
+        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
+
         if (!nomeConvidado) {
             message.reply('Uso correto: /convidado <nome do convidado>');
             return;
         }
+        
         let res: any;
         const isGoleiro = nomeConvidado.includes('🧤');
         if (isGoleiro) {

@@ -16,14 +16,12 @@ export class GiveUpCommand implements Command {
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
         let nomeAutor = await this.lineupSvc.getAuthorName(message);
-        const commandParts = message.body.split('\n');
-        const firstLineParts = commandParts[0].split(' ');
-        const nomeConvidado = firstLineParts.slice(1).join(' ');;
+        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
 
         if(nomeConvidado){
             nomeAutor = nomeConvidado;
         }
-        
+
         const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
         if (!groupLineUp) return;
 

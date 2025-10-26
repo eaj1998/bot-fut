@@ -17,9 +17,9 @@ export class LineUpAddCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     this.server.sendMessage(message.from, JSON.stringify(this.lineUpRepo.listasAtuais));
-    message.reply(
-      'Também pode mandar um msg.reply'
-    );
+    // message.reply(
+    //   'Também pode mandar um msg.reply'
+    // );
 
     const groupId = message.from;
     const nomeAutor = await this.lineupSvc.getAuthorName(message);

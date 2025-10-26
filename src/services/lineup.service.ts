@@ -7,6 +7,7 @@ export type LineUpInfo = {
   data: Date;
   horario: string;
   jogadores: (string | null)[];
+  jogadoresFora: (string | null)[];
   suplentes: string[];
 };
 
@@ -15,7 +16,7 @@ export type LineUpInfo = {
 export class LineUpService {
   constructor(
     @inject(LineUpRepository) private readonly repo: LineUpRepository
-  ) {}
+  ) { }
 
   async getAuthorName(message: Message): Promise<string> {
     const contato = await message.getContact();
@@ -74,7 +75,17 @@ export class LineUpService {
       horario: gameTime,
       jogadores,
       suplentes: [],
+      jogadoresFora: [],
     };
+  }
+
+  addOffLineupPlayer(list: LineUpInfo, name: string): { added: boolean; } {
+    try {
+      list.jogadoresFora.push(name);
+      return { added: true };
+     } catch {
+      return { added: false };
+      }
   }
 
   formatList(
@@ -91,13 +102,12 @@ export class LineUpService {
     const valor = opts?.valor ?? "R$ 14,00";
 
     let texto = `${titulo}\n${dia}/${mes} às ${list.horario}\nPix💲${pix}\nValor: ${valor}\n\n`;
-    console.log('list.jogadores', list.jogadores);
-    
+
     for (let i = 0; i < 16; i++) {
       const jogador = list.jogadores[i] || "";
       texto += `${i + 1} - ${jogador}\n`;
     }
-    
+
     if (list.suplentes.length > 0) {
       texto += "\n--- SUPLENTES ---\n";
       list.suplentes.forEach((s, idx) => {
@@ -106,5 +116,10 @@ export class LineUpService {
     }
 
     return texto.trim();
+  }
+
+  argsFromMessage(message: Message): string[] {
+    const commandParts = message.body.split('\n');
+    return commandParts[0].split(' ').slice(1);
   }
 }

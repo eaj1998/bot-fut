@@ -5,6 +5,7 @@ import { LineUpCreateCommand } from './lineup/create.command';
 import { GoalKeeperAddCommand } from './lineup/goalkeeper.commands';
 import { GiveUpCommand } from './lineup/giveup.command';
 import { GuestCommand } from './lineup/guest.command';
+import { OutCommand } from './lineup/out.command';
 
 @injectable()
 export class CommandFactory {
@@ -17,6 +18,7 @@ export class CommandFactory {
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);
       case '/desistir': return container.resolve(GiveUpCommand);
       case '/convidado': return container.resolve(GuestCommand);
+      case '/fora': return container.resolve(OutCommand);
 
       default: return undefined;
     }

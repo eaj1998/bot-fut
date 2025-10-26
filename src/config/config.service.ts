@@ -30,5 +30,6 @@ export class ConfigService {
   organizze = {
     email: process.env.ORGANIZE_EMAIL,
     apiKey: process.env.ORGANIZE_API_KEY,
+    valorJogo: Number(process.env.ORGANIZE_VALOR_JOGO) || 1400,
   };
 }

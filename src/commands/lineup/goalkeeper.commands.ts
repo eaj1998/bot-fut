@@ -2,25 +2,18 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
-import { LineUpRepository } from '../../repository/lineup.repository';
 import { LineUpService } from '../../services/lineup.service';
 
 @injectable()
-export class LineUpAddCommand implements Command {
+export class GoalKeeperAddCommand implements Command {
   role = IRole.USER;
 
   constructor(
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-    @inject(LineUpRepository) private readonly lineUpRepo: LineUpRepository,
     @inject(LineUpService) private readonly lineupSvc: LineUpService
-  ) { }
+  ) {}
 
   async handle(message: Message): Promise<void> {
-    this.server.sendMessage(message.from, JSON.stringify(this.lineUpRepo.listasAtuais));
-    message.reply(
-      'Também pode mandar um msg.reply'
-    );
-
     const groupId = message.from;
     const nomeAutor = await this.lineupSvc.getAuthorName(message);
 
@@ -32,7 +25,7 @@ export class LineUpAddCommand implements Command {
       return;
     }
 
-    const res = this.lineupSvc.addOutfieldPlayer(groupLineUp, nomeAutor);
+    const res = this.lineupSvc.addGoalkeeper(groupLineUp, nomeAutor);
 
     if (res.added) {
       const texto = this.lineupSvc.formatList(groupLineUp);

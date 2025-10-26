@@ -469,7 +469,10 @@ client.on('message', async (message) => {
                 listasAtuais[groupId].jogadores = novosJogadores;
                 const listaFormatada = formatarLista(groupId);
                 message.reply('✅ Lista carregada e sincronizada! A nova lista oficial é:');
+
+                await sleep(1000);
                 client.sendMessage(groupId, listaFormatada);
+                await sleep(500);
 
                 const jogadoresForaCount = jogadoresForaDaSemana[groupId] ? jogadoresForaDaSemana[groupId].length : 0;
                 if (jogadoresForaCount > 0) {

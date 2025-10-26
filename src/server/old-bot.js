@@ -30,89 +30,11 @@ client.on('message', async (message) => {
   }
 
   if (command === '/goleiro') {
-    const groupId = message.from;
-    const contato = await message.getContact();
-    const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
 
-    if (!listasAtuais[groupId]) {
-      message.reply(
-        'Nenhuma lista de jogo ativa no momento. Aguarde um admin enviar com o comando /lista.'
-      );
-      return;
-    }
-
-    if (
-      listasAtuais[groupId].jogadores.some((j) => j && j.includes(nomeAutor)) ||
-      listasAtuais[groupId].suplentes.includes(nomeAutor)
-    ) {
-      message.reply('Você já está na lista!');
-      return;
-    }
-
-    let vagaEncontrada = false;
-    for (let i = 0; i < 2; i++) {
-      if (
-        listasAtuais[groupId].jogadores[i] === '🧤' ||
-        listasAtuais[groupId].jogadores[i] === null
-      ) {
-        listasAtuais[groupId].jogadores[i] = `🧤 ${nomeAutor}`;
-        vagaEncontrada = true;
-        break;
-      }
-    }
-
-    if (vagaEncontrada) {
-      const listaAtualizada = formatarLista(groupId);
-      client.sendMessage(groupId, listaAtualizada);
-    } else {
-      message.reply('Vagas de goleiro já preenchidas!');
-    }
   }
 
   if (command === '/desistir') {
-    const groupId = message.from;
-    const contato = await message.getContact();
-    const nomeAutor = contato.pushname || contato.name || message.author.split('@')[0];
-
-    if (!listasAtuais[groupId]) {
-      message.reply('Nenhuma lista de jogo ativa no momento.');
-      return;
-    }
-
-    let jogadorRemovido = false;
-    let mensagemPromocao = '';
-
-    const indexPrincipal = listasAtuais[groupId].jogadores.findIndex(
-      (j) => j && j.includes(nomeAutor)
-    );
-    if (indexPrincipal > -1) {
-      if (indexPrincipal < 2) {
-        listasAtuais[groupId].jogadores[indexPrincipal] = '🧤';
-      } else {
-        listasAtuais[groupId].jogadores[indexPrincipal] = null;
-      }
-      jogadorRemovido = true;
-
-      if (indexPrincipal >= 2 && listasAtuais[groupId].suplentes.length > 0) {
-        const promovido = listasAtuais[groupId].suplentes.shift();
-        listasAtuais[groupId].jogadores[indexPrincipal] = promovido;
-        mensagemPromocao = `\n\n📢 Atenção: ${promovido} foi promovido da suplência para a lista principal!`;
-      }
-    } else {
-      const indexSuplente = listasAtuais[groupId].suplentes.indexOf(nomeAutor);
-      if (indexSuplente > -1) {
-        listasAtuais[groupId].suplentes.splice(indexSuplente, 1);
-        jogadorRemovido = true;
-      }
-    }
-
-    if (jogadorRemovido) {
-      message.reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
-      const listaAtualizada = formatarLista(groupId);
-      client.sendMessage(groupId, listaAtualizada);
-    } else {
-      message.reply('Seu nome não foi encontrado na lista.');
-    }
+    
   }
 
   if (command === '/convidado') {

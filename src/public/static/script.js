@@ -1,20 +1,24 @@
 const USERS = [
-  {
-    id: 1,
-    name: 'Luquinhas',
-    phone: '+5549988124389',
-  },
-  {
-    id: 2,
-    name: 'Edipão',
-    phone: '+554992007299',
-  },
-  {
-    id: 3,
-    name: 'Mikelongelo',
-    phone: '+554187770278',
-  },
+  { id: 1, name: 'Luquinhas', phone: '+5549988124389' },
+  { id: 2, name: 'Edipão', phone: '+554992007299' },
+  { id: 3, name: 'Mikelongelo', phone: '+554187770278' },
+  { id: 4, name: 'Sabrina', phone: '+5547998542231' },
+  { id: 5, name: 'Vitinho', phone: '+5547997334122' },
+  { id: 6, name: 'Carlinhos', phone: '+5548998893012' },
+  { id: 7, name: 'Joãozinho', phone: '+5547988776655' },
+  { id: 8, name: 'Pedrão', phone: '+5547999123456' },
+  { id: 9, name: 'Tainá', phone: '+5548998456723' },
+  { id: 10, name: 'Aninha', phone: '+5547998012345' },
+  { id: 11, name: 'Felipão', phone: '+5541999123456' },
+  { id: 12, name: 'Gui', phone: '+5547999456123' },
+  { id: 13, name: 'Léo', phone: '+5548999654321' },
+  { id: 14, name: 'Biel', phone: '+5541999988776' },
+  { id: 15, name: 'Thay', phone: '+5547999332211' },
+  { id: 16, name: 'Rafa', phone: '+5541998877665' },
+  { id: 17, name: 'Val', phone: '+5541998877265' },
+  { id: 18, name: 'Andrei', phone: '+5541992877665' },
 ];
+
 const STATE = {
   currentUser: null,
   lastMessageAuthor: null,

@@ -26,7 +26,7 @@ client.on('message', async (message) => {
   const args = firstLineParts.slice(1);
 
   if (command === '/bora') {
-    
+
   }
 
   if (command === '/goleiro') {
@@ -34,63 +34,11 @@ client.on('message', async (message) => {
   }
 
   if (command === '/desistir') {
-    
+
   }
 
   if (command === '/convidado') {
-    const groupId = message.from;
-    const nomeConvidado = args.join(' ');
-
-    if (!listasAtuais[groupId]) {
-      message.reply('Nenhuma lista de jogo ativa no momento. Use /lista primeiro.');
-      return;
-    }
-
-    if (!nomeConvidado) {
-      message.reply('Uso correto: /convidado <nome do convidado>');
-      return;
-    }
-
-    let vagaEncontrada = false;
-    const isGoleiro = nomeConvidado.includes('🧤');
-
-    if (isGoleiro) {
-      console.log(`[CONVIDADO] Tentando adicionar convidado GOLEIRO: "${nomeConvidado}"`);
-      for (let i = 0; i < 2; i++) {
-        if (
-          listasAtuais[groupId].jogadores[i] === '🧤' ||
-          listasAtuais[groupId].jogadores[i] === null
-        ) {
-          listasAtuais[groupId].jogadores[i] = nomeConvidado;
-          vagaEncontrada = true;
-          break;
-        }
-      }
-      if (!vagaEncontrada) {
-        message.reply('Vagas de goleiro já preenchidas!');
-        return;
-      }
-    } else {
-      console.log(`[CONVIDADO] Tentando adicionar convidado de LINHA: "${nomeConvidado}"`);
-      for (let i = 2; i < 16; i++) {
-        if (listasAtuais[groupId].jogadores[i] === null) {
-          listasAtuais[groupId].jogadores[i] = nomeConvidado;
-          vagaEncontrada = true;
-          break;
-        }
-      }
-      if (!vagaEncontrada) {
-        listasAtuais[groupId].suplentes.push(nomeConvidado);
-        const posicaoSuplente = listasAtuais[groupId].suplentes.length;
-        message.reply(
-          `Lista principal cheia! O convidado "${nomeConvidado}" foi adicionado como o ${posicaoSuplente}º suplente.`
-        );
-      }
-    }
-
-    message.reply(`✅ Convidado "${nomeConvidado}" adicionado!`);
-    const listaAtualizada = formatarLista(groupId);
-    client.sendMessage(groupId, listaAtualizada);
+    
   }
 
   const stickers = {
@@ -116,7 +64,7 @@ client.on('message', async (message) => {
 
   switch (command) {
     case '/lista': {
-      
+
       break;
     }
     case '/pago':

@@ -2,10 +2,11 @@ import { container, injectable } from 'tsyringe';
 import { LineUpAddCommand } from './lineup/add.command';
 import { Command } from './type';
 import { LineUpCreateCommand } from './lineup/create.command';
-import { GoalKeeperAddCommand } from './lineup/goalkeeper.commands';
+import { GoalKeeperAddCommand } from './lineup/goalkeeper.command';
 import { GiveUpCommand } from './lineup/giveup.command';
 import { GuestCommand } from './lineup/guest.command';
 import { OutCommand } from './lineup/out.command';
+import { PaymentCommand } from './payment/payment.command';
 
 @injectable()
 export class CommandFactory {
@@ -19,6 +20,7 @@ export class CommandFactory {
       case '/desistir': return container.resolve(GiveUpCommand);
       case '/convidado': return container.resolve(GuestCommand);
       case '/fora': return container.resolve(OutCommand);
+      case '/pago': return container.resolve(PaymentCommand);
 
       default: return undefined;
     }

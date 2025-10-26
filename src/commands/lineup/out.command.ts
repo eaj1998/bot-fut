@@ -8,8 +8,7 @@ import { LineUpService } from '../../services/lineup.service';
 export class OutCommand implements Command {
     role = IRole.USER;
 
-    constructor(
-        @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
+    constructor(        
         @inject(LineUpService) private readonly lineupSvc: LineUpService
     ) { }
 

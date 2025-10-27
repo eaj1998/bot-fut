@@ -56,7 +56,7 @@ export class App {
       }
 
       // Salva como imagem (backup)
-      const qrPath = path.join(__dirname, '../qrcode.png');
+      const qrPath = path.join(__dirname, '/data/qrcode.png');
 
       try {
         await QRCode.toFile(qrPath, qr, {
@@ -71,7 +71,7 @@ export class App {
         console.error('❌ Erro ao salvar QR code:', err);
       }
     });
-    
+
     this.server.onMessage(async (message) => {
       const messageContent = message.body.trim();
       if (!messageContent.startsWith('/')) {

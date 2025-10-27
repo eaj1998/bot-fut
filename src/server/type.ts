@@ -5,7 +5,7 @@ type IEventType = {
   ready: () => void;
   message: (message: Message) => void;
   group_join: (notification: GroupNotification) => void;
-  group_leave: (notification: GroupNotification) => void;
+  group_leave: (notification: GroupNotification) => void;  
 };
 
 export class IBotServerPort {

@@ -21,7 +21,6 @@ export class LineUpCreateCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-
     let gameTime = '20h30';
     let gameDate = new Date();
     if (groupId === this.configService.whatsApp.terca) {
@@ -35,7 +34,6 @@ export class LineUpCreateCommand implements Command {
     } else {
       return;
     }
-
     this.lineupSvc.initList(groupId, gameDate, gameTime);
 
     const texto = this.lineupSvc.formatList(

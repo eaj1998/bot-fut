@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import path from 'path';
 import http from 'http';
 import { IBotServerPort } from './type';
-import { Contact, Message } from 'whatsapp-web.js';
+import { Chat, Contact, Message } from 'whatsapp-web.js';
 import { inject, injectable } from 'tsyringe';
 import { LoggerService } from '../logger/logger.service';
 import { ConfigService } from '../config/config.service';
@@ -36,10 +36,12 @@ export class HttpServer extends IBotServerPort {
   private async dispatchAsyncMessage(input: string, user: any) {
     try {
       if (!this.events.message) return;
+      const chatId = String(user.groupId ?? 'unknown@g.us');
+      const isGroup = chatId.endsWith('@g.us');
 
       const msg: Partial<Message> = {
-        from: '1',
-        author: user.name,
+        from: user.groupId ?? user.id,
+        author: (user.phone ?? user.id ?? '0000000000') + '@c.us',
         body: input,
         getContact: async () =>
           ({

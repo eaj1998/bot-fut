@@ -5,7 +5,6 @@ import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
 import { ConfigService } from '../../config/config.service';
 import axios from 'axios';
-import { config } from 'dotenv';
 
 @injectable()
 export class PaymentCommand implements Command {

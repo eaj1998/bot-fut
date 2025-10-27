@@ -46,7 +46,7 @@ export class App {
 
     this.server.onQRCode((qr: string) => {      
       this.loggerService.log('QRCode is ready do be scanned');
-      qrcode.generate(qr, { small: false })
+      qrcode.generate(qr, { small: true})
     });
 
     this.server.onMessage(async (message) => {

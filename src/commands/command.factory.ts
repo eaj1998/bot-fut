@@ -11,6 +11,7 @@ import { UncheckPaymentCommand } from './payment/uncheckPayment.command';
 import { LoadCommand } from './lineup/load.command';
 import { TagCommand } from './notification/tag.command';
 import { StickerCommand } from './entertainment/sticker.command';
+import { HelpCommand } from './help/help.command';
 
 @injectable()
 export class CommandFactory {
@@ -29,6 +30,7 @@ export class CommandFactory {
       case '/carregar': return container.resolve(LoadCommand);
       case '/marcar': return container.resolve(TagCommand);
       case '/joao': return container.resolve(StickerCommand);
+      case '/help': return container.resolve(HelpCommand);
 
       default: return undefined;
     }

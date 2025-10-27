@@ -21,10 +21,16 @@ export class OutCommand implements Command {
         const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
         if (!groupLineUp) return;
 
+        if (groupLineUp.jogadores.includes(numeroAutor)) {
+            message.reply('Você está escalado pro jogo! 💪\nSe não puder ir, /desistir pra liberar a vaga — mas se puder, ajuda a fechar o time! ⚽');
+            return;
+        }
+
         if (groupLineUp.jogadoresFora.includes(numeroAutor)) {
             message.reply('Você já está marcado como "fora" para esta semana.');
             return;
         }
+
         const res = this.lineupSvc.addOffLineupPlayer(groupLineUp, numeroAutor);
 
         if (res.added) {
@@ -34,7 +40,5 @@ export class OutCommand implements Command {
                 `Ocorreu um erro ao marcar você como "fora". Tente novamente mais tarde.`
             );
         }
-
-
     }
 }

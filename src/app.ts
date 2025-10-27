@@ -22,7 +22,7 @@ import { IRole } from './commands/type';
 export class App {
   private state: 'initialized' | 'pending' = 'pending';
   public latestQr: string | null = null;
-  
+
   constructor(
     @inject(BOT_SERVER_TOKEN) private readonly server: IBotServerPort,
     @inject(LoggerService) private readonly loggerService: LoggerService,
@@ -44,9 +44,14 @@ export class App {
       // Start cron job
     });
 
-    this.server.onQRCode((qr: string) => {      
-      this.loggerService.log('QRCode is ready do be scanned');
-      qrcode.generate(qr, { small: true})
+    this.server.onQRCode((qr: string) => {
+      // this.loggerService.log('QRCode is ready do be scanned');
+      // LIMPA a tela e imprime direto no stdout (sem logger)
+      console.clear();
+      qrcode.generate(qr, { small: true }, (ascii) => {
+        process.stdout.write('\n' + ascii + '\n');
+      });
+      // qrcode.generate(qr, { small: true })
     });
 
     this.server.onMessage(async (message) => {

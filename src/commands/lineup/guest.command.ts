@@ -18,8 +18,7 @@ export class GuestCommand implements Command {
         const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
         if (!groupLineUp) return;
 
-        const nomeAutor = await this.lineupSvc.getAuthorName(message);
-        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
+        let nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
 
         if (!nomeConvidado) {
             message.reply('Uso correto: /convidado <nome do convidado>');
@@ -29,7 +28,8 @@ export class GuestCommand implements Command {
         let res: any;
         const isGoleiro = nomeConvidado.includes('🧤');
         if (isGoleiro) {
-            res = this.lineupSvc.addGoalkeeper(groupLineUp, nomeAutor);
+            nomeConvidado = nomeConvidado.replace('🧤', '').trim();
+            res = this.lineupSvc.addGoalkeeper(groupLineUp, nomeConvidado);
         }else{
             res = this.lineupSvc.addOutfieldPlayer(groupLineUp, nomeConvidado);
         }

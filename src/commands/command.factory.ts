@@ -8,6 +8,7 @@ import { GuestCommand } from './lineup/guest.command';
 import { OutCommand } from './lineup/out.command';
 import { PaymentCommand } from './payment/payment.command';
 import { UncheckPaymentCommand } from './payment/uncheckPayment.command';
+import { LoadCommand } from './lineup/load.command';
 
 @injectable()
 export class CommandFactory {
@@ -23,6 +24,7 @@ export class CommandFactory {
       case '/fora': return container.resolve(OutCommand);
       case '/pago': return container.resolve(PaymentCommand);
       case '/desmarcar': return container.resolve(UncheckPaymentCommand);
+      case '/carregar': return container.resolve(LoadCommand);
 
       default: return undefined;
     }

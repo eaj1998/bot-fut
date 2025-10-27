@@ -38,7 +38,7 @@ client.on('message', async (message) => {
   }
 
   if (command === '/convidado') {
-    
+
   }
 
   const stickers = {
@@ -69,113 +69,10 @@ client.on('message', async (message) => {
     }
     case '/pago':
     case '/desmarcar': {
-      const groupId = message.from;
-      if (!listasAtuais[groupId]) {
-        message.reply('Nenhuma lista ativa. Use /lista primeiro.');
-        return;
-      }
-
-      if (args.length === 0) {
-        message.reply(`Uso correto: ${command} <número do jogador>`);
-        return;
-      }
-      const playerNumber = parseInt(args[0], 10);
-
-      if (isNaN(playerNumber) || playerNumber < 1 || playerNumber > 16) {
-        message.reply('Número inválido. Use de 1 a 16.');
-        return;
-      }
-
-      const playerIndex = playerNumber - 1;
-      const playerName = listasAtuais[groupId].jogadores[playerIndex];
-      if (!playerName) {
-        message.reply(`A posição ${playerNumber} está vazia.`);
-        return;
-      }
-      if (command === '/pago') {
-        if (playerName.includes('✅')) {
-          message.reply('Jogador já marcado como pago.');
-          return;
-        }
-        const nomeLimpo = playerName.replace('🧤', '').trim();
-
-        listasAtuais[groupId].jogadores[playerIndex] = `${playerName.trim()} ✅`;
-        console.log(
-          `[PAGAMENTO] Jogador ${playerNumber} (${nomeLimpo}) marcado como pago no grupo ${groupId}.`
-        );
-
-        const dataDoJogo = listasAtuais[groupId].data;
-        criarMovimentacaoOrganizze(nomeLimpo, dataDoJogo);
-      } else {
-        if (!playerName.includes('✅')) {
-          message.reply('Jogador não estava marcado como pago.');
-          return;
-        }
-        listasAtuais[groupId].jogadores[playerIndex] = playerName.replace('✅', '').trim();
-      }
-
-      const listaAtualizada = formatarLista(groupId);
-      client.sendMessage(groupId, listaAtualizada);
-      break;
+      
     }
     case '/carregar': {
-      const groupId = message.from;
-      if (!listasAtuais[groupId]) {
-        inicializarLista(groupId, new Date(), '00h00');
-      }
-
-      const contentToParse = message.body.substring(message.body.indexOf('\n') + 1);
-
-      if (!contentToParse.trim()) {
-        message.reply('Uso correto: /carregar\n⚽ CAMPO DO VIANA\n...');
-        return;
-      }
-
-      console.log(`[COMANDO] /carregar recebido. Sincronizando memória para ${groupId}.`);
-
-      const dateRegex = /(\d{2}\/\d{2}) às (\d{2}h\d{2})/;
-      const dateMatch = contentToParse.match(dateRegex);
-      if (dateMatch) {
-        const [_, dataStr, horarioStr] = dateMatch;
-        const [dia, mes] = dataStr.split('/');
-        const anoAtual = new Date().getFullYear();
-        listasAtuais[groupId].data = new Date(`${anoAtual}-${mes}-${dia}T12:00:00`);
-        listasAtuais[groupId].horario = horarioStr;
-        console.log(`[SINC] Data e horário da lista atualizados para: ${dataStr} às ${horarioStr}`);
-      } else {
-        console.warn('[SINC] Não foi possível encontrar data e horário no cabeçalho.');
-      }
-
-      const novosJogadores = Array(16).fill(null);
-      const linhas = contentToParse.split('\n');
-      let jogadoresCarregados = 0;
-
-      for (const linha of linhas) {
-        const trimmedLine = linha.trim();
-
-        const match = trimmedLine.match(/^(\d{1,2})\s*-\s*(\p{Emoji})?\s*(.*)/u);
-
-        if (match) {
-          const posicao = parseInt(match[1], 10) - 1;
-          const emoji = match[2] || '';
-          const nome = match[3].trim();
-
-          if (posicao >= 0 && posicao < 16 && nome) {
-            novosJogadores[posicao] = `${emoji ? emoji + ' ' : ''}${nome}`;
-            jogadoresCarregados++;
-          }
-        }
-      }
-
-      if (jogadoresCarregados > 0) {
-        listasAtuais[groupId].jogadores = novosJogadores;
-        const listaFormatada = formatarLista(groupId);
-        message.reply('✅ Lista carregada e sincronizada! A nova lista oficial é:');
-        client.sendMessage(groupId, listaFormatada);
-      } else {
-        message.reply('Não consegui encontrar nenhum jogador válido na lista que você enviou.');
-      }
-      break;
+      
     }
     case '/marcar': {
       const chat = await message.getChat();

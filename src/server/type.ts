@@ -1,11 +1,11 @@
-import { GroupNotification, Message } from 'whatsapp-web.js';
+import WAWebJS, { GroupNotification, Message } from 'whatsapp-web.js';
 
 type IEventType = {
   qr: (qr: string) => void;
   ready: () => void;
   message: (message: Message) => void;
   group_join: (notification: GroupNotification) => void;
-  group_leave: (notification: GroupNotification) => void;  
+  group_leave: (notification: GroupNotification) => void;
 };
 
 export class IBotServerPort {
@@ -19,10 +19,20 @@ export class IBotServerPort {
     throw new Error('Not implemented');
   }
 
-  sendMessage(chatId: string, message: string): void {
+  sendMessage(chatId: string, message: string): void;
+  sendMessage(
+    chatId: string,
+    message: WAWebJS.MessageContent,
+    options?: WAWebJS.MessageSendOptions
+  ): void;
+  
+  sendMessage(
+    _chatId: string,
+    _message: WAWebJS.MessageContent,
+    _options?: WAWebJS.MessageSendOptions
+  ): void {
     throw new Error('Not implemented');
   }
-
   onMessage(handler: (message: Message) => Promise<void>): void {
     this.events['message'] = handler;
   }

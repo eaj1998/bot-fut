@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import path from 'path';
 import http from 'http';
 import { IBotServerPort } from './type';
-import { Chat, Contact, Message } from 'whatsapp-web.js';
+import WAWebJS, { Contact, Message } from 'whatsapp-web.js';
 import { inject, injectable } from 'tsyringe';
 import { LoggerService } from '../logger/logger.service';
 import { ConfigService } from '../config/config.service';
@@ -24,14 +24,26 @@ export class HttpServer extends IBotServerPort {
     loggerService.setName('HTTPServer');
   }
 
-  sendMessage(chatId: string, message: string): void {
+  sendMessage(
+    chatId: string,
+    message: WAWebJS.MessageContent,
+    options?: WAWebJS.MessageSendOptions
+  ): void {
     if (!this.socket) {
       this.loggerService.log('No socket available');
       return;
     }
-
-    this.socket.emit('message', { chat: chatId, message });
+    this.socket.emit('message', { chat: chatId, message, options });
   }
+
+  // sendMessage(chatId: string, message: string): void {
+  //   if (!this.socket) {
+  //     this.loggerService.log('No socket available');
+  //     return;
+  //   }
+
+  //   this.socket.emit('message', { chat: chatId, message });
+  // }
 
   private async dispatchAsyncMessage(input: string, user: any) {
     try {

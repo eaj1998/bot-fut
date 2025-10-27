@@ -72,25 +72,10 @@ client.on('message', async (message) => {
       
     }
     case '/carregar': {
-      
+
     }
     case '/marcar': {
-      const chat = await message.getChat();
-      if (chat.isGroup) {
-        let text = 'Chamada geral! 📢\n\n';
-        let mentions = [];
-        console.log(`[COMANDO] /marcar recebido no grupo "${chat.name}".`);
-        for (let participant of chat.participants) {
-          mentions.push(participant.id._serialized);
-          text += `@${participant.id.user} `;
-        }
-        chat
-          .sendMessage(text.trim(), { mentions })
-          .catch((err) => console.error('❌ [FALHA] Erro ao enviar menções:', err));
-      } else {
-        message.reply('O comando /marcar só funciona em grupos.');
-      }
-      break;
+      
     }
     case '/testeyt':
       message.reply('Ok, iniciando a verificação do YouTube agora. Acompanhe os logs...');

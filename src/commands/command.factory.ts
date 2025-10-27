@@ -10,6 +10,7 @@ import { PaymentCommand } from './payment/payment.command';
 import { UncheckPaymentCommand } from './payment/uncheckPayment.command';
 import { LoadCommand } from './lineup/load.command';
 import { TagCommand } from './notification/tag.command';
+import { StickerCommand } from './entertainment/sticker.command';
 
 @injectable()
 export class CommandFactory {
@@ -27,6 +28,7 @@ export class CommandFactory {
       case '/desmarcar': return container.resolve(UncheckPaymentCommand);
       case '/carregar': return container.resolve(LoadCommand);
       case '/marcar': return container.resolve(TagCommand);
+      case '/joao': return container.resolve(StickerCommand);
 
       default: return undefined;
     }

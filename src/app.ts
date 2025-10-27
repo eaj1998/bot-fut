@@ -56,7 +56,7 @@ export class App {
       }
 
       // Salva como imagem (backup)
-      const qrPath = path.join(__dirname, '/data/qrcode.png');
+      const qrPath = path.join(__dirname, '../data/qrcode.png');
 
       try {
         await QRCode.toFile(qrPath, qr, {

@@ -8,30 +8,34 @@ import { LineUpService } from '../../services/lineup.service';
 export class OutCommand implements Command {
     role = IRole.USER;
 
-    constructor(        
+    constructor(
         @inject(LineUpService) private readonly lineupSvc: LineUpService
     ) { }
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
         const nomeAutor = await this.lineupSvc.getAuthorName(message);
+        const author = await message.getContact();
+        const numeroAutor = author.id._serialized;
 
         const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
         if (!groupLineUp) return;
 
-        if (groupLineUp.jogadoresFora.includes(nomeAutor)) {
+        if (groupLineUp.jogadoresFora.includes(numeroAutor)) {
             message.reply('Você já está marcado como "fora" para esta semana.');
             return;
         }
 
-        const res = this.lineupSvc.addOffLineupPlayer(groupLineUp, nomeAutor);
-        
+        const res = this.lineupSvc.addOffLineupPlayer(groupLineUp, numeroAutor);
+
         if (res.added) {
-             message.reply(`✅ ${nomeAutor}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
+            message.reply(`✅ ${nomeAutor}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
         } else {
             await message.reply(
                 `Ocorreu um erro ao marcar você como "fora". Tente novamente mais tarde.`
             );
         }
+
+
     }
 }

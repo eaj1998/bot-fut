@@ -14,20 +14,37 @@ export class TagCommand implements Command {
     ) { }
 
     async handle(message: Message): Promise<void> {
+        const groupId = message.from;
         const chat = await message.getChat();
         if (!chat.isGroup) {
             message.reply('O comando /marcar só funciona em grupos.');
             return;
         }
+        message.getContact().then(contact => {
+            console.log(`Contato autor do comando /fora: ${contact.pushname} (${contact.number})`);
+        });
         
+        const groupLineUp = this.lineupSvc.getActiveList(groupId);
+
         const group = chat as GroupChat
         let text = 'Chamada geral! 📢\n\n';
         const mentions: string[] = [];
+        let jogadoresForaCount = 0;
 
-        for (let participant of group.participants) {
-            mentions.push(participant.id._serialized);
-            text += `@${participant.id.user} `;
-        }
+        if (group)
+            for (let participant of group.participants) {
+                const participantNumber = participant.id._serialized;
+                console.log(`Verificando participante: ${participantNumber}`);
+                console.log(`Lista de jogadores fora: ${groupLineUp?.jogadoresFora.join(', ')}`);
+
+                if (groupLineUp?.jogadoresFora.includes(participantNumber)) {
+                    jogadoresForaCount++;
+                    continue;
+                }
+
+                mentions.push(participant.id._serialized);
+                text += `@${participant.id.user} `;
+            }
         chat
             .sendMessage(text.trim(), { mentions })
             .catch((err) => console.error('❌ [FALHA] Erro ao enviar menções:', err));

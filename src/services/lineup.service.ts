@@ -42,6 +42,14 @@ export class LineUpService {
     return list;
   }
 
+  getActiveList(groupId: string): LineUpInfo | null {
+    const list = this.repo.listasAtuais[groupId];
+    if (!list) {      
+      return null;
+    }
+    return list;
+  }
+
   alreadyInList(list: LineUpInfo, name: string): boolean {
     return list.jogadores.includes(name) || list.suplentes.includes(name);
   }
@@ -86,9 +94,9 @@ export class LineUpService {
     try {
       list.jogadoresFora.push(name);
       return { added: true };
-     } catch {
+    } catch {
       return { added: false };
-      }
+    }
   }
 
   formatList(

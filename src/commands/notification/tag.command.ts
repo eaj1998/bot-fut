@@ -20,10 +20,6 @@ export class TagCommand implements Command {
             message.reply('O comando /marcar só funciona em grupos.');
             return;
         }
-        message.getContact().then(contact => {
-            console.log(`Contato autor do comando /fora: ${contact.pushname} (${contact.number})`);
-        });
-        
         const groupLineUp = this.lineupSvc.getActiveList(groupId);
 
         const group = chat as GroupChat
@@ -34,8 +30,6 @@ export class TagCommand implements Command {
         if (group)
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
-                console.log(`Verificando participante: ${participantNumber}`);
-                console.log(`Lista de jogadores fora: ${groupLineUp?.jogadoresFora.join(', ')}`);
 
                 if (groupLineUp?.jogadoresFora.includes(participantNumber)) {
                     jogadoresForaCount++;

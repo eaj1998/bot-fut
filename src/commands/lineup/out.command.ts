@@ -25,7 +25,6 @@ export class OutCommand implements Command {
             message.reply('Você já está marcado como "fora" para esta semana.');
             return;
         }
-
         const res = this.lineupSvc.addOffLineupPlayer(groupLineUp, numeroAutor);
 
         if (res.added) {

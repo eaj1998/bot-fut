@@ -16,16 +16,18 @@ export class LineUpAddCommand implements Command {
   ) { }
 
   async handle(message: Message): Promise<void> {
-    this.server.sendMessage(message.from, JSON.stringify(this.lineUpRepo.listasAtuais));
-    // message.reply(
-    //   'Também pode mandar um msg.reply'
-    // );
-
     const groupId = message.from;
     const nomeAutor = await this.lineupSvc.getAuthorName(message);
+    const author = await message.getContact();
 
     const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
     if (!groupLineUp) return;
+
+    groupLineUp.jogadoresFora = groupLineUp.jogadoresFora.filter(p => p !== author.id._serialized);
+
+    console.log(`Adicionando jogador à lista: ${nomeAutor}`);
+    console.log(`Jogadores atualmente na lista de fora: ${groupLineUp.jogadoresFora.join(', ')}`);
+
 
     if (this.lineupSvc.alreadyInList(groupLineUp, nomeAutor)) {
       await message.reply("Você já está na lista!");

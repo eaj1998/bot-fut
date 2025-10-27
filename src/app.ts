@@ -8,6 +8,7 @@ import { CommandFactory } from './commands/command.factory';
 // import qrcode from 'qrcode-terminal';
 import { IRole } from './commands/type';
 import * as QRCode from 'qrcode';
+import path from 'path';
 
 @singleton()
 @registry([
@@ -21,7 +22,7 @@ import * as QRCode from 'qrcode';
   },
 ])
 export class App {
-  private state: 'initialized' | 'pending' = 'pending';  
+  private state: 'initialized' | 'pending' = 'pending';
 
   constructor(
     @inject(BOT_SERVER_TOKEN) private readonly server: IBotServerPort,
@@ -44,16 +45,33 @@ export class App {
       // Start cron job
     });
 
-    this.server.onQRCode((qr: string) => {      
-      this.loggerService.log('QRCode is ready do be scanned');
-      const qrString = QRCode.toString(qr, {
-        type: 'terminal',
-        errorCorrectionLevel: 'L'
-      });
+    this.server.onQRCode(async (qr: string) => {
+      this.loggerService.log('QRCode is ready to be scanned');    
 
-      console.log(qrString);
+      // Se for HttpServer, armazena o QR code e mostra URL
+      if (this.server instanceof HttpServer) {
+        this.server.latestQr = qr;
+        const config = container.resolve(ConfigService);
+        console.log('🌐 Também disponível em: http://localhost:' + config.localServer.port + '/qr\n');
+      }
+
+      // Salva como imagem (backup)
+      const qrPath = path.join(__dirname, '../qrcode.png');
+
+      try {
+        await QRCode.toFile(qrPath, qr, {
+          width: 400,
+          margin: 2,
+          errorCorrectionLevel: 'M'
+        });
+
+        console.log('💾 QR Code salvo em:', qrPath);
+        console.log('');
+      } catch (err) {
+        console.error('❌ Erro ao salvar QR code:', err);
+      }
     });
-
+    
     this.server.onMessage(async (message) => {
       const messageContent = message.body.trim();
       if (!messageContent.startsWith('/')) {

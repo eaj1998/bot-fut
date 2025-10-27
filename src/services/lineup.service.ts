@@ -2,6 +2,8 @@ import { Message } from "whatsapp-web.js";
 import { inject, injectable } from "tsyringe";
 import { LineUpRepository } from "../repository/lineup.repository";
 import { singleton } from "tsyringe";
+import Utils from "../utils/utils";
+import { ConfigService } from "../config/config.service";
 
 export type LineUpInfo = {
   data: Date;
@@ -15,7 +17,8 @@ export type LineUpInfo = {
 
 export class LineUpService {
   constructor(
-    @inject(LineUpRepository) private readonly repo: LineUpRepository
+    @inject(LineUpRepository) private readonly repo: LineUpRepository,
+    @inject(ConfigService) private readonly configService: ConfigService,
   ) { }
 
   async getAuthorName(message: Message): Promise<string> {
@@ -99,9 +102,9 @@ export class LineUpService {
 
     const titulo = opts?.titulo ?? "⚽ CAMPO DO VIANA";
     const pix = opts?.pix ?? "fcjogasimples@gmail.com";
-    const valor = opts?.valor ?? "R$ 14,00";
+    const valor = opts?.valor ?? `${Utils.formatCentsToReal(this.configService.organizze.valorJogo)}`;
 
-    let texto = `${titulo}\n${dia}/${mes} às ${list.horario}\nPix💲${pix}\nValor: ${valor}\n\n`;
+    let texto = `${titulo}\n${dia}/${mes} às ${list.horario}\nPix: ${pix}\nValor: ${valor}\n\n`;
 
     for (let i = 0; i < 16; i++) {
       const jogador = list.jogadores[i] || "";

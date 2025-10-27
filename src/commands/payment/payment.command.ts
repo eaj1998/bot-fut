@@ -5,6 +5,7 @@ import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
 import { ConfigService } from '../../config/config.service';
 import axios from 'axios';
+import { config } from 'dotenv';
 
 @injectable()
 export class PaymentCommand implements Command {
@@ -67,7 +68,7 @@ export class PaymentCommand implements Command {
 
         const payload = {
             description: `${nomeJogador} - Jogo ${dataJogoFormatada}`,
-            amount_cents: 1400,
+            amount_cents: this.configService.organizze.valorJogo,
             date: dataPagamento,
             account_id: 9099386,
             category_id: 152977750,
@@ -93,4 +94,5 @@ export class PaymentCommand implements Command {
             );
         }
     }
+    
 }

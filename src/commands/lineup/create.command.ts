@@ -5,6 +5,8 @@ import { Message } from 'whatsapp-web.js';
 import { LineUpRepository } from '../../repository/lineup.repository';
 import { ConfigService } from '../../config/config.service';
 import { LineUpService } from '../../services/lineup.service';
+import Utils from "../../utils/utils";
+
 
 @injectable()
 export class LineUpCreateCommand implements Command {
@@ -39,7 +41,7 @@ export class LineUpCreateCommand implements Command {
     const texto = this.lineupSvc.formatList(
       this.lineUpRepo.listasAtuais[groupId],
       {
-        valor: `R$ ${this.configService.organizze.valorJogo}`,
+        valor: `${Utils.formatCentsToReal(this.configService.organizze.valorJogo)}`,
         pix: "fcjogasimples@gmail.com",
         titulo: "⚽ CAMPO DO VIANA",
       }

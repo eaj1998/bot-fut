@@ -5,8 +5,9 @@ import { ConfigService } from './config/config.service';
 import { container, inject, predicateAwareClassFactory, registry, singleton } from 'tsyringe';
 import { LoggerService } from './logger/logger.service';
 import { CommandFactory } from './commands/command.factory';
-import qrcode from 'qrcode-terminal';
+// import qrcode from 'qrcode-terminal';
 import { IRole } from './commands/type';
+import * as QRCode from 'qrcode';
 
 @singleton()
 @registry([
@@ -20,7 +21,7 @@ import { IRole } from './commands/type';
   },
 ])
 export class App {
-  private state: 'initialized' | 'pending' = 'pending';
+  private state: 'initialized' | 'pending' = 'pending';  
 
   constructor(
     @inject(BOT_SERVER_TOKEN) private readonly server: IBotServerPort,
@@ -43,9 +44,14 @@ export class App {
       // Start cron job
     });
 
-    this.server.onQRCode((qr: string) => {
+    this.server.onQRCode((qr: string) => {      
       this.loggerService.log('QRCode is ready do be scanned');
-      qrcode.generate(qr, { small: true })
+      const qrString = QRCode.toString(qr, {
+        type: 'terminal',
+        errorCorrectionLevel: 'L'
+      });
+
+      console.log(qrString);
     });
 
     this.server.onMessage(async (message) => {

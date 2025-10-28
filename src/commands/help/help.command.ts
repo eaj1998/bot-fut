@@ -15,9 +15,8 @@ export class HelpCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    const helpText = `*🤖 **COMANDOS DISPONÍVEIS**
-
-📋 **COMANDOS GERAIS (Todos os usuários)**
+    const helpText = `*🤖 COMANDOS DISPONÍVEIS*
+📋 *COMANDOS GERAIS (Todos os usuários)*
 
 /bora
 Adiciona você à lista de jogadores (posições de linha).
@@ -48,7 +47,7 @@ Exemplo: /joao
 
 ---
 
-💡 **DICAS**
+💡 *DICAS*
 
 - A lista principal tem 16 posições (2 goleiros + 14 jogadores de linha)
 - Posições 1 e 2 são exclusivas para goleiros
@@ -57,6 +56,6 @@ Exemplo: /joao
 - Use /fora se não quiser receber marcações naquela semana   `;
 
     await this.server.sendMessage(groupId, helpText);
-    
+
   }
 }

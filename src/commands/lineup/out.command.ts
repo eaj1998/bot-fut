@@ -1,6 +1,5 @@
 import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
-import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
 
@@ -20,7 +19,11 @@ export class OutCommand implements Command {
 
         const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
         if (!groupLineUp) return;
-
+        
+        console.log('Jogadores na Lista',groupLineUp.jogadores);
+        console.log('Jogadores Fora',groupLineUp.jogadoresFora);
+        console.log('Numero Autor',numeroAutor);
+        
         if (groupLineUp.jogadores.includes(numeroAutor)) {
             message.reply('Você está escalado pro jogo! 💪\nSe não puder ir, /desistir pra liberar a vaga — mas se puder, ajuda a fechar o time! ⚽');
             return;

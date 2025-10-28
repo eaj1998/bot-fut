@@ -45,13 +45,10 @@ export class App {
     });
 
     this.server.onQRCode((qr: string) => {
-      // this.loggerService.log('QRCode is ready do be scanned');
-      // LIMPA a tela e imprime direto no stdout (sem logger)
       console.clear();
       qrcode.generate(qr, { small: true }, (ascii) => {
         process.stdout.write('\n' + ascii + '\n');
       });
-      // qrcode.generate(qr, { small: true })
     });
 
     this.server.onMessage(async (message) => {

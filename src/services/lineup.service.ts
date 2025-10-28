@@ -4,6 +4,10 @@ import { LineUpRepository } from "../repository/lineup.repository";
 import { singleton } from "tsyringe";
 import Utils from "../utils/utils";
 import { ConfigService } from "../config/config.service";
+import { GameDoc, GameModel } from "../core/models/game.model";
+import { WorkspaceDoc } from "../core/models/workspace.model";
+import { ChatModel } from "../core/models/chat.model";
+import { getNextWeekday, applyTime, formatHorario } from "../utils/date";
 
 export type LineUpInfo = {
   data: Date;
@@ -44,7 +48,7 @@ export class LineUpService {
 
   getActiveList(groupId: string): LineUpInfo | null {
     const list = this.repo.listasAtuais[groupId];
-    if (!list) {      
+    if (!list) {
       return null;
     }
     return list;
@@ -90,6 +94,27 @@ export class LineUpService {
     };
   }
 
+  async getOrCreateTodayList(workspaceId: string) {
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+
+    let game = await GameModel.findOne({
+      workspaceId,
+      date: { $gte: startOfDay },
+    });
+
+    if (!game) {
+      game = await GameModel.create({
+        workspaceId,
+        date: new Date(),
+        title: "⚽ Jogo da Semana",
+        roster: { goalieSlots: 2, players: [], waitlist: [] },
+      });
+    }
+
+    return game;
+  }
+
   addOffLineupPlayer(list: LineUpInfo, name: string): { added: boolean; } {
     try {
       list.jogadoresFora.push(name);
@@ -100,28 +125,28 @@ export class LineUpService {
   }
 
   formatList(
-    list: LineUpInfo,
+    game: GameDoc,
     opts?: { titulo?: string; pix?: string; valor?: string }
   ): string {
-    if (!list) return "Erro: lista não encontrada.";
+    if (!game) return "Erro: jogo não encontrado.";
 
-    const dia = String(list.data.getDate()).padStart(2, "0");
-    const mes = String(list.data.getMonth() + 1).padStart(2, "0");
+    const dia = String(game.date.getDate()).padStart(2, "0");
+    const mes = String(game.date.getMonth() + 1).padStart(2, "0");
 
     const titulo = opts?.titulo ?? "⚽ CAMPO DO VIANA";
     const pix = opts?.pix ?? "fcjogasimples@gmail.com";
     const valor = opts?.valor ?? `${Utils.formatCentsToReal(this.configService.organizze.valorJogo)}`;
-
-    let texto = `${titulo}\n${dia}/${mes} às ${list.horario}\nPix: ${pix}\nValor: ${valor}\n\n`;
+    const horario = formatHorario(game.date);
+    let texto = `${titulo}\n${dia}/${mes} às ${horario}\nPix: ${pix}\nValor: ${valor}\n\n`;
 
     for (let i = 0; i < 16; i++) {
-      const jogador = list.jogadores[i] || "";
+      const jogador = game.roster.players[i] || "";
       texto += `${i + 1} - ${jogador}\n`;
     }
 
-    if (list.suplentes.length > 0) {
+    if (game.roster.waitlist.length > 0) {
       texto += "\n--- SUPLENTES ---\n";
-      list.suplentes.forEach((s, idx) => {
+      game.roster.waitlist.forEach((s, idx) => {
         texto += `${idx + 1} - ${s}\n`;
       });
     }
@@ -133,4 +158,68 @@ export class LineUpService {
     const commandParts = message.body.split('\n');
     return commandParts[0].split(' ').slice(1);
   }
+
+
+  async initListForChat(workspace: WorkspaceDoc, chatId: string) {
+    const chat = await ChatModel.findOne({ chatId, workspaceId: workspace._id }).lean();
+    if (!chat || !chat.schedule) {      
+      throw new Error("Chat sem configuração de schedule. Cadastre weekday/time em Chat.schedule.");
+    }
+
+    const weekday = chat.schedule.weekday ?? 2;
+    const timeStr = chat.schedule.time || "20:30";
+    const title = chat.schedule.title || workspace.settings?.title || "⚽ Jogo";
+    const priceCents = chat.schedule.priceCents ?? workspace.settings?.pricePerGameCents ?? 1400;
+
+    const base = new Date();
+    const gameDate = applyTime(getNextWeekday(base, weekday), timeStr);
+
+    const start = new Date(gameDate);
+    const end = new Date(gameDate); end.setHours(23, 59, 59, 999);
+
+    let game = await GameModel.findOne({
+      workspaceId: workspace._id,
+      date: { $gte: start, $lte: end },
+    });
+
+    if (!game) {
+      game = await GameModel.create({
+        workspaceId: workspace._id,
+        date: gameDate,
+        title,
+        priceCents,
+        roster: { goalieSlots: 2, players: [], waitlist: [] },
+      });
+    } else {
+
+      if (!game.roster) game.set("roster", { goalieSlots: 2, players: [], waitlist: [] } as any);
+      if (!game.roster.players) (game.roster as any).players = [];
+      if (!game.roster.waitlist) (game.roster as any).waitlist = [];
+      if (game.isModified()) await game.save();
+    }
+
+    return { game, priceCents, pix: chat.schedule.pix };
+  }
+
+  /**
+   * Versão por data explicitada (se você quiser passar manualmente).
+   */
+  async initListAt(workspace: WorkspaceDoc, targetDate: Date, opts?: { title?: string; priceCents?: number; }) {
+    const start = new Date(targetDate); start.setHours(0, 0, 0, 0);
+    const end = new Date(targetDate); end.setHours(23, 59, 59, 999);
+
+    let game = await GameModel.findOne({ workspaceId: workspace._id, date: { $gte: start, $lte: end } });
+
+    if (!game) {
+      game = await GameModel.create({
+        workspaceId: workspace._id,
+        date: targetDate,
+        title: opts?.title ?? (workspace.settings?.title || "⚽ Jogo"),
+        priceCents: opts?.priceCents ?? workspace.settings?.pricePerGameCents ?? 1400,
+        roster: { goalieSlots: 2, players: [], waitlist: [] },
+      });
+    }
+    return game;
+  }
+
 }

@@ -13,13 +13,14 @@ import { TagCommand } from './notification/tag.command';
 import { StickerCommand } from './entertainment/sticker.command';
 import { HelpCommand } from './help/help.command';
 import { WeatherCommand } from './weather/weather.command';
+import { BindCommand } from './admin/bind.command';
 
 @injectable()
 export class CommandFactory {
   public create(command: string): Command | undefined {
     console.log('command', command);
 
-    switch(command) {
+    switch(command) { 
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);
@@ -33,6 +34,7 @@ export class CommandFactory {
       case '/joao': return container.resolve(StickerCommand);
       case '/help': return container.resolve(HelpCommand);
       case '/previsao': return container.resolve(WeatherCommand);
+      case '/bind': return container.resolve(BindCommand);
 
       default: return undefined;
     }

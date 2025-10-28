@@ -6,7 +6,7 @@ import { LineUpRepository } from '../../repository/lineup.repository';
 import { ConfigService } from '../../config/config.service';
 import { LineUpService } from '../../services/lineup.service';
 import Utils from "../../utils/utils";
-
+import { resolveWorkspaceFromMessage } from "../../utils/workspace.utils";
 
 @injectable()
 export class LineUpCreateCommand implements Command {
@@ -21,42 +21,21 @@ export class LineUpCreateCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    let gameTime = '20h30';
-    let gameDate = new Date();
-    if (groupId === this.configService.whatsApp.terca) {
-      gameTime = '21h30';
-      gameDate = this.getProximoDiaDaSemana(2);
-    } else if (groupId === this.configService.whatsApp.quinta) {
-      gameTime = '20h30';
-      gameDate = this.getProximoDiaDaSemana(4);
-    } else if (groupId === this.configService.whatsApp.test) {
-      gameDate.setDate(gameDate.getDate() + 3);
-    } else {
+    const { workspace } = await resolveWorkspaceFromMessage(message);
+
+    if (!workspace) {
+      await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
       return;
     }
-    this.lineupSvc.initList(groupId, gameDate, gameTime);
 
-    const texto = this.lineupSvc.formatList(
-      this.lineUpRepo.listasAtuais[groupId],
-      {
-        valor: `${Utils.formatCentsToReal(this.configService.organizze.valorJogo)}`,
-        pix: "fcjogasimples@gmail.com",
-        titulo: "⚽ CAMPO DO VIANA",
-      }
-    );
+    const { game, priceCents, pix } = await this.lineupSvc.initListForChat(workspace, message.from);
+
+    const texto = this.lineupSvc.formatList(game, {
+      valor: Utils.formatCentsToReal(priceCents),
+      pix: pix ?? (workspace.settings?.pix || "fcjogasimples@gmail.com"),
+      titulo: workspace.settings?.title ?? "⚽ CAMPO DO VIANA",
+    });
 
     await this.server.sendMessage(groupId, texto);
-  }
-
-  private getProximoDiaDaSemana(diaDaSemana: number) {
-    const hoje = new Date();
-    const diaAtual = hoje.getDay();
-    let diasAAdicionar = diaDaSemana - diaAtual;
-
-    if (diasAAdicionar <= 0) {
-      diasAAdicionar += 7;
-    }
-    hoje.setDate(hoje.getDate() + diasAAdicionar);
-    return hoje;
   }
 }

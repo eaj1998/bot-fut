@@ -1,10 +1,11 @@
 {
   "name": "bot-grupo-futebol",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "",
   "main": "src/bootstrap.ts",
   "scripts": {
     "build": "tsc",
+    "start": "node dist/bootstrap.js",
     "debug": "ts-node-dev --respawn --transpile-only src/bootstrap.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint",

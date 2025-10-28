@@ -12,6 +12,7 @@ import { LoadCommand } from './lineup/load.command';
 import { TagCommand } from './notification/tag.command';
 import { StickerCommand } from './entertainment/sticker.command';
 import { HelpCommand } from './help/help.command';
+import { WeatherCommand } from './weather/weather.command';
 
 @injectable()
 export class CommandFactory {
@@ -31,6 +32,7 @@ export class CommandFactory {
       case '/marcar': return container.resolve(TagCommand);
       case '/joao': return container.resolve(StickerCommand);
       case '/help': return container.resolve(HelpCommand);
+      case '/previsao': return container.resolve(WeatherCommand);
 
       default: return undefined;
     }

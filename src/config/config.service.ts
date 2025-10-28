@@ -32,4 +32,6 @@ export class ConfigService {
     apiKey: process.env.ORGANIZE_API_KEY,
     valorJogo: Number(process.env.ORGANIZE_VALOR_JOGO) || 1400,
   };
+
+  weatherDefaultPlace = process.env.WEATHER_DEFAULT_PLACE || 'São Paulo, BR';
 }

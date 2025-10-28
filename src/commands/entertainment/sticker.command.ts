@@ -15,7 +15,7 @@ export class StickerCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const stickers: Record<string, string> = {
-      '/joao': './assets/joao.webp',
+      '/joao': './assets/joao.webp',      
     };
 
     if (stickers[message.body]) {

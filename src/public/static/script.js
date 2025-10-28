@@ -90,6 +90,10 @@ $(document).ready(() => {
   };
 
   const sanitizeMessage = (content) => {
+    if(content.mimetype == 'image/webp'){
+      return `<img src="data:${content.mimetype};base64,${content.data}" alt="sticker" />`;
+    }
+    
     return content.replaceAll('\n', '<br>');
   };
 
@@ -103,6 +107,8 @@ $(document).ready(() => {
   };
 
   const appendMyMessage = (content) => {
+    console.log(content);
+    
     const joinLastMessage = STATE.lastMessageAuthor === 'my';
     STATE.lastMessageAuthor = 'my';
     appendMessage(templates.message.my, content, joinLastMessage);

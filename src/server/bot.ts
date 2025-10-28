@@ -1,5 +1,5 @@
 import { IBotServerPort } from './type';
-import { Client, LocalAuth } from 'whatsapp-web.js';
+import WAWebJS, { Client, LocalAuth } from 'whatsapp-web.js';
 import { inject, injectable } from 'tsyringe';
 import { LoggerService } from '../logger/logger.service';
 import { ConfigService } from '../config/config.service';
@@ -16,13 +16,16 @@ export class BotServer extends IBotServerPort {
     loggerService.setName('BotServer');
   }
 
-  sendMessage(chatId: string, message: string): void {
+  sendMessage(
+    chatId: string,
+    message: WAWebJS.MessageContent,
+    options?: WAWebJS.MessageSendOptions
+  ): void {
     if (!this.client) {
-      this.loggerService.log('No socket available');
+      this.loggerService.log('No client available');
       return;
     }
-
-    this.client.sendMessage(chatId, message);
+    this.client.sendMessage(chatId, message, options);
   }
 
   async setup(): Promise<void> {

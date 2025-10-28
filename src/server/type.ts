@@ -8,7 +8,7 @@ type IEventType = {
   group_leave: (notification: GroupNotification) => void;
 };
 
-export class IBotServerPort {
+export abstract class IBotServerPort {
   public events: Partial<IEventType> = {};
 
   setup(): Promise<void> {

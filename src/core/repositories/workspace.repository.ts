@@ -1,9 +1,11 @@
 import { Types } from "mongoose";
 import { WorkspaceModel } from "../models/workspace.model";
 import { ChatModel } from "../models/chat.model";
+import { singleton } from "tsyringe";
 
+@singleton()
 export class WorkspaceRepository {
-  static async ensureWorkspaceBySlug(slug: string, name?: string) {
+  public async ensureWorkspaceBySlug(slug: string, name?: string) {
     const ws = await WorkspaceModel.findOne({ slug });
     if (ws) return ws;
     return WorkspaceModel.create({
@@ -12,11 +14,11 @@ export class WorkspaceRepository {
     });
   }
 
-  static async findById(workspaceId: string) {
+  public async findById(workspaceId: string) {
     return WorkspaceModel.findById(workspaceId);
   }
 
-  static async bindChatToWorkspace(chatId: string, workspaceId: string, label?: string) {
+  public async bindChatToWorkspace(chatId: string, workspaceId: string, label?: string) {
     return ChatModel.findOneAndUpdate(
       { chatId },
       { $set: { chatId, workspaceId: new Types.ObjectId(workspaceId), label } },
@@ -24,7 +26,7 @@ export class WorkspaceRepository {
     );
   }
 
-  static async getWorkspaceByChat(chatId: string) {
+  public async getWorkspaceByChat(chatId: string) {
     const chat = await ChatModel.findOne({ chatId });
     if (!chat) return null;
     return WorkspaceModel.findById(chat.workspaceId);

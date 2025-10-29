@@ -9,7 +9,6 @@ import { WorkspaceDoc } from "../core/models/workspace.model";
 import { ChatModel } from "../core/models/chat.model";
 import { getNextWeekday, applyTime, formatHorario } from "../utils/date";
 import { UserDoc, UserModel } from "../core/models/user.model";
-import { ObjectId } from "mongoose";
 
 export type LineUpInfo = {
   data: Date;
@@ -62,7 +61,19 @@ export class LineUpService {
 
     return game;
   }
+  pullFromOutlist(
+    game: GameDoc,
+    user: UserDoc,
+  ): void {
+    if (!game.roster?.outlist) game.roster.outlist = [];
 
+    const uid = user._id.toString();
+
+    game.roster.outlist = game.roster.outlist.filter((o) => {
+      const sameUser = o.userId?._id.toString() === uid;
+      return !sameUser;
+    });
+  }
   getActiveList(groupId: string): LineUpInfo | null {
     const list = this.repo.listasAtuais[groupId];
     if (!list) {
@@ -102,7 +113,7 @@ export class LineUpService {
       }
     }
 
-    game.roster.waitlist.push({ name: user.name, createdAt: new Date() });
+    game.roster.waitlist.push({ userId: user._id, name: user.name, createdAt: new Date() });
     game.save();
     return { added: false, suplentePos: game.roster.waitlist.length };
   }
@@ -153,16 +164,17 @@ export class LineUpService {
     return game;
   }
 
-  addOffLineupPlayer(game: GameDoc, author: Contact): { added: boolean; } {
-    // try {
-    //   game.roster.waitlist.push({
-    //     userId: author.id._serialized,
-    //     name: author.pushname || author.name || "Desconhecido",
-    //   });
-    //   return { added: true };
-    // } catch {
-    return { added: false };
-    // }
+  addOffLineupPlayer(game: GameDoc, user: UserDoc): { added: boolean; } {
+    try {
+      game.roster.outlist.push({
+        userId: user._id,
+        name: user.name,
+        createdAt: new Date(),
+      });
+      return { added: true };
+    } catch {
+      return { added: false };
+    }
   }
 
 
@@ -265,14 +277,13 @@ export class LineUpService {
       workspaceId: workspace._id,
       chatId: chatId,
       status: "aberta",
-      date: gameDate,
     });
 
     if (!game) {
       game = await GameModel.create({
         workspaceId: workspace._id,
         date: gameDate,
-        chatId: chatId, 
+        chatId: chatId,
         title,
         priceCents,
         roster: { goalieSlots: 2, players: [], waitlist: [] },

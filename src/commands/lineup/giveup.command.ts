@@ -3,8 +3,8 @@ import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
-import { resolveWorkspaceFromMessage } from '../../utils/workspace.utils';
 import { GameDoc } from '../../core/models/game.model';
+import { WorkspaceService } from '../../services/workspace.service';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -12,7 +12,8 @@ export class GiveUpCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService
+        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -21,7 +22,7 @@ export class GiveUpCommand implements Command {
         if (nomeConvidado) nomeAutor = nomeConvidado;
 
         const groupId = message.from;
-        const { workspace } = await resolveWorkspaceFromMessage(message);
+        const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
         if (!workspace) {
             await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
             return;

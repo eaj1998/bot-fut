@@ -9,10 +9,13 @@ import { IRole } from "../type";
 export class BindCommand {
   role = IRole.ADMIN;
 
-  constructor(@inject(BOT_CLIENT_TOKEN) private server: IBotServerPort) {}
+  constructor(
+    @inject(BOT_CLIENT_TOKEN) private server: IBotServerPort,
+    @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository
+  ) { }
 
   async handle(message: Message) {
-    const parts = message.body.trim().split(/\s+/); 
+    const parts = message.body.trim().split(/\s+/);
     // Ex: ["/bind", "campo-do-viana", "2", "20:30"]
     const [, slug, weekdayRaw, timeRaw] = parts;
 
@@ -24,7 +27,7 @@ export class BindCommand {
     const chat = await message.getChat();
     const chatId = chat.id._serialized;
 
-    const ws = await WorkspaceRepository.ensureWorkspaceBySlug(slug);
+    const ws = await this.workspaceRepo.ensureWorkspaceBySlug(slug);
 
     let weekday: number | undefined;
     if (weekdayRaw && !isNaN(Number(weekdayRaw))) {
@@ -49,7 +52,7 @@ export class BindCommand {
           workspaceId: ws._id,
           label: chat.name || "Grupo",
           schedule: {
-            weekday: weekday ?? 2, 
+            weekday: weekday ?? 2,
             time,
             title: ws.name ?? slug,
             priceCents: ws.settings?.pricePerGameCents ?? 1400,
@@ -60,7 +63,7 @@ export class BindCommand {
       { upsert: true, new: true }
     );
 
-    const dias = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+    const dias = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
     const diaTxt = dias[chatDoc.schedule?.weekday ?? 2];
     await this.server.sendMessage(
       message.from,

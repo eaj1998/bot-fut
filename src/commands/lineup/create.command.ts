@@ -2,11 +2,8 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
-import { LineUpRepository } from '../../repository/lineup.repository';
-import { ConfigService } from '../../config/config.service';
 import { LineUpService } from '../../services/lineup.service';
-import Utils from "../../utils/utils";
-import { resolveWorkspaceFromMessage } from "../../utils/workspace.utils";
+import { WorkspaceService } from '../../services/workspace.service';
 
 @injectable()
 export class LineUpCreateCommand implements Command {
@@ -14,14 +11,13 @@ export class LineUpCreateCommand implements Command {
 
   constructor(
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-    @inject(ConfigService) private readonly configService: ConfigService,
-    @inject(LineUpRepository) private readonly lineUpRepo: LineUpRepository,
+    @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
     @inject(LineUpService) private readonly lineupSvc: LineUpService
   ) { }
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    const { workspace } = await resolveWorkspaceFromMessage(message);
+    const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
     if (!workspace) {
       await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");

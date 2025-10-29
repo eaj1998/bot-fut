@@ -4,9 +4,9 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpRepository } from '../../repository/lineup.repository';
 import { LineUpService } from '../../services/lineup.service';
-import { resolveWorkspaceFromMessage } from '../../utils/workspace.utils';
 import { GameModel } from '../../core/models/game.model';
 import { UserModel } from '../../core/models/user.model';
+import { WorkspaceService } from '../../services/workspace.service';
 
 @injectable()
 export class LineUpAddCommand implements Command {
@@ -14,13 +14,13 @@ export class LineUpAddCommand implements Command {
 
   constructor(
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-    @inject(LineUpRepository) private readonly lineUpRepo: LineUpRepository,
-    @inject(LineUpService) private readonly lineupSvc: LineUpService
+    @inject(LineUpService) private readonly lineupSvc: LineUpService,
+    @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService
   ) { }
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    const { workspace } = await resolveWorkspaceFromMessage(message);
+    const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
     const author = await message.getContact();
 
@@ -44,6 +44,8 @@ export class LineUpAddCommand implements Command {
     if (!user) {
       user = await UserModel.create({ phoneE164: author.id._serialized, name: author.pushname, workspaceId: game.workspaceId });
     }
+
+    this.lineupSvc.pullFromOutlist(game, user);
 
     if (this.lineupSvc.alreadyInList(game.roster, user)) {
       await message.reply("Você já está na lista!");

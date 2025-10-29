@@ -20,6 +20,12 @@ export interface GameWaitlistEntry {
   createdAt: Date;
 }
 
+export interface GameOutlistEntry {
+  userId?: Types.ObjectId;
+  name?: string;
+  createdAt: Date;
+}
+
 /**
  * Subdocumento: estrutura do roster
  */
@@ -27,6 +33,7 @@ export interface GameRoster {
   goalieSlots: number;
   players: GamePlayer[];
   waitlist: GameWaitlistEntry[];
+  outlist: GameOutlistEntry[];
 }
 
 /**
@@ -69,11 +76,21 @@ const RosterWaitlistSchema = new Schema<GameWaitlistEntry>(
   { _id: false }
 );
 
+const RosterOutlistSchema = new Schema<GameOutlistEntry>(
+  {
+    userId: { type: Types.ObjectId, ref: "User" },
+    name: String,
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const RosterSchema = new Schema<GameRoster>(
   {
     goalieSlots: { type: Number, default: 2 },
     players: { type: [RosterPlayerSchema], default: [] },
     waitlist: { type: [RosterWaitlistSchema], default: [] },
+    outlist: { type: [RosterOutlistSchema], default: [] },
   },
   { _id: false }
 );
@@ -93,7 +110,7 @@ const GameSchema = new Schema<GameDoc>(
     },
     roster: {
       type: RosterSchema,
-      default: () => ({ goalieSlots: 2, players: [], waitlist: [] }),
+      default: () => ({ goalieSlots: 2, players: [], waitlist: [], outlist: [] }),
     },
   },
   { timestamps: true }

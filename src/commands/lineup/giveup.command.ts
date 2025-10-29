@@ -3,6 +3,8 @@ import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
+import { resolveWorkspaceFromMessage } from '../../utils/workspace.utils';
+import { GameDoc } from '../../core/models/game.model';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -14,50 +16,68 @@ export class GiveUpCommand implements Command {
     ) { }
 
     async handle(message: Message): Promise<void> {
-        const groupId = message.from;
         let nomeAutor = await this.lineupSvc.getAuthorName(message);
-        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
+        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(" ").trim();
+        if (nomeConvidado) nomeAutor = nomeConvidado;
 
-        if(nomeConvidado){
-            nomeAutor = nomeConvidado;
+        const groupId = message.from;
+        const { workspace } = await resolveWorkspaceFromMessage(message);
+        if (!workspace) {
+            await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
+            return;
         }
 
-        const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
-        if (!groupLineUp) return;
+        const game = await this.lineupSvc.getActiveListOrWarn(
+            workspace._id.toString(),
+            groupId,
+            (txt: string) => message.reply(txt)
+        ) as GameDoc | null;
+        if (!game) return;
 
-        let jogadorRemovido = false;
-        let mensagemPromocao = '';
-        const indexPrincipal = groupLineUp.jogadores.findIndex(
-            (j) => j && j.includes(nomeAutor)
-        );
+        const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
+        const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
+        const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
 
-        if (indexPrincipal > -1) {
-            if (indexPrincipal < 2) {
-                groupLineUp.jogadores[indexPrincipal] = '🧤';
-            } else {
-                groupLineUp.jogadores[indexPrincipal] = null;
-            }
-            jogadorRemovido = true;
+        const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
+        const idxPlayer = players.findIndex(p => (p.name ?? "").toLowerCase().includes(nomeTarget));
 
-            if (indexPrincipal >= 2 && groupLineUp.suplentes.length > 0) {
-                const promovido = groupLineUp.suplentes.shift() ?? null;
-                groupLineUp.jogadores[indexPrincipal] = promovido;
-                mensagemPromocao = `\n\n📢 Atenção: ${promovido} foi promovido da suplência para a lista principal!`;
+        let mensagemPromocao = "";
+
+        if (idxPlayer > -1) {
+            const removed = players[idxPlayer];
+            const removedSlot = removed?.slot ?? 0;
+            players.splice(idxPlayer, 1);
+
+            if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
+                const promovido = waitlist.shift()!;
+                players.push({
+                    slot: removedSlot,
+                    name: promovido.name ?? "Jogador",
+                    paid: false,
+                });
+                mensagemPromocao = `\n\n📢 Atenção: ${(promovido.name ?? "Jogador")} foi promovido da suplência para a lista principal!`;
             }
-        } else {
-            const indexSuplente = groupLineUp.suplentes.indexOf(nomeAutor);
-            if (indexSuplente > -1) {
-                groupLineUp.suplentes.splice(indexSuplente, 1);
-                jogadorRemovido = true;
-            }
+
+            await game.save();
+            await message.reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
+
+            const texto = await this.lineupSvc.formatList(game, workspace);
+
+            await this.server.sendMessage(groupId, texto);
+            return;
         }
 
-        if (jogadorRemovido) {
-            message.reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
-            const listaAtualizada = this.lineupSvc.formatList(groupLineUp);
-            await this.server.sendMessage(groupId, listaAtualizada);
-        } else {
-            message.reply('Seu nome não foi encontrado na lista.');
+        const idxWait = waitlist.findIndex(w => (w.name ?? "").toLowerCase().includes(nomeTarget));
+        if (idxWait > -1) {
+            waitlist.splice(idxWait, 1);
+            await game.save();
+
+            await message.reply(`Ok, ${nomeAutor}, você foi removido da suplência.`);
+            const texto = await this.lineupSvc.formatList(game, workspace);
+            await this.server.sendMessage(groupId, texto);
+            return;
         }
+
+        await message.reply("Seu nome não foi encontrado na lista.");
     }
 }

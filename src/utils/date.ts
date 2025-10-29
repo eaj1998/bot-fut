@@ -1,6 +1,6 @@
 export function getNextWeekday(base: Date, weekday: number): Date {
     const d = new Date(base);
-    const diff = (weekday + 7 - d.getDay()) % 7 || 7; // sempre próxima ocorrência
+    const diff = (weekday + 7 - d.getDay()) % 7 || 7;
     d.setDate(d.getDate() + diff);
     d.setHours(0, 0, 0, 0);
     return d;

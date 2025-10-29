@@ -28,13 +28,9 @@ export class LineUpCreateCommand implements Command {
       return;
     }
 
-    const { game, priceCents, pix } = await this.lineupSvc.initListForChat(workspace, message.from);
+    const { game } = await this.lineupSvc.initListForChat(workspace, message.from);
 
-    const texto = this.lineupSvc.formatList(game, {
-      valor: Utils.formatCentsToReal(priceCents),
-      pix: pix ?? (workspace.settings?.pix || "fcjogasimples@gmail.com"),
-      titulo: workspace.settings?.title ?? "⚽ CAMPO DO VIANA",
-    });
+    const texto = await this.lineupSvc.formatList(game, workspace);
 
     await this.server.sendMessage(groupId, texto);
   }

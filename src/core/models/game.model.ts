@@ -35,6 +35,7 @@ export interface GameRoster {
 export interface GameDoc extends Document {
   _id: Types.ObjectId;
   workspaceId: Types.ObjectId;
+  chatId: string;
   date: Date;
   title?: string;
   priceCents?: number;
@@ -79,7 +80,8 @@ const RosterSchema = new Schema<GameRoster>(
 
 const GameSchema = new Schema<GameDoc>(
   {
-    workspaceId: { type: Types.ObjectId, ref: "Workspace", required: true, index: true },
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", required: true, index: true },
+    chatId: { type: String, required: true, index: true },
     date: { type: Date, required: true, index: true },
     title: String,
     priceCents: Number,

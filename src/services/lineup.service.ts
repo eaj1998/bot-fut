@@ -1,13 +1,15 @@
-import { Message } from "whatsapp-web.js";
+import { Contact, Message } from "whatsapp-web.js";
 import { inject, injectable } from "tsyringe";
 import { LineUpRepository } from "../repository/lineup.repository";
 import { singleton } from "tsyringe";
 import Utils from "../utils/utils";
 import { ConfigService } from "../config/config.service";
-import { GameDoc, GameModel } from "../core/models/game.model";
+import { GameDoc, GameModel, GameRoster, GamePlayer } from "../core/models/game.model";
 import { WorkspaceDoc } from "../core/models/workspace.model";
 import { ChatModel } from "../core/models/chat.model";
 import { getNextWeekday, applyTime, formatHorario } from "../utils/date";
+import { UserDoc, UserModel } from "../core/models/user.model";
+import { ObjectId } from "mongoose";
 
 export type LineUpInfo = {
   data: Date;
@@ -35,15 +37,30 @@ export class LineUpService {
     );
   }
 
-  getActiveListOrWarn(groupId: string, reply: (txt: string) => void): LineUpInfo | null {
-    const list = this.repo.listasAtuais[groupId];
-    if (!list) {
+  async getActiveListOrWarn(
+    workspaceId: string,
+    groupId: string,
+    reply: (txt: string) => void
+  ): Promise<GameDoc | null> {
+    if (!workspaceId || !groupId) {
+      reply("Erro interno: workspace ou grupo não encontrado.");
+      return null;
+    }
+
+    const game = await GameModel.findOne({
+      workspaceId,
+      chatId: groupId,
+      status: "aberta",
+    }).populate("roster.players.userId");
+
+    if (!game) {
       reply(
-        "Nenhuma lista de jogo ativa no momento. Aguarde um admin enviar com o comando /lista."
+        "⚠️ Nenhuma lista ativa encontrada. Peça a um admin para iniciar com /lista."
       );
       return null;
     }
-    return list;
+
+    return game;
   }
 
   getActiveList(groupId: string): LineUpInfo | null {
@@ -54,19 +71,40 @@ export class LineUpService {
     return list;
   }
 
-  alreadyInList(list: LineUpInfo, name: string): boolean {
-    return list.jogadores.includes(name) || list.suplentes.includes(name);
+  alreadyInList(roster: GameRoster, user: UserDoc): boolean {
+    return (
+      roster.players.some(p => p.userId?.toString() === user._id.toString()) ||
+      roster.waitlist.some(p => p.userId?.toString() === user._id.toString())
+    );
   }
 
-  addOutfieldPlayer(list: LineUpInfo, name: string): { added: boolean; suplentePos?: number } {
-    for (let i = 2; i < 16; i++) {
-      if (list.jogadores[i] === null) {
-        list.jogadores[i] = name;
+  async addOutfieldPlayer(
+    game: GameDoc,
+    user: UserDoc,
+    maxPlayers = 16
+  ): Promise<{ added: boolean; suplentePos?: number }> {
+    game.roster.players = game.roster.players ?? [];
+    game.roster.waitlist = game.roster.waitlist ?? [];
+
+    const firstOutfieldSlot = Math.max(1, (game.roster.goalieSlots ?? 2) + 1);
+
+    const used = new Set<number>(
+      game.roster.players
+        .map(p => p.slot)
+        .filter((s): s is number => typeof s === 'number')
+    );
+
+    for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
+      if (!used.has(slot)) {
+        game.roster.players.push({ userId: user._id, slot, name: user.name, paid: false });
+        game.save();
         return { added: true };
       }
     }
-    list.suplentes.push(name);
-    return { added: false, suplentePos: list.suplentes.length };
+
+    game.roster.waitlist.push({ name: user.name, createdAt: new Date() });
+    game.save();
+    return { added: false, suplentePos: game.roster.waitlist.length };
   }
 
   addGoalkeeper(list: LineUpInfo, name: string): { added: boolean; suplentePos?: number } {
@@ -115,39 +153,88 @@ export class LineUpService {
     return game;
   }
 
-  addOffLineupPlayer(list: LineUpInfo, name: string): { added: boolean; } {
-    try {
-      list.jogadoresFora.push(name);
-      return { added: true };
-    } catch {
-      return { added: false };
-    }
+  addOffLineupPlayer(game: GameDoc, author: Contact): { added: boolean; } {
+    // try {
+    //   game.roster.waitlist.push({
+    //     userId: author.id._serialized,
+    //     name: author.pushname || author.name || "Desconhecido",
+    //   });
+    //   return { added: true };
+    // } catch {
+    return { added: false };
+    // }
   }
 
-  formatList(
+
+  async formatList(
     game: GameDoc,
-    opts?: { titulo?: string; pix?: string; valor?: string }
-  ): string {
+    workspace?: WorkspaceDoc,
+  ): Promise<string> {
     if (!game) return "Erro: jogo não encontrado.";
 
-    const dia = String(game.date.getDate()).padStart(2, "0");
-    const mes = String(game.date.getMonth() + 1).padStart(2, "0");
+    const d = new Date(game.date);
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const horario = formatHorario(d);
 
-    const titulo = opts?.titulo ?? "⚽ CAMPO DO VIANA";
-    const pix = opts?.pix ?? "fcjogasimples@gmail.com";
-    const valor = opts?.valor ?? `${Utils.formatCentsToReal(this.configService.organizze.valorJogo)}`;
-    const horario = formatHorario(game.date);
-    let texto = `${titulo}\n${dia}/${mes} às ${horario}\nPix: ${pix}\nValor: ${valor}\n\n`;
+    const chat = await ChatModel.findOne({ chatId: game.chatId, workspaceId: game.workspaceId });
 
-    for (let i = 0; i < 16; i++) {
-      const jogador = game.roster.players[i] || "";
-      texto += `${i + 1} - ${jogador}\n`;
+    const titulo = game?.title ?? "⚽ CAMPO DO VIANA";
+    const pix = chat?.schedule?.pix ?? "fcjogasimples@gmail.com";
+    const valor = `${Utils.formatCentsToReal(chat?.schedule?.priceCents ?? 0)}`;
+
+    const maxPlayers = game.maxPlayers ?? 16;
+    const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
+
+    const players: GamePlayer[] = Array.isArray(game.roster?.players) ? game.roster.players : [];
+    const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
+
+    const slots: (GamePlayer | null)[] = Array(maxPlayers).fill(null);
+    const pending: GamePlayer[] = [];
+
+    for (const p of players) {
+      const s = p.slot ?? 0;
+      if (s >= 1 && s <= maxPlayers && slots[s - 1] === null) {
+        slots[s - 1] = p;
+      } else {
+        pending.push(p);
+      }
     }
 
-    if (game.roster.waitlist.length > 0) {
-      texto += "\n--- SUPLENTES ---\n";
-      game.roster.waitlist.forEach((s, idx) => {
-        texto += `${idx + 1} - ${s}\n`;
+    // 2) realoca pendentes no primeiro espaço livre
+    for (const p of pending) {
+      let placed = false;
+      for (let i = 0; i < maxPlayers; i++) {
+        if (slots[i] === null) {
+          slots[i] = p;
+          placed = true;
+          break;
+        }
+      }
+    }
+
+    let texto = `${titulo}\n${dia}/${mes} às ${horario}\nPix: ${pix}\nValor: ${valor}\n\n`;
+
+    for (let i = 0; i < maxPlayers; i++) {
+      const pos = i + 1;
+      const isGoalie = pos <= goalieSlots;
+      const glove = isGoalie ? "🧤 " : "";
+
+      const p = slots[i];
+      if (p) {
+        const nome = (p.name ?? "Jogador").trim();
+        const paid = p.paid ? " ✅" : "";
+        texto += `${pos} - ${glove}${nome}${paid}\n`;
+      } else {
+        texto += `${pos} - ${glove}\n`;
+      }
+    }
+
+    if (waitlist.length > 0) {
+      texto += `\n--- SUPLENTES ---\n`;
+      waitlist.forEach((w, idx) => {
+        const nome = (w.name ?? "Jogador").trim();
+        texto += `${idx + 1} - ${nome}\n`;
       });
     }
 
@@ -162,7 +249,7 @@ export class LineUpService {
 
   async initListForChat(workspace: WorkspaceDoc, chatId: string) {
     const chat = await ChatModel.findOne({ chatId, workspaceId: workspace._id }).lean();
-    if (!chat || !chat.schedule) {      
+    if (!chat || !chat.schedule) {
       throw new Error("Chat sem configuração de schedule. Cadastre weekday/time em Chat.schedule.");
     }
 
@@ -174,18 +261,18 @@ export class LineUpService {
     const base = new Date();
     const gameDate = applyTime(getNextWeekday(base, weekday), timeStr);
 
-    const start = new Date(gameDate);
-    const end = new Date(gameDate); end.setHours(23, 59, 59, 999);
-
     let game = await GameModel.findOne({
       workspaceId: workspace._id,
-      date: { $gte: start, $lte: end },
+      chatId: chatId,
+      status: "aberta",
+      date: gameDate,
     });
 
     if (!game) {
       game = await GameModel.create({
         workspaceId: workspace._id,
         date: gameDate,
+        chatId: chatId, 
         title,
         priceCents,
         roster: { goalieSlots: 2, players: [], waitlist: [] },

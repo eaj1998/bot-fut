@@ -1,4 +1,15 @@
-import { Schema, model, Types } from "mongoose";
+import { Schema, model, Types, Model } from "mongoose";
+
+export interface UserDoc extends Document {
+    _id: Types.ObjectId;
+    workspaceId: Types.ObjectId;  // referência para o Workspace
+    name: string;
+    phoneE164: string;             // ex: "+554799999999"
+    nick?: string;
+    isGoalie: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 const UserSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", index: true, required: true },
@@ -10,4 +21,4 @@ const UserSchema = new Schema({
 
 UserSchema.index({ workspaceId: 1, phoneE164: 1 }, { unique: true });
 
-export const UserModel = model("User", UserSchema);
+export const UserModel: Model<UserDoc> = model<UserDoc>("User", UserSchema);

@@ -4,6 +4,9 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpRepository } from '../../repository/lineup.repository';
 import { LineUpService } from '../../services/lineup.service';
+import { resolveWorkspaceFromMessage } from '../../utils/workspace.utils';
+import { GameModel } from '../../core/models/game.model';
+import { UserModel } from '../../core/models/user.model';
 
 @injectable()
 export class LineUpAddCommand implements Command {
@@ -17,29 +20,46 @@ export class LineUpAddCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    const nomeAutor = await this.lineupSvc.getAuthorName(message);
+    const { workspace } = await resolveWorkspaceFromMessage(message);
+
     const author = await message.getContact();
 
-    const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
-    if (!groupLineUp) return;
+    if (!workspace) {
+      await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
+      return;
+    }
 
-    groupLineUp.jogadoresFora = groupLineUp.jogadoresFora.filter(p => p !== author.id._serialized);
+    let game = await GameModel.findOne({
+      workspaceId: workspace._id,
+      chatId: groupId,
+      status: "aberta",
+    });
 
-    if (this.lineupSvc.alreadyInList(groupLineUp, nomeAutor)) {
+    if (!game) {
+      await message.reply("Nenhum jogo agendado encontrado para este grupo.");
+      return;
+    }
+
+    let user = await UserModel.findOne({ phoneE164: author.id._serialized });
+    if (!user) {
+      user = await UserModel.create({ phoneE164: author.id._serialized, name: author.pushname, workspaceId: game.workspaceId });
+    }
+
+    if (this.lineupSvc.alreadyInList(game.roster, user)) {
       await message.reply("Você já está na lista!");
       return;
     }
 
-    const res = this.lineupSvc.addOutfieldPlayer(groupLineUp, nomeAutor);
+    const res = await this.lineupSvc.addOutfieldPlayer(game, user);
 
     if (res.added) {
-      const texto = this.lineupSvc.formatList(groupLineUp);
+      const texto = await this.lineupSvc.formatList(game, workspace);
       await this.server.sendMessage(groupId, texto);
     } else {
       await message.reply(
         `Lista principal cheia! Você foi adicionado como o ${res.suplentePos}º suplente.`
       );
-      const texto = this.lineupSvc.formatList(groupLineUp);
+      const texto = await this.lineupSvc.formatList(game);
       await this.server.sendMessage(groupId, texto);
     }
   }

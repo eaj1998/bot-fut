@@ -49,7 +49,7 @@ export class LineUpAddCommand implements Command {
     const res = await this.lineupSvc.addOutfieldPlayer(game, user);
 
     if (res.added) {
-      const texto = await this.lineupSvc.formatList(game, workspace);
+      const texto = await this.lineupSvc.formatList(game);
       await this.server.sendMessage(groupId, texto);
     } else {
       await message.reply(

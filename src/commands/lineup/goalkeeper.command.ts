@@ -52,14 +52,14 @@ export class GoalKeeperAddCommand implements Command {
       await this.gameRepo.save(game);
 
       await message.reply(`🧤 Sem vaga de goleiro no momento — você foi adicionado como o ${pos}º suplente.`);
-      const textoWait = await this.lineupSvc.formatList(game, workspace);
+      const textoWait = await this.lineupSvc.formatList(game);
       await this.server.sendMessage(groupId, textoWait);
       return;
     }
 
     await this.gameRepo.save(game);
 
-    const texto = await this.lineupSvc.formatList(game, workspace);
+    const texto = await this.lineupSvc.formatList(game);
     await this.server.sendMessage(groupId, texto);
   }
 }

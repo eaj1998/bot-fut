@@ -29,9 +29,61 @@ export class LineUpService {
     );
   }
 
-  async giveUpFromList(
-    workspace: WorkspaceDoc,
+  buildGuestLabel(guestName: string, inviterName: string): string {
+    const g = guestName.trim();
+    const i = inviterName.trim();
+    return `${g} (conv. ${i})`;
+  }
+
+  addGuestWithInviter(
     game: GameDoc,
+    guestName: string,
+    inviterName: string,
+    opts?: { asGoalie?: boolean }
+  ): { placed: boolean; slot?: number; finalName: string; role: "goalie" | "outfield" } {
+    if (!Array.isArray(game.roster.players)) game.roster.players = [];
+
+    const asGoalie = !!opts?.asGoalie;
+    const label = this.buildGuestLabel(guestName, inviterName);
+    const maxPlayers = game.maxPlayers ?? 16;
+    const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+
+    const used = new Set<number>(
+      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
+    );
+
+    if (asGoalie) {
+      for (let slot = 1; slot <= goalieSlots; slot++) {
+        if (!used.has(slot)) {
+          game.roster.players.push({
+            slot,
+            name: label,
+            paid: false,
+            guest: true,
+          });
+          return { placed: true, slot, finalName: label, role: "goalie" };
+        }
+      }
+      return { placed: false, finalName: label, role: "goalie" };
+    }
+
+    for (let slot = goalieSlots + 1; slot <= maxPlayers; slot++) {
+      if (!used.has(slot)) {
+        game.roster.players.push({
+          slot,
+          name: label,
+          paid: false,
+          guest: true,
+        });
+        return { placed: true, slot, finalName: label, role: "outfield" };
+      }
+    }
+    return { placed: false, finalName: label, role: "outfield" };
+  }
+
+  async giveUpFromList(
+    game: GameDoc,
+    user: UserDoc,
     nomeAutor: string,
     reply: (txt: string) => void
   ): Promise<boolean> {
@@ -40,8 +92,11 @@ export class LineUpService {
     const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
 
     const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
-    const idxPlayer = players.findIndex(p => (p.name ?? "").toLowerCase().includes(nomeTarget));
-
+    
+    let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
+    if (idxPlayer <= -1) {
+      idxPlayer = players.findIndex(p => (p.userId?._id.toString() ?? "").toLowerCase().includes(user._id.toString()));
+    }
     let mensagemPromocao = "";
 
     if (idxPlayer > -1) {
@@ -61,7 +116,7 @@ export class LineUpService {
 
       if (await game.save()) {
         await reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
-        const texto = await this.formatList(game, workspace);
+        const texto = await this.formatList(game);
         await reply(texto);
       }
     }
@@ -72,7 +127,7 @@ export class LineUpService {
       await game.save();
 
       await reply(`Ok, ${nomeAutor}, você foi removido da suplência.`);
-      const texto = await this.formatList(game, workspace);
+      const texto = await this.formatList(game);
       await reply(texto);
       return true;
     }
@@ -122,6 +177,10 @@ export class LineUpService {
       const sameUser = o.userId?._id.toString() === uid;
       return !sameUser;
     });
+  }
+
+  alreadyInMainByLabel(game: GameDoc, label: string): boolean {
+    return (game.roster.players ?? []).some(p => p.name?.trim().toLocaleLowerCase() === label?.trim().toLocaleLowerCase());
   }
 
   alreadyInList(roster: GameRoster, user: UserDoc): boolean {
@@ -276,7 +335,6 @@ export class LineUpService {
 
   async formatList(
     game: GameDoc,
-    workspace?: WorkspaceDoc,
   ): Promise<string> {
     if (!game) return "Erro: jogo não encontrado.";
 

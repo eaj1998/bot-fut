@@ -26,7 +26,7 @@ export class LineUpCreateCommand implements Command {
 
     const { game } = await this.lineupSvc.initListForChat(workspace, message.from);
 
-    const texto = await this.lineupSvc.formatList(game, workspace);
+    const texto = await this.lineupSvc.formatList(game);
 
     await this.server.sendMessage(groupId, texto);
   }

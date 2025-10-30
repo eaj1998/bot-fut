@@ -2,11 +2,10 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
-import { LineUpRepository } from '../../repository/lineup.repository';
 import { LineUpService } from '../../services/lineup.service';
-import { GameModel } from '../../core/models/game.model';
-import { UserModel } from '../../core/models/user.model';
 import { WorkspaceService } from '../../services/workspace.service';
+import { GameRepository } from '../../core/repositories/game.respository';
+import { UserRepository } from '../../core/repositories/user.repository';
 
 @injectable()
 export class LineUpAddCommand implements Command {
@@ -15,7 +14,9 @@ export class LineUpAddCommand implements Command {
   constructor(
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
     @inject(LineUpService) private readonly lineupSvc: LineUpService,
-    @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService
+    @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+    @inject(GameRepository) private readonly gameRepo: GameRepository,
+    @inject(UserRepository) private readonly userRepo: UserRepository
   ) { }
 
   async handle(message: Message): Promise<void> {
@@ -29,21 +30,14 @@ export class LineUpAddCommand implements Command {
       return;
     }
 
-    let game = await GameModel.findOne({
-      workspaceId: workspace._id,
-      chatId: groupId,
-      status: "aberta",
-    });
+    let game = await this.gameRepo.findActiveForChat(workspace._id, groupId);
 
     if (!game) {
       await message.reply("Nenhum jogo agendado encontrado para este grupo.");
       return;
     }
 
-    let user = await UserModel.findOne({ phoneE164: author.id._serialized });
-    if (!user) {
-      user = await UserModel.create({ phoneE164: author.id._serialized, name: author.pushname, workspaceId: game.workspaceId });
-    }
+    const user = await this.userRepo.upsertByPhone(workspace._id, author.id._serialized, author.pushname || author.name || "Jogador");
 
     this.lineupSvc.pullFromOutlist(game, user);
 

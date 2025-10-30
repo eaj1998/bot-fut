@@ -1,29 +1,22 @@
-import { Contact, Message } from "whatsapp-web.js";
-import { inject, injectable } from "tsyringe";
+import { Message } from "whatsapp-web.js";
+import { inject } from "tsyringe";
 import { LineUpRepository } from "../repository/lineup.repository";
 import { singleton } from "tsyringe";
 import Utils from "../utils/utils";
-import { ConfigService } from "../config/config.service";
 import { GameDoc, GameModel, GameRoster, GamePlayer } from "../core/models/game.model";
 import { WorkspaceDoc } from "../core/models/workspace.model";
 import { ChatModel } from "../core/models/chat.model";
 import { getNextWeekday, applyTime, formatHorario } from "../utils/date";
-import { UserDoc, UserModel } from "../core/models/user.model";
-
-export type LineUpInfo = {
-  data: Date;
-  horario: string;
-  jogadores: (string | null)[];
-  jogadoresFora: (string | null)[];
-  suplentes: string[];
-};
+import { UserDoc } from "../core/models/user.model";
+import { GameRepository } from "../core/repositories/game.respository";
+import { Types } from "mongoose";
 
 @singleton()
 
 export class LineUpService {
   constructor(
     @inject(LineUpRepository) private readonly repo: LineUpRepository,
-    @inject(ConfigService) private readonly configService: ConfigService,
+    @inject(GameRepository) private readonly gameRepo: GameRepository,
   ) { }
 
   async getAuthorName(message: Message): Promise<string> {
@@ -34,6 +27,57 @@ export class LineUpService {
       message.author?.split("@")[0] ??
       "Desconhecido"
     );
+  }
+
+  async giveUpFromList(
+    workspace: WorkspaceDoc,
+    game: GameDoc,
+    nomeAutor: string,
+    reply: (txt: string) => void
+  ): Promise<boolean> {
+    const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
+    const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
+    const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
+
+    const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
+    const idxPlayer = players.findIndex(p => (p.name ?? "").toLowerCase().includes(nomeTarget));
+
+    let mensagemPromocao = "";
+
+    if (idxPlayer > -1) {
+      const removed = players[idxPlayer];
+      const removedSlot = removed?.slot ?? 0;
+      players.splice(idxPlayer, 1);
+
+      if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
+        const promovido = waitlist.shift()!;
+        players.push({
+          slot: removedSlot,
+          name: promovido.name ?? "Jogador",
+          paid: false,
+        });
+        mensagemPromocao = `\n\n📢 Atenção: ${(promovido.name ?? "Jogador")} foi promovido da suplência para a lista principal!`;
+      }
+
+      if (await game.save()) {
+        await reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
+        const texto = await this.formatList(game, workspace);
+        await reply(texto);
+      }
+    }
+
+    const idxWait = waitlist.findIndex(w => (w.name ?? "").toLowerCase().includes(nomeTarget));
+    if (idxWait > -1) {
+      waitlist.splice(idxWait, 1);
+      await game.save();
+
+      await reply(`Ok, ${nomeAutor}, você foi removido da suplência.`);
+      const texto = await this.formatList(game, workspace);
+      await reply(texto);
+      return true;
+    }
+
+    return false;
   }
 
   async getActiveListOrWarn(
@@ -61,6 +105,11 @@ export class LineUpService {
 
     return game;
   }
+
+  async getActiveGame(workspaceId: Types.ObjectId, chatId: string): Promise<GameDoc | null> {
+    return await this.gameRepo.findActiveForChat(workspaceId, chatId);
+  }
+
   pullFromOutlist(
     game: GameDoc,
     user: UserDoc,
@@ -73,13 +122,6 @@ export class LineUpService {
       const sameUser = o.userId?._id.toString() === uid;
       return !sameUser;
     });
-  }
-  getActiveList(groupId: string): LineUpInfo | null {
-    const list = this.repo.listasAtuais[groupId];
-    if (!list) {
-      return null;
-    }
-    return list;
   }
 
   alreadyInList(roster: GameRoster, user: UserDoc): boolean {
@@ -118,15 +160,69 @@ export class LineUpService {
     return { added: false, suplentePos: game.roster.waitlist.length };
   }
 
-  addGoalkeeper(list: LineUpInfo, name: string): { added: boolean; suplentePos?: number } {
-    for (let i = 0; i < 2; i++) {
-      if (list.jogadores[i] === "🧤" || list.jogadores[i] === null) {
-        list.jogadores[i] = `🧤 ${name}`;
-        return { added: true };
+  async addGoalkeeper(game: GameDoc, user: UserDoc): Promise<{ added: boolean; suplentePos?: number }> {
+    const usedSlots = new Set<number>(
+      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
+    );
+    let placed = false;
+
+    for (let slot = 1; slot <= game.roster.goalieSlots; slot++) {
+      if (!usedSlots.has(slot)) {
+        game.roster.players.push({
+          slot,
+          userId: user._id,
+          name: user.name,
+          paid: false,
+        });
+        placed = true;
+        break;
       }
     }
-    list.suplentes.push(name);
-    return { added: false, suplentePos: list.suplentes.length };
+
+    if (!placed) {
+      game.roster.waitlist.push({
+        userId: user._id,
+        name: user.name,
+        createdAt: new Date(),
+      });
+
+      if (await game.save()) {
+        return { added: true, suplentePos: game.roster.waitlist.length };
+      }
+    }
+    return { added: false, suplentePos: game.roster.waitlist.length };
+  }
+
+  takeNextGoalieSlot(game: GameDoc, user: UserDoc, name?: string): { placed: boolean } {
+    if (!Array.isArray(game.roster.players)) game.roster.players = [];
+    const goalieSlots = Math.max(1, game.roster.goalieSlots ?? 2);
+
+    const used = new Set<number>(
+      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
+    );
+
+    for (let slot = 1; slot <= goalieSlots; slot++) {
+      if (!used.has(slot)) {
+        game.roster.players.push({
+          slot,
+          userId: user._id,
+          name: name ?? user.name,
+          paid: false,
+        });
+        return { placed: true };
+      }
+    }
+    return { placed: false };
+  }
+
+  pushToWaitlist(game: GameDoc, user: UserDoc, name?: string) {
+    if (!Array.isArray(game.roster.waitlist)) game.roster.waitlist = [];
+    game.roster.waitlist.push({
+      userId: user._id,
+      name: name ?? user.name,
+      createdAt: new Date(),
+    });
+    return game.roster.waitlist.length;
   }
 
   initList(groupId: string, gameDate: Date, gameTime: string) {
@@ -169,6 +265,7 @@ export class LineUpService {
       game.roster.outlist.push({
         userId: user._id,
         name: user.name,
+        phoneE164: user.phoneE164,
         createdAt: new Date(),
       });
       return { added: true };
@@ -176,7 +273,6 @@ export class LineUpService {
       return { added: false };
     }
   }
-
 
   async formatList(
     game: GameDoc,
@@ -213,7 +309,6 @@ export class LineUpService {
       }
     }
 
-    // 2) realoca pendentes no primeiro espaço livre
     for (const p of pending) {
       let placed = false;
       for (let i = 0; i < maxPlayers; i++) {
@@ -258,7 +353,6 @@ export class LineUpService {
     return commandParts[0].split(' ').slice(1);
   }
 
-
   async initListForChat(workspace: WorkspaceDoc, chatId: string) {
     const chat = await ChatModel.findOne({ chatId, workspaceId: workspace._id }).lean();
     if (!chat || !chat.schedule) {
@@ -299,9 +393,6 @@ export class LineUpService {
     return { game, priceCents, pix: chat.schedule.pix };
   }
 
-  /**
-   * Versão por data explicitada (se você quiser passar manualmente).
-   */
   async initListAt(workspace: WorkspaceDoc, targetDate: Date, opts?: { title?: string; priceCents?: number; }) {
     const start = new Date(targetDate); start.setHours(0, 0, 0, 0);
     const end = new Date(targetDate); end.setHours(23, 59, 59, 999);

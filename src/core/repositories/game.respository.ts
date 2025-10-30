@@ -1,7 +1,22 @@
-import { GameModel } from "../models/game.model";
-import { Types } from "mongoose";
+import { GameDoc, GameModel } from "../models/game.model";
+import { Model, Types } from "mongoose";
+import { UserDoc } from "../models/user.model";
 
 export class GameRepository {
+    constructor(private readonly model: Model<GameDoc> = GameModel) { }
+
+    async findActiveForChat(workspaceId: Types.ObjectId, chatId: string) {
+        return this.model.findOne({
+            workspaceId,
+            chatId,
+            status: "aberta",
+        });
+    }
+
+    async save(game: GameDoc) {
+        return game.save();
+    }
+
     static async setPlayerPaid(gameId: string, userId: string, paid: boolean) {
         const game = await GameModel.findById(gameId);
         if (!game) return null;
@@ -15,41 +30,33 @@ export class GameRepository {
         return game;
     }
 
-    static async addPlayer(gameId: string, userId: string, name: string, maxPlayers: number) {
-        const game = await GameModel.findById(gameId);
-        if (!game) throw new Error("game not found");
-        if (!game.roster?.players) throw new Error("roster not found");
 
-        const used = new Set(game.roster.players.map(p => p.slot));
-        const limit = game.maxPlayers ?? maxPlayers;
-        for (let slot = 1; slot <= limit; slot++) {
+    async addOutfieldPlayer(
+        game: GameDoc,
+        user: UserDoc,
+        maxPlayers = 16
+    ): Promise<{ added: boolean; suplentePos?: number }> {
+        game.roster.players = game.roster.players ?? [];
+        game.roster.waitlist = game.roster.waitlist ?? [];
+
+        const firstOutfieldSlot = Math.max(1, (game.roster.goalieSlots ?? 2) + 1);
+
+        const used = new Set<number>(
+            game.roster.players
+                .map(p => p.slot)
+                .filter((s): s is number => typeof s === 'number')
+        );
+
+        for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
             if (!used.has(slot)) {
-                game.roster.players.push({ slot, userId: new Types.ObjectId(userId), name });
-                await game.save();
-                return { slot, waitlist: false };
+                game.roster.players.push({ userId: user._id, slot, name: user.name, paid: false });
+                game.save();
+                return { added: true };
             }
         }
-        game.roster.waitlist.push({ userId: new Types.ObjectId(userId), name, createdAt: new Date() });
-        await game.save();
-        return { waitlist: true };
+
+        game.roster.waitlist.push({ userId: user._id, name: user.name, createdAt: new Date() });
+        game.save();
+        return { added: false, suplentePos: game.roster.waitlist.length };
     }
-
-    static async getOrCreateTodayList(workspaceId: string) {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-        let game = await GameModel.findOne({ workspaceId, date: { $gte: start, $lte: end } });
-        if (!game) {
-            game = await GameModel.create({
-                workspaceId,
-                date: now,
-                title: "⚽ Jogo de Hoje",
-                roster: { goalieSlots: 2, players: [], waitlist: [] }
-            });
-        }
-        
-        return game;
-    }
-
 }

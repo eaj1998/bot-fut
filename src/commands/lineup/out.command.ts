@@ -5,6 +5,8 @@ import { LineUpService } from "../../services/lineup.service";
 import { GameDoc } from "../../core/models/game.model";
 import { UserModel, UserDoc } from "../../core/models/user.model";
 import { WorkspaceService } from "../../services/workspace.service";
+import { GameRepository } from "../../core/repositories/game.respository";
+import { UserRepository } from "../../core/repositories/user.repository";
 
 @injectable()
 export class OutCommand implements Command {
@@ -12,7 +14,8 @@ export class OutCommand implements Command {
 
     constructor(
         @inject(LineUpService) private readonly lineupSvc: LineUpService,
-        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService
+        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+        @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -36,17 +39,7 @@ export class OutCommand implements Command {
         const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
         const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
         const author = await message.getContact();
-        const phoneE164 = author?.id?._serialized ?? "";
-        console.log("phoneE164", phoneE164);
-
-        let user: UserDoc | null = await UserModel.findOne({ workspaceId: workspace._id, phoneE164 });
-        if (!user) {
-            user = await UserModel.create({
-                workspaceId: workspace._id,
-                phoneE164,
-                name: author.pushname || author.name || "Jogador",
-            });
-        }
+        const user = await this.userRepo.upsertByPhone(workspace._id, author.id._serialized, author.pushname || author.name || "Jogador");
 
         const userIdStr = user._id.toString();
         const inMain = players.some(p => p.userId?._id.toString() === userIdStr);
@@ -72,6 +65,7 @@ export class OutCommand implements Command {
         if (res.added) {
             await game.save();
             await message.reply(`✅ ${user.name}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
+            return;
         }
 
         await message.reply(

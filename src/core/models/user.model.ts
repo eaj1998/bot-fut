@@ -22,3 +22,5 @@ const UserSchema = new Schema({
 UserSchema.index({ workspaceId: 1, phoneE164: 1 }, { unique: true });
 
 export const UserModel: Model<UserDoc> = model<UserDoc>("User", UserSchema);
+
+export const USER_MODEL_TOKEN = "USER_MODEL_TOKEN";

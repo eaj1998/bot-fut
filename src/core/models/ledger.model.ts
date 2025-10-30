@@ -4,7 +4,7 @@ const LedgerSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", index: true, required: true },
     gameId: { type: Types.ObjectId, ref: "Game" },
     userId: { type: Types.ObjectId, ref: "User" },
-    type: { type: String, enum: ["debit", "credit"], required: true }, // debit=cobrança | credit=pagamento
+    type: { type: String, enum: ["debit", "credit"], required: true },
     method: { type: String, enum: ["pix", "dinheiro", "transf", "ajuste"], default: "pix" },
     amountCents: { type: Number, required: true },
     note: String,

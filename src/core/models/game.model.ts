@@ -23,6 +23,7 @@ export interface GameWaitlistEntry {
 export interface GameOutlistEntry {
   userId?: Types.ObjectId;
   name?: string;
+  phoneE164?: string;
   createdAt: Date;
 }
 

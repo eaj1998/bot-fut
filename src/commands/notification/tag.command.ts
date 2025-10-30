@@ -3,6 +3,7 @@ import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { GroupChat, Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
+import { WorkspaceService } from '../../services/workspace.service';
 
 @injectable()
 export class TagCommand implements Command {
@@ -10,7 +11,8 @@ export class TagCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService
+        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -20,27 +22,44 @@ export class TagCommand implements Command {
             message.reply('O comando /marcar só funciona em grupos.');
             return;
         }
-        const groupLineUp = this.lineupSvc.getActiveList(groupId);
+
+        const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
+
+        if (!workspace) {
+            await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
+            return;
+        }
+
+        const game = await this.lineupSvc.getActiveGame(workspace._id, groupId);
 
         const group = chat as GroupChat
         let text = 'Chamada geral! 📢\n\n';
         const mentions: string[] = [];
         let jogadoresForaCount = 0;
 
-        if (group)
+
+
+        if (group) {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
 
-                if (groupLineUp?.jogadoresFora.includes(participantNumber)) {
+                console.log(`🔍 Verificando participante ${participantNumber}...`);
+                console.log(game?.roster.outlist);
+                
+                
+                if (game?.roster.outlist.some(w => w.phoneE164 === participantNumber)) {
+                    console.log(`⚠️ Pulando participante ${participantNumber} que está na lista de fora.`);
+                    
                     jogadoresForaCount++;
                     continue;
                 }
 
                 mentions.push(participant.id._serialized);
                 text += `@${participant.id.user} `;
+
             }
-        chat
-            .sendMessage(text.trim(), { mentions })
-            .catch((err) => console.error('❌ [FALHA] Erro ao enviar menções:', err));
+        }
+        
+        this.server.sendMessage(groupId, text, { mentions });        
     }
 }

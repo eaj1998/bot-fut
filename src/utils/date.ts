@@ -18,3 +18,17 @@ export function formatHorario(date: Date): string {
         .toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })
         .replace(":", "h");
 }
+
+export function formatDateBR(date: Date): string {
+    const d = String(date.getDate()).padStart(2, "0");
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
+}
+
+export function todayISOyyyy_mm_dd(date = new Date()): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}

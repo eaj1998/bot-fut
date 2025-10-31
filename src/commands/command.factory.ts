@@ -8,12 +8,12 @@ import { GuestCommand } from './lineup/guest.command';
 import { OutCommand } from './lineup/out.command';
 import { PaymentCommand } from './payment/payment.command';
 import { UncheckPaymentCommand } from './payment/uncheckPayment.command';
-import { LoadCommand } from './lineup/load.command';
 import { TagCommand } from './notification/tag.command';
 import { StickerCommand } from './entertainment/sticker.command';
 import { HelpCommand } from './help/help.command';
 import { WeatherCommand } from './weather/weather.command';
 import { BindCommand } from './admin/bind.command';
+import { CloseCommand } from './lineup/close.command';
 
 @injectable()
 export class CommandFactory {
@@ -35,6 +35,7 @@ export class CommandFactory {
       case '/help': return container.resolve(HelpCommand);
       case '/previsao': return container.resolve(WeatherCommand);
       case '/bind': return container.resolve(BindCommand);
+      case '/fechar': return container.resolve(CloseCommand);
 
       default: return undefined;
     }

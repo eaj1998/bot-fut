@@ -1,4 +1,19 @@
-import { Schema, model, Types } from "mongoose";
+import { Schema, model, Types, Model } from "mongoose";
+
+export interface LedgerDoc extends Document {
+    _id: Types.ObjectId;
+    workspaceId: Types.ObjectId;
+    gameId?: Types.ObjectId;
+    userId?: Types.ObjectId;
+    type: "debit" | "credit";
+    method: "pix" | "dinheiro" | "transf" | "ajuste";
+    amountCents: number;
+    note?: string;
+    status: "pendente" | "confirmado" | "estornado";
+    confirmedAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 const LedgerSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", index: true, required: true },
@@ -12,6 +27,6 @@ const LedgerSchema = new Schema({
     confirmedAt: Date
 }, { timestamps: true });
 
-LedgerSchema.index({ workspaceId: 1, userId: 1, status: 1 });
+export const LedgerModel = model<LedgerDoc>("Ledger", LedgerSchema);
 
-export const LedgerModel = model("Ledger", LedgerSchema);
+export const LEDGER_MODEL_TOKEN = "LEDGER_MODEL_TOKEN";

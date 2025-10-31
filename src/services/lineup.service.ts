@@ -10,6 +10,25 @@ import { getNextWeekday, applyTime, formatHorario } from "../utils/date";
 import { UserDoc } from "../core/models/user.model";
 import { GameRepository } from "../core/repositories/game.respository";
 import { Types } from "mongoose";
+import { LedgerRepository } from "../core/repositories/ledger.repository";
+import { ConfigService } from "../config/config.service";
+import { todayISOyyyy_mm_dd, formatDateBR } from "../utils/date";
+import axios from "axios";
+import { LoggerService } from "../logger/logger.service";
+
+type ClosePlayerResult = {
+  success: boolean;
+  playerName: string;
+  ledger: boolean;
+  organizze: boolean;
+  error?: string;
+};
+
+type CloseGameResult = {
+  added: boolean;
+  results: ClosePlayerResult[];
+};
+
 
 @singleton()
 
@@ -17,6 +36,9 @@ export class LineUpService {
   constructor(
     @inject(LineUpRepository) private readonly repo: LineUpRepository,
     @inject(GameRepository) private readonly gameRepo: GameRepository,
+    @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+    @inject(ConfigService) private readonly configService: ConfigService,
+    @inject(LoggerService) private readonly loggerService: LoggerService
   ) { }
 
   async getAuthorName(message: Message): Promise<string> {
@@ -28,6 +50,142 @@ export class LineUpService {
       "Desconhecido"
     );
   }
+  async closeGame(game: GameDoc): Promise<CloseGameResult> {
+    try {
+      const amountCents =
+        game.priceCents ?? this.configService.organizze.valorJogo;
+
+      const tasks = game.roster.players.map(async (player): Promise<ClosePlayerResult> => {
+        const playerName = player.name;
+
+        let ledgerOk = false;
+        try {
+          const userId = player.userId?.toString();
+          if (userId) {
+            const ledgerRes = await this.ledgerRepo.addDebit({
+              workspaceId: game.workspaceId.toString(),
+              userId,
+              amountCents,
+              gameId: game._id.toString(),
+              note: `Débito referente ao jogo ${game._id} - ${formatDateBR(game.date)}`
+            });
+            console.log('Ledger res: ', ledgerRes);
+            
+            ledgerOk = !!ledgerRes?.added;
+          } else {
+            ledgerOk = false;
+          }
+        } catch (err: any) {
+          return {
+            success: false,
+            playerName,
+            ledger: false,
+            organizze: false,
+            error: `ledger: ${err?.message ?? String(err)}`
+          };
+        }
+
+        let organizzeOk = false;
+        try {
+          const org = await this.criarMovimentacaoOrganizze(player, game.date, amountCents);
+          organizzeOk = !!org.added;
+        } catch (err: any) {
+          return {
+            success: false,
+            playerName,
+            ledger: ledgerOk,
+            organizze: false,
+            error: `organizze: ${err?.message ?? String(err)}`
+          };
+        }
+
+        return {
+          success: ledgerOk && organizzeOk,
+          playerName,
+          ledger: ledgerOk,
+          organizze: organizzeOk
+        };
+      });
+
+      const settled = await Promise.allSettled(tasks);
+      const results: ClosePlayerResult[] = settled.map((r) =>
+        r.status === "fulfilled"
+          ? r.value
+          : {
+            success: false,
+            playerName: "Desconhecido",
+            ledger: false,
+            organizze: false,
+            error: r.reason?.message ?? String(r.reason)
+          }
+      );
+
+      console.log('Resultado das promises', results);
+      
+      game.status = "closed";
+      if (typeof game.save === "function") {
+        await game.save();
+      }
+
+      return { added: true, results };
+    } catch {
+      return { added: false, results: [] };
+    }
+  }
+
+  markPlayerAsPaid(game: GameDoc, playerNumber: number): Promise<GameDoc | null> {
+    return this.gameRepo.setPlayerPaid(game, playerNumber, true);
+  }
+
+  private async criarMovimentacaoOrganizze(
+    player: GamePlayer,
+    dataDoJogo: Date,
+    amountCents: number
+  ): Promise<{ added: boolean }> {
+    const { email, apiKey, accountId, categoryId } = this.configService.organizze ?? {};
+
+    if (!email || !apiKey) {
+      this.loggerService.log('Organizze credentials are not set');
+      return { added: false };
+    }
+
+    const payload = {
+      description: `${player.name} - Jogo ${formatDateBR(dataDoJogo)}`,
+      amount_cents: amountCents,
+      date: todayISOyyyy_mm_dd(),
+      account_id: accountId,
+      category_id: categoryId,
+      paid: false
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "User-Agent": "BotFutebol (edipo1998@gmail.com)"
+    } as const;
+
+    try {
+      const res = await axios.post(
+        "https://api.organizze.com.br/rest/v2/transactions",
+        payload,
+        { auth: { username: email, password: apiKey }, headers }
+      );
+
+      if (res.status === 201 && res.data?.id != null) {
+        player.organizzeId = res.data.id;
+        return { added: true };
+      }
+      return { added: false };
+    } catch (error: any) {
+      const apiErr =
+        error?.response?.data ??
+        error?.message ??
+        "Erro desconhecido ao criar transação no Organizze";
+
+      this.loggerService.log("[ORGANIZZE] ERRO:", apiErr);
+      return { added: false };
+    }
+  }
+
 
   buildGuestLabel(guestName: string, inviterName: string): string {
     const g = guestName.trim();
@@ -92,7 +250,7 @@ export class LineUpService {
     const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
 
     const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
-    
+
     let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
     if (idxPlayer <= -1) {
       idxPlayer = players.findIndex(p => (p.userId?._id.toString() ?? "").toLowerCase().includes(user._id.toString()));
@@ -148,7 +306,7 @@ export class LineUpService {
     const game = await GameModel.findOne({
       workspaceId,
       chatId: groupId,
-      status: "aberta",
+      status: "open",
     }).populate("roster.players.userId");
 
     if (!game) {
@@ -428,7 +586,7 @@ export class LineUpService {
     let game = await GameModel.findOne({
       workspaceId: workspace._id,
       chatId: chatId,
-      status: "aberta",
+      status: "open",
     });
 
     if (!game) {

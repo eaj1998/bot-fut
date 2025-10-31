@@ -6,9 +6,10 @@ import { Schema, model, Document, Types, Model } from "mongoose";
 export interface GamePlayer {
   slot?: number;
   userId?: Types.ObjectId;
-  name?: string;
+  name: string;
   paid: boolean;
   paidAt?: Date;
+  organizzeId?: number;
   guest?: boolean;
 }
 
@@ -49,7 +50,7 @@ export interface GameDoc extends Document {
   title?: string;
   priceCents?: number;
   maxPlayers?: number;
-  status: "aberta" | "fechada" | "cancelada" | "finalizada";
+  status: "open" | "closed" | "cancelled" | "finished"
   roster: GameRoster;
   createdAt: Date;
   updatedAt: Date;
@@ -66,6 +67,7 @@ const RosterPlayerSchema = new Schema<GamePlayer>(
     paid: { type: Boolean, default: false },
     paidAt: Date,
     guest: { type: Boolean, default: false },
+    organizzeId: Number,
   },
   { _id: false }
 );
@@ -108,8 +110,8 @@ const GameSchema = new Schema<GameDoc>(
     maxPlayers: Number,
     status: {
       type: String,
-      enum: ["aberta", "fechada", "cancelada", "finalizada"],
-      default: "aberta",
+      enum: ["open", "closed", "cancelled", "finished"],
+      default: "open",
     },
     roster: {
       type: RosterSchema,
@@ -120,3 +122,6 @@ const GameSchema = new Schema<GameDoc>(
 );
 
 export const GameModel: Model<GameDoc> = model<GameDoc>("Game", GameSchema);
+
+
+export const GAME_MODEL_TOKEN = "GAME_MODEL_TOKEN";

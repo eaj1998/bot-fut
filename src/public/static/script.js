@@ -91,10 +91,10 @@ $(document).ready(() => {
   };
 
   const sanitizeMessage = (content) => {
-    if(content.mimetype == 'image/webp'){
+    if (content.mimetype == 'image/webp') {
       return `<img src="data:${content.mimetype};base64,${content.data}" alt="sticker" />`;
     }
-    
+
     return content.replaceAll('\n', '<br>');
   };
 
@@ -109,7 +109,7 @@ $(document).ready(() => {
 
   const appendMyMessage = (content) => {
     console.log(content);
-    
+
     const joinLastMessage = STATE.lastMessageAuthor === 'my';
     STATE.lastMessageAuthor = 'my';
     appendMessage(templates.message.my, content, joinLastMessage);
@@ -177,4 +177,31 @@ $(document).ready(() => {
     appendOtherMessage(message);
     $elements.historyContainer.scrollTop($elements.historyContainer.prop('scrollHeight'));
   });
+
+  const preencherLista = () => {
+    const shuffled = [...USERS].sort(() => 0.5 - Math.random());
+
+    const goleiros = shuffled.slice(0, 2);
+    const jogadores = shuffled.slice(2, 17);
+
+    const sendWithDelay = (user, input, delay) => {
+      setTimeout(() => {
+        setUserChat(user, $(`.chat-list .contact:contains("${user.name}")`));
+        handleInput(input);
+      }, delay);
+    };
+
+    let delay = 0;
+    goleiros.forEach((user) => {
+      sendWithDelay(user, "/goleiro", delay);
+      delay += 1000;
+    });
+
+    jogadores.forEach((user) => {
+      sendWithDelay(user, "/bora", delay);
+      delay += 1000;
+    });
+  };
+
+  preencherLista();
 });

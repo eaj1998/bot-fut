@@ -12,11 +12,25 @@ export class GameRepository {
         @inject(GAME_MODEL_TOKEN) private readonly model: Model<GameDoc> = GameModel
     ) { }
 
+
+
+    async findById(id: Types.ObjectId) {
+        return this.model.findOne(id)
+    }
+
     async findActiveForChat(workspaceId: Types.ObjectId, chatId: string) {
         return this.model.findOne({
             workspaceId,
             chatId,
             status: "open",
+        });
+    }
+
+    async findWaitingPaymentForChat(workspaceId: Types.ObjectId, chatId: string) {
+        return this.model.findOne({
+            workspaceId,
+            chatId,
+            status: "closed",
         });
     }
 
@@ -69,15 +83,15 @@ export class GameRepository {
     }
 
     async setPlayerPaid(game: GameDoc, playerNumber: number, paid: boolean) {
-        if (!game) return null;
-        if (!game.roster?.players) return null;
+        if (!game) return { updated: false, PlayerName: "" };
+        if (!game.roster?.players) return { updated: false, PlayerName: "" };
 
         const player = game.roster.players.find(p => p.slot === playerNumber);
-        if (!player) return null;
+        if (!player) return { updated: false, PlayerName: "" };
         player.paid = paid;
         player.paidAt = paid ? new Date() : undefined;
         await game.save();
-        return game;
+        return { updated: true, PlayerName: player.name };
     }
 
 

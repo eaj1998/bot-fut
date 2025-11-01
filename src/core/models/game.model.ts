@@ -9,8 +9,9 @@ export interface GamePlayer {
   name: string;
   paid: boolean;
   paidAt?: Date;
-  organizzeId?: number;
+  organizzeId?: number | null;
   guest?: boolean;
+  invitedByUserId?: Types.ObjectId
 }
 
 /**
@@ -68,6 +69,7 @@ const RosterPlayerSchema = new Schema<GamePlayer>(
     paidAt: Date,
     guest: { type: Boolean, default: false },
     organizzeId: Number,
+    invitedByUserId: {type: Types.ObjectId, ref: "User"}
   },
   { _id: false }
 );

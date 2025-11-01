@@ -22,7 +22,7 @@ export class GuestCommand implements Command {
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
-        let nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
+        let nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');        
 
         if (!nomeConvidado) {
             message.reply('Uso correto: /convidado <nome do convidado>');
@@ -46,12 +46,13 @@ export class GuestCommand implements Command {
         const { name: guestName, asGoalie } = parseGuestArg(nomeConvidado);
 
         const contact = await message.getContact();
-        const inviterName = contact.pushname || contact.name || "Jogador";        
+
+        const user = await this.userRepo.upsertByPhone(workspace._id, contact.id._serialized, contact.pushname || contact.name || "Jogador");
 
         const res = this.lineupSvc.addGuestWithInviter(
             game,
             guestName,
-            inviterName,
+            {_id: user._id, name: user.name},
             { asGoalie }
         );
 

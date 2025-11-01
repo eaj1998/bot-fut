@@ -36,25 +36,23 @@ export class PaymentCommand implements Command {
             return;
         }
 
-        let game = await this.gameRepo.findActiveForChat(workspace._id, groupId);
+        let game = await this.gameRepo.findWaitingPaymentForChat(workspace._id, groupId);
 
         if (!game) {
             await message.reply("Nenhum jogo agendado encontrado para este grupo.");
             return;
         }
 
-        const user = await this.userRepo.upsertByPhone(workspace._id, author.id._serialized, author.pushname || author.name || "Jogador");
-
-
-        const playerNumber = parseInt(args[0], 10);
-        if (isNaN(playerNumber) || playerNumber < 1 || playerNumber > 16) {
+        const slot = Number(String(args[0]).trim());
+        if (isNaN(slot) || slot < 1 || slot > 16) {
             message.reply('Número inválido. Use de 1 a 16.');
             return;
         }
-        const player = game.roster.players.find(p => p.slot === playerNumber);
+
+        const player = game.roster.players.find(p => p.slot === slot);
 
         if (!player?.name) {
-            message.reply(`A posição ${playerNumber} está vazia.`);
+            message.reply(`A posição ${slot} está vazia.`);
             return;
         }
 
@@ -63,16 +61,17 @@ export class PaymentCommand implements Command {
             return;
         }
 
-       this.lineupSvc.markPlayerAsPaid(game, playerNumber);
 
-        const res = await this.lineupSvc.criarMovimentacaoOrganizze(player, game.date);
-        if(res.added){
-            console.log('[PAYMENT] Movimentação criada no Organizze para', player.name);
+        const res = await this.lineupSvc.markAsPaid(game._id, slot);
+
+        if (!res.updated || !res.game) {
+            message.reply(`Ocorreu um erro, não foi possível marcar como pago!`)
+            return;
         }
 
-        const texto = await this.lineupSvc.formatList(game);
+        const texto = await this.lineupSvc.formatList(res.game);
         await this.server.sendMessage(groupId, texto);
         return;
-    }    
+    }
 
 }

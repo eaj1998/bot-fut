@@ -54,58 +54,78 @@ export class LineUpService {
     try {
       const amountCents =
         game.priceCents ?? this.configService.organizze.valorJogo;
+      const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
 
-      const tasks = game.roster.players.map(async (player): Promise<ClosePlayerResult> => {
-        const playerName = player.name;
+      const tasks = game.roster.players
+        .filter(p => (p.slot ?? 0) > goalieSlots)
+        .map(async (player): Promise<ClosePlayerResult> => {
+          const playerName = player.name;
 
-        let ledgerOk = false;
-        try {
-          const userId = player.userId?.toString();
-          if (userId) {
-            const ledgerRes = await this.ledgerRepo.addDebit({
-              workspaceId: game.workspaceId.toString(),
-              userId,
-              amountCents,
-              gameId: game._id.toString(),
-              note: `Débito referente ao jogo ${game._id} - ${formatDateBR(game.date)}`
-            });
-            console.log('Ledger res: ', ledgerRes);
-            
-            ledgerOk = !!ledgerRes?.added;
-          } else {
-            ledgerOk = false;
+          let ledgerOk = false;
+          try {
+            const targetUserId =
+              player.guest
+                ? player.invitedByUserId?.toString()
+                : player.userId?.toString();
+
+            if (!targetUserId) {
+              // Pagamento sem dono, tratado como erro de lancamento
+              return {
+                success: false,
+                playerName,
+                ledger: false,
+                organizze: false,
+                error: player.guest
+                  ? "Convidado sem invitedByUserId"
+                  : "Jogador sem userId"
+              };
+            }
+
+            if (targetUserId) {
+              await this.ledgerRepo.addDebit({
+                workspaceId: game.workspaceId.toString(),
+                userId: targetUserId,
+                amountCents,
+                gameId: game._id.toString(),
+                note: player.guest
+                  ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
+                  : `Débito referente ao jogo ${game._id} - ${formatDateBR(game.date)}`
+              });
+              ledgerOk = true;
+            } else {
+              ledgerOk = false;
+            }
+          } catch (err: any) {
+            return {
+              success: false,
+              playerName,
+              ledger: false,
+              organizze: false,
+              error: `ledger: ${err?.message ?? String(err)}`
+            };
           }
-        } catch (err: any) {
-          return {
-            success: false,
-            playerName,
-            ledger: false,
-            organizze: false,
-            error: `ledger: ${err?.message ?? String(err)}`
-          };
-        }
 
-        let organizzeOk = false;
-        try {
-          const org = await this.criarMovimentacaoOrganizze(player, game.date, amountCents);
-          organizzeOk = !!org.added;
-        } catch (err: any) {
+          let organizzeOk = false;
+          try {
+            const org = await this.criarMovimentacaoOrganizze(player, game.date, amountCents);
+            organizzeOk = !!org.added;
+          } catch (err: any) {
+            return {
+              success: false,
+              playerName,
+              ledger: ledgerOk,
+              organizze: false,
+              error: `organizze: ${err?.message ?? String(err)}`
+            };
+          }
+
           return {
-            success: false,
+            success: ledgerOk && organizzeOk,
             playerName,
             ledger: ledgerOk,
-            organizze: false,
-            error: `organizze: ${err?.message ?? String(err)}`
+            organizze: organizzeOk
           };
-        }
-
-        return {
-          success: ledgerOk && organizzeOk,
-          playerName,
-          ledger: ledgerOk,
-          organizze: organizzeOk
-        };
-      });
+        });
 
       const settled = await Promise.allSettled(tasks);
       const results: ClosePlayerResult[] = settled.map((r) =>
@@ -120,8 +140,6 @@ export class LineUpService {
           }
       );
 
-      console.log('Resultado das promises', results);
-      
       game.status = "closed";
       if (typeof game.save === "function") {
         await game.save();
@@ -133,8 +151,148 @@ export class LineUpService {
     }
   }
 
-  markPlayerAsPaid(game: GameDoc, playerNumber: number): Promise<GameDoc | null> {
-    return this.gameRepo.setPlayerPaid(game, playerNumber, true);
+  async markAsPaid(
+    gameId: Types.ObjectId,
+    slot?: number,
+    opts?: { method?: "pix" | "dinheiro" | "transf" | "ajuste" }
+  ): Promise<{ updated: boolean; reason?: string; game: GameDoc | null }> {
+    if (typeof slot !== "number") {
+      return { updated: false, reason: "Slot inválido", game: null };
+    }
+    const game = await this.gameRepo.findById(gameId);
+
+    if (!game) {
+      return { updated: false, reason: `Game nao encontrado!`, game: null }
+    }
+
+    let idx = game.roster.players.findIndex(p => p.slot === slot && p.paid == false);
+    const player = game.roster.players[idx];
+    if (!player) return { updated: false, reason: "Jogador não encontrado", game: game };
+
+    if (player.paid) {
+      return { updated: false, reason: "Jogador já está marcado como pago", game: game };
+    }
+
+    const inviterId =
+      player.guest
+        ? player.invitedByUserId?.toString()
+        : player.userId?.toString();
+
+    const now = new Date();
+    const payMethod = opts?.method ?? "pix";
+
+    const updatedPlayer = {
+      name: player.name,
+      guest: player.guest,
+      slot: player.slot,
+      invitedByUserId: player.invitedByUserId,
+      organizzeId: player.organizzeId,
+      paid: true,
+      paidAt: now,
+    };
+
+    game.roster.players[idx] = updatedPlayer;
+
+    game.markModified("roster");
+
+
+    let creditError: string | undefined;
+    if (inviterId) {
+      const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
+      const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
+      try {
+        await this.ledgerRepo.addCredit({
+          workspaceId: game.workspaceId.toString(),
+          userId: inviterId,
+          amountCents,
+          gameId: game._id.toString(),
+          note,
+          method: payMethod,
+        });
+        const res = await this.updateMovimentacaoOrganizze(game, slot)
+        if (!res.added) {
+          return { updated: false, game: game };
+        }
+        const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+
+        const allPaidAfter = game.roster.players
+          .filter(p => (p.slot ?? 0) > goalieSlots)
+          .every(p => !!p.paid);
+
+        if (allPaidAfter) {
+          game.status = "finished";
+        }
+
+        if (await game.save()) {
+          return { updated: true, game };
+        }
+
+      } catch (e: any) {
+        creditError = e?.message ?? String(e);
+        this.loggerService.log(`[GUEST-PAID] Falha ao creditar convidador: ${creditError}`);
+      }
+    }
+
+    await game.save();
+
+    if (creditError) {
+      return { updated: true, game, reason: `Crédito não lançado: ${creditError}` };
+    }
+
+    return { updated: true, game: game };
+  }
+
+
+  private async updateMovimentacaoOrganizze(
+    game: GameDoc,
+    slot: Number
+  ): Promise<{ added: boolean; }> {
+    const { email, apiKey } = this.configService.organizze ?? {};
+
+    if (!email || !apiKey) {
+      this.loggerService.log('Organizze credentials are not set');
+      return { added: true };
+    }
+
+    const idx = game.roster.players.findIndex(p => p.slot === slot && p.paid == true);
+
+    if (idx === -1) return { added: false };
+
+    const player = game.roster.players[idx];
+
+    const payload = {
+      description: `Pagamento ${player.guest ? "de convidado" : ""} — ${player.name} — jogo ${formatDateBR(game.date)}`,
+      amount_cents: game.priceCents,
+      date: todayISOyyyy_mm_dd(),
+      update_future: false,
+      paid: true
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "User-Agent": "BotFutebol (edipo1998@gmail.com)"
+    } as const;
+
+    try {
+
+      const res = await axios.put(
+        `https://api.organizze.com.br/rest/v2/transactions/${player.organizzeId?.toString()}`,
+        payload,
+        { auth: { username: email, password: apiKey }, headers }
+      );
+      if (res.status === 201 && res.data?.id != null) {
+        return { added: true };
+      }
+      return { added: false };
+    } catch (error: any) {
+      const apiErr =
+        error?.response?.data ??
+        error?.message ??
+        "Erro desconhecido ao criar transação no Organizze";
+
+      this.loggerService.log("[ORGANIZZE] ERRO:", apiErr);
+      return { added: false };
+    }
   }
 
   private async criarMovimentacaoOrganizze(
@@ -146,7 +304,7 @@ export class LineUpService {
 
     if (!email || !apiKey) {
       this.loggerService.log('Organizze credentials are not set');
-      return { added: false };
+      return { added: true };
     }
 
     const payload = {
@@ -196,13 +354,13 @@ export class LineUpService {
   addGuestWithInviter(
     game: GameDoc,
     guestName: string,
-    inviterName: string,
+    inviter: { _id: Types.ObjectId; name: string },
     opts?: { asGoalie?: boolean }
   ): { placed: boolean; slot?: number; finalName: string; role: "goalie" | "outfield" } {
     if (!Array.isArray(game.roster.players)) game.roster.players = [];
 
     const asGoalie = !!opts?.asGoalie;
-    const label = this.buildGuestLabel(guestName, inviterName);
+    const label = this.buildGuestLabel(guestName, inviter.name);
     const maxPlayers = game.maxPlayers ?? 16;
     const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
 
@@ -210,29 +368,27 @@ export class LineUpService {
       game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
     );
 
+    const basePlayer: Partial<GamePlayer> = {
+      name: label,
+      paid: false,
+      guest: true,
+      invitedByUserId: inviter._id,
+    };
+
     if (asGoalie) {
       for (let slot = 1; slot <= goalieSlots; slot++) {
         if (!used.has(slot)) {
-          game.roster.players.push({
-            slot,
-            name: label,
-            paid: false,
-            guest: true,
-          });
+          game.roster.players.push({ ...basePlayer, slot } as GamePlayer);
           return { placed: true, slot, finalName: label, role: "goalie" };
         }
       }
       return { placed: false, finalName: label, role: "goalie" };
     }
 
+
     for (let slot = goalieSlots + 1; slot <= maxPlayers; slot++) {
       if (!used.has(slot)) {
-        game.roster.players.push({
-          slot,
-          name: label,
-          paid: false,
-          guest: true,
-        });
+        game.roster.players.push({ ...basePlayer, slot } as GamePlayer);
         return { placed: true, slot, finalName: label, role: "outfield" };
       }
     }
@@ -366,7 +522,7 @@ export class LineUpService {
 
     for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
       if (!used.has(slot)) {
-        game.roster.players.push({ userId: user._id, slot, name: user.name, paid: false });
+        game.roster.players.push({ userId: user._id, slot, name: user.name, paid: false, organizzeId: null });
         game.save();
         return { added: true };
       }

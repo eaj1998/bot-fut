@@ -44,7 +44,7 @@ export class LedgerRepository {
           credits: { $sum: { $cond: [{ $eq: ["$type", "credit"] }, "$amountCents", 0] } }
         }
       },
-      { $project: { _id: 0, balanceCents: { $subtract: ["$debits", "$credits"] } } }
+      { $project: { _id: 0, balanceCents: { $subtract: ["$credits", "$debits"] } } }
     ]);
 
     const balanceCents = agg?.balanceCents ?? 0;

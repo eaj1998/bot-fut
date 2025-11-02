@@ -15,6 +15,7 @@ import { ConfigService } from "../config/config.service";
 import { todayISOyyyy_mm_dd, formatDateBR } from "../utils/date";
 import axios from "axios";
 import { LoggerService } from "../logger/logger.service";
+import { isOutfield } from "../utils/lineup";
 
 type ClosePlayerResult = {
   success: boolean;
@@ -28,6 +29,9 @@ type CloseGameResult = {
   added: boolean;
   results: ClosePlayerResult[];
 };
+
+type OwnDebts = { type: "your place"; slot?: number | null };
+type GuestDebts = { type: "guest"; name?: string; slot?: number | null };
 
 
 @singleton()
@@ -782,5 +786,86 @@ export class LineUpService {
     }
     return game;
   }
+
+  async getDebtsSummary(workspace: WorkspaceDoc, user: UserDoc) {
+    const balanceCents = await this.ledgerRepo.getUserBalance(
+      workspace._id.toString(),
+      user._id.toString()
+    );
+
+    const games = await this.gameRepo.findUnpaidGamesForUser(
+      workspace._id,
+      user._id,
+      50
+    );
+
+    const debts = games.map(g => {
+      const goalieSlots = Math.max(0, g.roster?.goalieSlots ?? 2);
+      const players: GamePlayer[] = g.roster?.players ?? [];
+
+      const own: OwnDebts[] = players
+        .filter(p =>
+          String(p.userId) === String(user._id) &&
+          isOutfield(p, goalieSlots) &&
+          !p.paid
+        )
+        .map(p => ({ type: "your place" as const, slot: p.slot }));
+
+      const guests: GuestDebts[] = players
+        .filter(p =>
+          p.guest === true &&
+          String(p.invitedByUserId) === String(user._id) &&
+          !p.paid
+        )
+        .map(p => ({ type: "guest" as const, name: p.name, slot: p.slot }));
+
+      const has = own.length + guests.length > 0;
+      if (!has) return null;
+
+      return {
+        gameId: g._id,
+        date: g.date,
+        title: g.title ?? "⚽ Jogo",
+        own,
+        guests,
+        priceCents: g.priceCents ?? workspace.settings?.pricePerGameCents ?? this.configService.organizze.valorJogo,
+      };
+    }).filter(Boolean) as Array<{
+      gameId: any; date: Date; title: string;
+      own: OwnDebts[];
+      guests: GuestDebts[] | undefined;
+      priceCents: number;
+    }>;
+
+    return { balanceCents, debts };
+  }
+
+  formatDebtsMessage(summary: { balanceCents: number; debts: any[] }) {
+    const linhas: string[] = [];
+
+    linhas.push(`📊 *Seu saldo:* ${Utils.formatCentsToReal(summary.balanceCents)}`);
+
+    if (summary.debts.length === 0) {
+      linhas.push(`\n✅ Você não possui pendências de jogos.`);
+      return linhas.join("\n");
+    }
+
+    linhas.push(`\n🧾 *Jogos com pendência:*`);
+    for (const g of summary.debts) {
+      const dia = new Date(g.date);
+      const data = `${String(dia.getDate()).padStart(2, "0")}/${String(dia.getMonth() + 1).padStart(2, "0")}`;
+      const valor = Utils.formatCentsToReal(g.priceCents);
+
+      const ownStr = g.own.map((o: OwnDebts) => `- Vaga própria (slot ${o.slot ?? "?"}) — ${valor}`).join("\n");
+      const guestStr = g.guests.map((gu: GuestDebts) => `- Convidado ${gu.name ?? ""} (slot ${gu.slot ?? "?"}) — ${valor}`).join("\n");
+      const bloco = [ownStr, guestStr].filter(Boolean).join("\n");
+
+      linhas.push(`\n*${data}* — ${g.title}\n${bloco}`);
+    }
+
+    linhas.push(`\nℹ️ Goleiros não geram débito.`);
+    return linhas.join("\n");
+  }
+
 
 }

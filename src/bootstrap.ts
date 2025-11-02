@@ -7,6 +7,7 @@ import { ConfigService } from './config/config.service';
 import { USER_MODEL_TOKEN, UserModel } from './core/models/user.model';
 import { GAME_MODEL_TOKEN, GameModel } from './core/models/game.model';
 import { LEDGER_MODEL_TOKEN, LedgerModel } from './core/models/ledger.model';
+import { WORKSPACE_MODEL_TOKEN, WorkspaceModel } from './core/models/workspace.model';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ const main = async () => {
   container.register(USER_MODEL_TOKEN, { useValue: UserModel });
   container.register(GAME_MODEL_TOKEN, { useValue: GameModel });
   container.register(LEDGER_MODEL_TOKEN, { useValue: LedgerModel });
+  container.register(WORKSPACE_MODEL_TOKEN, { useValue: WorkspaceModel });
 
 
   const valmir = container.resolve(App);

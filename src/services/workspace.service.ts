@@ -17,4 +17,8 @@ export class WorkspaceService {
         const workspace = await this.repo.getWorkspaceByChat(chatId);
         return { chatId, chat, workspace };
     }
+
+    async resolveWorkspaceBySlug(slug: string) {
+        return await this.repo.findBySlug(slug);
+    }
 }

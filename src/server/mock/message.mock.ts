@@ -67,11 +67,12 @@ export function makeMockChat(
     return groupLike as GroupChat;
 }
 
-export function makeMockContact(name?: string): Contact {
+export function makeMockContact(user?: SyntheticUser): Contact {
     const contactLike: Partial<Contact> = {
-        pushname: name,
-        name,
-        id: { _serialized: `${name ?? 'unknown'}@c.us` } as any,
+        number: user?.phone,
+        pushname: user?.name,
+        name: user?.name,
+        id: { _serialized: `${user?.phone ?? 'unknown'}@c.us` } as any,
     };
     return contactLike as Contact;
 }
@@ -91,7 +92,7 @@ export function makeMockMessage(
         from,
         author,
         body: input,
-        getContact: async () => makeMockContact(user.name),
+        getContact: async () => makeMockContact(user),
         getChat: async () => makeMockChat(chatId, label, isGroup, user.participants ?? []),
 
         reply: async (msg) => {

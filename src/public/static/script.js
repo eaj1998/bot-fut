@@ -203,5 +203,5 @@ $(document).ready(() => {
     });
   };
 
-  preencherLista();
+  // preencherLista();
 });

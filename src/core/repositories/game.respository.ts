@@ -4,6 +4,7 @@ import { UserDoc } from "../models/user.model";
 import { inject, injectable } from "tsyringe";
 import { ConfigService } from "../../config/config.service";
 import axios from 'axios';
+import { isOutfield } from "../../utils/lineup";
 
 @injectable()
 export class GameRepository {
@@ -122,5 +123,34 @@ export class GameRepository {
         game.roster.waitlist.push({ userId: user._id, name: user.name, createdAt: new Date() });
         game.save();
         return { added: false, suplentePos: game.roster.waitlist.length };
+    }
+
+    async findUnpaidGamesForUser(workspaceId: Types.ObjectId, userId: Types.ObjectId, limit = 20) {
+        const games = await GameModel.find({
+            workspaceId,
+            "roster.players": { $exists: true, $ne: [] },
+        })
+            .sort({ date: -1 })
+            .limit(limit)
+            .lean();
+
+        return games.filter((g) => {
+            const goalieSlots = Math.max(0, g.roster?.goalieSlots ?? 2);
+            const players: GamePlayer[] = g.roster?.players ?? [];
+
+            const ownUnpaid = players.some(p =>
+                String(p.userId) === String(userId) &&
+                isOutfield(p, goalieSlots) &&
+                !p.paid
+            );
+
+            const guestUnpaid = players.some(p =>
+                p.guest === true &&
+                String(p.invitedByUserId) === String(userId) &&
+                !p.paid
+            );
+
+            return ownUnpaid || guestUnpaid;
+        });
     }
 }

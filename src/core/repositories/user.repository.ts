@@ -19,6 +19,10 @@ export class UserRepository {
         );
     }
 
+    async findByPhoneE164(phone: string) {
+        return this.model.findOne({ phoneE164: phone });
+    }
+
     async create(data: Partial<UserDoc>) {
         return this.model.create(data);
     }

@@ -43,13 +43,7 @@ export class TagCommand implements Command {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
 
-                console.log(`🔍 Verificando participante ${participantNumber}...`);
-                console.log(game?.roster.outlist);
-                
-                
                 if (game?.roster.outlist.some(w => w.phoneE164 === participantNumber)) {
-                    console.log(`⚠️ Pulando participante ${participantNumber} que está na lista de fora.`);
-                    
                     jogadoresForaCount++;
                     continue;
                 }

@@ -61,4 +61,14 @@ export class LedgerRepository {
       .sort({ balanceCents: -1 })
       .lean();
   }
+
+  async getUserBalance(workspaceId: string, userId: string): Promise<number> {
+    const doc = await BalanceModel.findOne({
+      workspaceId: new Types.ObjectId(workspaceId),
+      userId: new Types.ObjectId(userId),
+    }).lean();
+
+    return doc?.balanceCents ?? 0;
+  }
+
 }

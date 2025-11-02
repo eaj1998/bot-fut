@@ -9,8 +9,7 @@ export class HelpCommand implements Command {
   role = IRole.USER;
 
   constructor(
-    @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-    @inject(LineUpService) private readonly lineupSvc: LineUpService
+    @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,    
   ) { }
 
   async handle(message: Message): Promise<void> {
@@ -44,6 +43,10 @@ Exemplo: /fora
 /joao
 Envia uma figurinha especial.
 Exemplo: /joao
+
+/previsao
+Envia a previsão do tempo para o dia.
+Exemplo: /previsao
 
 ---
 

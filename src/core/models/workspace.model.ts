@@ -33,3 +33,5 @@ export const WorkspaceModel: Model<WorkspaceDoc> = model<WorkspaceDoc>(
   "Workspace",
   WorkspaceSchema
 );
+
+export const WORKSPACE_MODEL_TOKEN = "WORKSPACE_MODEL_TOKEN";

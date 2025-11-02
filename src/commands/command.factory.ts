@@ -14,6 +14,7 @@ import { HelpCommand } from './help/help.command';
 import { WeatherCommand } from './weather/weather.command';
 import { BindCommand } from './admin/bind.command';
 import { CloseCommand } from './lineup/close.command';
+import { DebtsCommand } from './payment/debts.command';
 
 @injectable()
 export class CommandFactory {
@@ -28,7 +29,8 @@ export class CommandFactory {
       case '/convidado': return container.resolve(GuestCommand);
       case '/fora': return container.resolve(OutCommand);
       case '/pago': return container.resolve(PaymentCommand);
-      case '/desmarcar': return container.resolve(UncheckPaymentCommand);
+      case '/debitos': return container.resolve(DebtsCommand);
+      // case '/desmarcar': return container.resolve(UncheckPaymentCommand);
       // case '/carregar': return container.resolve(LoadCommand);
       case '/marcar': return container.resolve(TagCommand);
       case '/joao': return container.resolve(StickerCommand);

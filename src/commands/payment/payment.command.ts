@@ -6,6 +6,7 @@ import { LineUpService } from '../../services/lineup.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
 import { GameRepository } from '../../core/repositories/game.respository';
+import { tryParseDDMM } from '../../utils/date';
 
 @injectable()
 export class PaymentCommand implements Command {
@@ -16,7 +17,6 @@ export class PaymentCommand implements Command {
         @inject(LineUpService) private readonly lineupSvc: LineUpService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(GameRepository) private readonly gameRepo: GameRepository,
-        @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -29,17 +29,28 @@ export class PaymentCommand implements Command {
             return;
         }
 
-        const author = await message.getContact();
-
         if (!workspace) {
             await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
             return;
         }
 
-        let game = await this.gameRepo.findWaitingPaymentForChat(workspace._id, groupId);
+        let game = null;
+        let date = null;
+        if (args.length > 1) {
+            date = tryParseDDMM(args[1]);
+
+            if (!date) {
+                await message.reply("Data inválida!");
+                return;
+            }
+            game = await this.gameRepo.findWaitingPaymentForChatByDate(workspace._id, date);
+        } else {
+            game = await this.gameRepo.findWaitingPaymentForChat(workspace._id, groupId);
+        }
+
 
         if (!game) {
-            await message.reply("Nenhum jogo agendado encontrado para este grupo.");
+            await message.reply(`${date ? 'Nenhum jogo agendado encontrado para esta data.' : 'Nenhum jogo aguardando pagamentos para este grupo.'} `);
             return;
         }
 
@@ -60,7 +71,6 @@ export class PaymentCommand implements Command {
             message.reply('Jogador já marcado como pago.');
             return;
         }
-
 
         const res = await this.lineupSvc.markAsPaid(game._id, slot);
 

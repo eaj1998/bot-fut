@@ -3,8 +3,9 @@ import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
-import { ConfigService } from '../../config/config.service';
-import axios from 'axios';
+import { GameRepository } from '../../core/repositories/game.respository';
+import { WorkspaceService } from '../../services/workspace.service';
+import { tryParseDDMM } from '../../utils/date';
 
 @injectable()
 export class UncheckPaymentCommand implements Command {
@@ -13,41 +14,60 @@ export class UncheckPaymentCommand implements Command {
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(LineUpService) private readonly lineupSvc: LineUpService,
-        @inject(ConfigService) private readonly configService: ConfigService,
+        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+        @inject(GameRepository) private readonly gameRepo: GameRepository,
     ) { }
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
         const args = this.lineupSvc.argsFromMessage(message);
-        const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
-
-        if (!groupLineUp) return;
+        const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
         if (args.length === 0) {
-            message.reply(`Uso correto: /desmarcar <número do jogador>`);
+            message.reply(`Uso correto: /pago <número do jogador>`);
             return;
         }
 
-        const playerNumber = parseInt(args[0], 10);
-        if (isNaN(playerNumber) || playerNumber < 1 || playerNumber > 16) {
+        if (!workspace) {
+            await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
+            return;
+        }
+
+        let game = null;
+        let date = null;
+        if (args.length > 1) {
+            date = tryParseDDMM(args[1]);
+
+            if (!date) {
+                await message.reply("Data inválida!");
+                return;
+            }
+            game = await this.gameRepo.findGameClosedOrFinishedByDate(workspace._id, date);
+        } else {
+            game = await this.gameRepo.findWaitingPaymentForChat(workspace._id, groupId);
+        }
+
+
+        if (!game) {
+            await message.reply(`${date ? 'Nenhum jogo agendado encontrado para esta data.' : 'Nenhum jogo aguardando pagamentos para este grupo.'} `);
+            return;
+        }
+
+        const slot = Number(String(args[0]).trim());
+        if (isNaN(slot) || slot < 1 || slot > 16) {
             message.reply('Número inválido. Use de 1 a 16.');
             return;
         }
-        const playerIndex = playerNumber - 1;
-        const playerName = groupLineUp.jogadores[playerIndex];
-        if (!playerName) {
-            message.reply(`A posição ${playerNumber} está vazia.`);
+
+
+        const res = await this.lineupSvc.unmarkAsPaid(game, slot);
+
+        if (!res.updated) {
+            message.reply(`Ocorreu um erro, tente novamente mais tarde. Reason: ${res.reason}`);
             return;
         }
 
-        if (!playerName.includes('✅')) {
-          message.reply('Jogador não estava marcado como pago.');
-          return;
-        }
-
-        groupLineUp.jogadores[playerIndex] = playerName.replace('✅', '').trim();
-
-        const texto = this.lineupSvc.formatList(groupLineUp);
+        const texto = await this.lineupSvc.formatList(game);
         await this.server.sendMessage(groupId, texto);
         return;
     }

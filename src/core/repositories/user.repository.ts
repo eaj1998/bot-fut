@@ -23,6 +23,10 @@ export class UserRepository {
         return this.model.findOne({ phoneE164: phone });
     }
 
+    async findById(userId: string){
+        return await this.model.findOne({_id: userId});
+    }
+
     async create(data: Partial<UserDoc>) {
         return this.model.create(data);
     }

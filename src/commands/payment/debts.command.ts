@@ -21,10 +21,10 @@ export class DebtsCommand implements Command {
     async handle(message: Message): Promise<void> {
         console.log('message from: ', message.from);
         
-        if (!message.from.endsWith("@c.us")) {
-            await message.reply("Use este comando no privado comigo. Ex.: */debitos viana*");
-            return;
-        }
+        // if (!message.from.endsWith("@c.us")) {
+        //     await message.reply("Use este comando no privado comigo. Ex.: */debitos viana*");
+        //     return;
+        // }
 
         const [, ...args] = message.body.trim().split(/\s+/);
         const slug = (args[0] || "").toLowerCase();
@@ -34,13 +34,14 @@ export class DebtsCommand implements Command {
         }
 
         const contact = await message.getContact();
+        
         const phoneE164 = contact.number ? `${contact.number}` : undefined;
         
         if (!phoneE164) {
             await message.reply("Não consegui identificar seu telefone. Tente novamente.");
             return;
         }
-        const user = await this.userRepo.findByPhoneE164(phoneE164);
+        const user = await this.userRepo.findByPhoneE164(contact.id._serialized);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;
@@ -53,6 +54,7 @@ export class DebtsCommand implements Command {
         }
 
         const summary = await this.lineupSvc.getDebtsSummary(workspace, user);
+        
         const texto = this.lineupSvc.formatDebtsMessage(summary);
 
         this.server.sendMessage(message.from, texto);

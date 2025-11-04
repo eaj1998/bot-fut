@@ -34,6 +34,10 @@ export class LedgerRepository {
     return await this.recomputeUserBalance(workspaceId, userId);
   }
 
+  async deleteCredit (workspaceId: Types.ObjectId, userId: Types.ObjectId, gameId?: Types.ObjectId){
+    return this.model.deleteOne({workspaceId: workspaceId, userId: userId, gameId: gameId, type: 'credit'});
+  }
+
   async recomputeUserBalance(workspaceId: string, userId: string) {
     const [agg] = await this.model.aggregate([
       { $match: { workspaceId: new Types.ObjectId(workspaceId), userId: new Types.ObjectId(userId), status: "confirmado" } },

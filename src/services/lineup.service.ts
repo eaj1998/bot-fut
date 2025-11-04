@@ -54,6 +54,7 @@ export class LineUpService {
       "Desconhecido"
     );
   }
+
   async closeGame(game: GameDoc): Promise<CloseGameResult> {
     try {
       const amountCents =
@@ -155,6 +156,67 @@ export class LineUpService {
     }
   }
 
+  async unmarkAsPaid(
+    game: GameDoc,
+    slot?: number
+  ): Promise<{ updated: boolean; reason?: string; playerName?: string }> {
+    if (typeof slot !== "number") {
+      return { updated: false, reason: "Slot inválido" };
+    }
+
+    const idx = game.roster.players.findIndex(p => p.slot === slot);
+    if (idx === -1) {
+      return { updated: false, reason: "Jogador não encontrado" };
+    }
+
+    const player = game.roster.players[idx];
+    if (!player.paid) {
+      return { updated: false, reason: "Jogador já está desmarcado", playerName: player.name };
+    }
+
+    let userId = player.userId?._id ?? player.invitedByUserId?._id;
+
+    if (!userId) {
+      this.loggerService.log(`[LEDGER] Nenhum userId encontrado para ${player.name}`);
+      return { updated: false, reason: 'User nao encontrado' };
+    }
+
+    const isDeleted = await this.ledgerRepo.deleteCredit(game.workspaceId._id, userId, game._id);
+
+    if (isDeleted) {
+      const updatedPlayer = {
+        name: player.name,
+        userId: player.userId,
+        guest: player.guest,
+        slot: player.slot,
+        invitedByUserId: player.invitedByUserId,
+        organizzeId: player.organizzeId,
+        paid: false,
+        paidAt: undefined,
+      };
+
+      game.roster.players[idx] = updatedPlayer;
+
+      if (game.status === "finished") {
+        game.status = "closed";
+      }
+
+
+      game.markModified("roster.players");
+      const res = await this.updateMovimentacaoOrganizze(game, slot)
+      if (!res.added) {
+        return { updated: false, reason: 'Movimento nao foi atualizado no organizze' };
+      }
+
+      if (await game.save()) {
+        await this.ledgerRepo.recomputeUserBalance(game.workspaceId._id.toString(), userId.toString());
+        return { updated: true, playerName: player.name };
+      }
+    }
+
+    return { updated: false, reason: 'Houve um problema ao remover o credito do jogador.' };
+  }
+
   async markAsPaid(
     gameId: Types.ObjectId,
     slot?: number,
@@ -187,6 +249,7 @@ export class LineUpService {
 
     const updatedPlayer = {
       name: player.name,
+      userId: player.userId,
       guest: player.guest,
       slot: player.slot,
       invitedByUserId: player.invitedByUserId,
@@ -792,6 +855,8 @@ export class LineUpService {
       workspace._id.toString(),
       user._id.toString()
     );
+
+    console.log('balance: ', balanceCents);
 
     const games = await this.gameRepo.findUnpaidGamesForUser(
       workspace._id,

@@ -27,6 +27,23 @@ export class GameRepository {
         });
     }
 
+    async findWaitingPaymentForChatByDate(workspaceId: Types.ObjectId, day: { start: Date; end: Date }) {
+
+        return this.model.findOne({
+            workspaceId,
+            date: { $gte: day.start, $lte: day.end },
+            status: "closed",
+        }).exec();
+    }
+
+    async findGameClosedOrFinishedByDate(workspaceId: Types.ObjectId, day: { start: Date; end: Date }) {
+        return this.model.findOne({
+            workspaceId,
+            date: { $gte: day.start, $lte: day.end },
+            status: { $in: ["closed", "finished"] }
+        }).exec();
+    }
+
     async findWaitingPaymentForChat(workspaceId: Types.ObjectId, chatId: string) {
         return this.model.findOne({
             workspaceId,

@@ -30,7 +30,7 @@ export class CommandFactory {
       case '/fora': return container.resolve(OutCommand);
       case '/pago': return container.resolve(PaymentCommand);
       case '/debitos': return container.resolve(DebtsCommand);
-      // case '/desmarcar': return container.resolve(UncheckPaymentCommand);
+      case '/desmarcar': return container.resolve(UncheckPaymentCommand);
       // case '/carregar': return container.resolve(LoadCommand);
       case '/marcar': return container.resolve(TagCommand);
       case '/joao': return container.resolve(StickerCommand);

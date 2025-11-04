@@ -49,8 +49,8 @@ export function makeMockChat(
     const groupParticipants = participants
         .filter(p => p.groupId === chatId)
         .map(p => {
-            const digits = digitsFromPhone(p.phone);                 
-            const contactId = makeContactIdFromDigits(digits);       
+            const digits = digitsFromPhone(p.phone);
+            const contactId = makeContactIdFromDigits(digits);
             return {
                 id: contactId as any,
                 isAdmin: false,
@@ -68,11 +68,18 @@ export function makeMockChat(
 }
 
 export function makeMockContact(user?: SyntheticUser): Contact {
+    let contactId;
+    if (user?.phone) {
+        const digits = digitsFromPhone(user?.phone);
+        contactId = makeContactIdFromDigits(digits);
+
+    }
+
     const contactLike: Partial<Contact> = {
         number: user?.phone,
         pushname: user?.name,
         name: user?.name,
-        id: { _serialized: `${user?.phone ?? 'unknown'}@c.us` } as any,
+        id: { _serialized: `${contactId?._serialized ?? 'unknown'}` } as any,
     };
     return contactLike as Contact;
 }

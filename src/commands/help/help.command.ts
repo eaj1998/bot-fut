@@ -48,6 +48,9 @@ Exemplo: /joao
 Envia a previsão do tempo para o dia.
 Exemplo: /previsao
 
+
+/schedule weekday=1 time=19:00 price=18 pix=novopix@pix.com title=⚽ CAMPO VIANAAA
+
 ---
 
 💡 *DICAS*

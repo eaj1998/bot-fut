@@ -44,6 +44,9 @@ export function makeMockChat(
         isGroup,
         async sendMessage() { return undefined as any; },
         async fetchMessages() { return [] as any; },
+        async pin(duration?: number) {
+            return true;
+        }
     };
 
     const groupParticipants = participants
@@ -101,7 +104,7 @@ export function makeMockMessage(
         body: input,
         getContact: async () => makeMockContact(user),
         getChat: async () => makeMockChat(chatId, label, isGroup, user.participants ?? []),
-
+        pin: async (duration?: number) => true,
         reply: async (msg) => {
             await server.sendMessage(user.id ?? chatId, String(msg));
             return {} as Message;

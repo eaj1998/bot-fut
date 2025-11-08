@@ -1,5 +1,5 @@
 import { Model, Types } from "mongoose";
-import { ChatModel } from "../models/chat.model";
+import { CHAT_MODEL_TOKEN, ChatDoc, ChatModel } from "../models/chat.model";
 import { inject, singleton } from "tsyringe";
 import { WORKSPACE_MODEL_TOKEN, WorkspaceDoc } from "../models/workspace.model";
 import { UserRepository } from "./user.repository";
@@ -8,7 +8,7 @@ import { UserRepository } from "./user.repository";
 export class WorkspaceRepository {
   constructor(
     @inject(WORKSPACE_MODEL_TOKEN) private readonly model: Model<WorkspaceDoc>,
-    @inject(UserRepository) private readonly userRepo: UserRepository
+    @inject(CHAT_MODEL_TOKEN) private readonly chatModel: Model<ChatDoc>,
   ) { }
 
   public async ensureWorkspaceBySlug(slug: string, name?: string) {
@@ -29,7 +29,7 @@ export class WorkspaceRepository {
   }
 
   public async bindChatToWorkspace(chatId: string, workspaceId: string, label?: string) {
-    return ChatModel.findOneAndUpdate(
+    return this.chatModel.findOneAndUpdate(
       { chatId },
       { $set: { chatId, workspaceId: new Types.ObjectId(workspaceId), label } },
       { upsert: true, new: true }
@@ -37,7 +37,7 @@ export class WorkspaceRepository {
   }
 
   public async getWorkspaceByChat(chatId: string) {
-    const chat = await ChatModel.findOne({ chatId });
+    const chat = await this.chatModel.findOne({ chatId });
     if (!chat) return null;
     return this.model.findById(chat.workspaceId);
   }

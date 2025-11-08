@@ -19,18 +19,18 @@ export abstract class IBotServerPort {
     throw new Error('Not implemented');
   }
 
-  sendMessage(chatId: string, message: string): void;
+  sendMessage(chatId: string, message: string): Promise<Message> ;
   sendMessage(
     chatId: string,
     message: WAWebJS.MessageContent,
     options?: WAWebJS.MessageSendOptions
-  ): void;
+  ): Promise<Message> ;
   
   sendMessage(
     _chatId: string,
     _message: WAWebJS.MessageContent,
     _options?: WAWebJS.MessageSendOptions
-  ): void {
+  ): Promise<Message> {
     throw new Error('Not implemented');
   }
   onMessage(handler: (message: Message) => Promise<void>): void {

@@ -30,6 +30,10 @@ type CloseGameResult = {
   results: ClosePlayerResult[];
 };
 
+type CancelGameResult = {
+  added: boolean;
+};
+
 type OwnDebts = { type: "your place"; slot?: number | null };
 type GuestDebts = { type: "guest"; name?: string; slot?: number | null };
 
@@ -54,7 +58,13 @@ export class LineUpService {
       "Desconhecido"
     );
   }
-
+  async cancelGame(game: GameDoc): Promise<CancelGameResult> {
+    game.status = "cancelled";
+    if (await this.gameRepo.save(game)) {
+      return { added: true }
+    }
+    return { added: false }
+  }
   async closeGame(game: GameDoc): Promise<CloseGameResult> {
     try {
       const amountCents =
@@ -728,7 +738,7 @@ export class LineUpService {
 
     const titulo = game?.title ?? "⚽ CAMPO DO VIANA";
     const pix = chat?.schedule?.pix ?? "fcjogasimples@gmail.com";
-    const valor = `${Utils.formatCentsToReal(chat?.schedule?.priceCents ?? 0)}`;
+    const valor = `${Utils.formatCentsToReal(game?.priceCents ?? 0)}`;
 
     const maxPlayers = game.maxPlayers ?? 16;
     const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);

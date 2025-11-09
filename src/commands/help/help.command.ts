@@ -109,7 +109,7 @@ Exemplo: /adicionar-credito viana 20,00
 
 /pagar-campo [workspace] [data] [<valor>] 🏟️
 Registra o pagamento do campo na data especificada.
-Exemplo: /pagar-campo 15/12
+Exemplo: /pagar-campo slug 15/12 150
 
 /saldo 📊
 Mostra o saldo do workspace (valores a receber).
@@ -129,7 +129,7 @@ Exemplo: /saldo
     const isGroup = message.from.includes('@g.us');
 
     if (isGroup) {
-      const userId = message.author; // fallback defensivo
+      const userId = message.author; 
       if (userId) {
         await this.server.sendMessage(userId, helpText);
         await this.server.sendMessage(
@@ -142,7 +142,6 @@ Exemplo: /saldo
       return;
     }
 
-    // Se já for conversa privada, manda direto
     await this.server.sendMessage(message.from, helpText);
 
   }

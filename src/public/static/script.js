@@ -1,4 +1,4 @@
-const groupId = '999999999999999999@g.us';
+const groupId = '120363420720432842@g.us';
 const groupId2 = '999999999999999999@g.us';
 const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', groupId: groupId },
 { id: 2, name: 'Edipão', phone: '554992007299@c.us', groupId: groupId },
@@ -218,5 +218,5 @@ $(document).ready(() => {
     });
   };
 
-  preencherLista();
+  // preencherLista();
 });

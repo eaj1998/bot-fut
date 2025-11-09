@@ -34,7 +34,12 @@ export class LedgerRepository {
       type: "credit", method, amountCents, status: "confirmado", confirmedAt: new Date(), note,
       category: category,
     });
-    return await this.recomputeUserBalance(workspaceId, userId);
+
+    if (userId && ["player-payment", "player-debt"].includes(category)) {
+      await this.recomputeUserBalance(workspaceId, userId);
+    }
+
+    return 0;
   }
 
   async addDebit(input: AddDebitInput) {
@@ -81,12 +86,35 @@ export class LedgerRepository {
 
   async recomputeUserBalance(workspaceId: string, userId: string) {
     const [agg] = await this.model.aggregate([
-      { $match: { workspaceId: new Types.ObjectId(workspaceId), userId: new Types.ObjectId(userId), status: "confirmado" } },
+      {
+        $match: {
+          workspaceId: new Types.ObjectId(workspaceId),
+          userId: new Types.ObjectId(userId),
+          status: "confirmado",
+        }
+      },
       {
         $group: {
           _id: "$userId",
-          debits: { $sum: { $cond: [{ $eq: ["$type", "debit"] }, "$amountCents", 0] } },
-          credits: { $sum: { $cond: [{ $eq: ["$type", "credit"] }, "$amountCents", 0] } }
+          debits: {
+            $sum: {
+              $cond: [{ $eq: ["$type", "debit"] }, "$amountCents", 0]
+            }
+          },
+          credits: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$type", "credit"] },
+                    { $ne: ["$category", "general"] }   
+                  ]
+                },
+                "$amountCents",
+                0
+              ]
+            }
+          }
         }
       },
       { $project: { _id: 0, balanceCents: { $subtract: ["$credits", "$debits"] } } }

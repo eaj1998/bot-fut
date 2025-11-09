@@ -118,7 +118,7 @@ export class LineUpService {
             const targetUserId =
               player.guest
                 ? player.invitedByUserId?.toString()
-                : player.userId?.toString();
+                : player.userId?.toString();            
 
             if (!targetUserId) {
               // Pagamento sem dono, tratado como erro de lancamento
@@ -137,7 +137,7 @@ export class LineUpService {
               await this.ledgerRepo.addDebit({
                 workspaceId: game.workspaceId.toString(),
                 userId: targetUserId,
-                amountCents: !this.configService.whatsApp.adminNumbers.includes('554992007299@c.us') ? amountCents : 0,
+                amountCents: this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents,
                 gameId: game._id.toString(),
                 note: player.guest
                   ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
@@ -320,7 +320,7 @@ export class LineUpService {
         await this.ledgerRepo.addCredit({
           workspaceId: game.workspaceId.toString(),
           userId: inviterId,
-          amountCents: !this.configService.whatsApp.adminNumbers.includes('554992007299@c.us') ? amountCents : 0,
+          amountCents: this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents,
           gameId: game._id.toString(),
           note,
           method: payMethod,
@@ -1099,15 +1099,13 @@ export class LineUpService {
       user._id.toString()
     );
 
-    console.log('balance: ', balanceCents);
-
     const games = await this.gameRepo.findUnpaidGamesForUser(
       workspace._id,
       user._id,
       50
     );
 
-    const debts = games.filter(w=> w.status === "open" || w.status === "closed").map(g => {
+    const debts = games.filter(w => w.status === "open" || w.status === "closed").map(g => {
       const goalieSlots = Math.max(0, g.roster?.goalieSlots ?? 2);
       const players: GamePlayer[] = g.roster?.players ?? [];
 

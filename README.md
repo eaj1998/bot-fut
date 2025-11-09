@@ -167,7 +167,7 @@ Este bot ajuda a organizar listas de jogos, convidados, pagamentos e avisos dire
   Marca pagamento do campo (uso mais administrativo).
   Exemplo:
   ```bash
-  /pagar-campo 15/12
+  /pagar-campo slug 15/12 150
   ```
   Resposta típica: confirma pagamento do campo para a data/slot.
 

@@ -9,7 +9,7 @@ export class HelpCommand implements Command {
   role = IRole.USER;
 
   constructor(
-    @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,    
+    @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
   ) { }
 
   async handle(message: Message): Promise<void> {
@@ -126,7 +126,24 @@ Exemplo: /saldo
 ✅ Apenas administradores podem criar, fechar ou cancelar listas
 ✅ Comandos podem ser enviados no grupo ou no privado (onde indicado)`;
 
-    await this.server.sendMessage(groupId, helpText);
+    const isGroup = message.from.includes('@g.us');
+
+    if (isGroup) {
+      const userId = message.author; // fallback defensivo
+      if (userId) {
+        await this.server.sendMessage(userId, helpText);
+        await this.server.sendMessage(
+          message.from,
+          'Enviei os comandos no seu privado. ✅'
+        );
+      } else {
+        await this.server.sendMessage(message.from, helpText);
+      }
+      return;
+    }
+
+    // Se já for conversa privada, manda direto
+    await this.server.sendMessage(message.from, helpText);
 
   }
 }

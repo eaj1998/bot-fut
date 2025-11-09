@@ -40,7 +40,7 @@ export default class Utils {
       const n = Number(s.slice(0, -1));
       return Number.isInteger(n) && n >= 0 ? n : null;
     }
-    s = s.replace(/\./g, "").replace(",", "."); // 14,00 → 14.00 ; 1.400,00 → 1400.00
+    s = s.replace(/\./g, "").replace(",", "."); 
     const v = Number(s);
     if (Number.isNaN(v) || v < 0) return null;
     return Math.round(v * 100);

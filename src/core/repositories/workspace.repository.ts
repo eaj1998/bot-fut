@@ -24,8 +24,8 @@ export class WorkspaceRepository {
     return this.model.findById(workspaceId);
   }
 
-  public async findBySlug(slug: string) {
-    return this.model.findOne({ slug });
+  public async findBySlug(slug: string) {  
+    return this.model.findOne({ slug: slug });
   }
 
   public async bindChatToWorkspace(chatId: string, workspaceId: string, label?: string) {

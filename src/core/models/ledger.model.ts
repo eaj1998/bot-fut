@@ -7,6 +7,7 @@ export interface LedgerDoc extends Document {
     userId?: Types.ObjectId;
     type: "debit" | "credit";
     method: "pix" | "dinheiro" | "transf" | "ajuste";
+    category: "field-payment" | "player-payment" | "player-debt" | "general";
     amountCents: number;
     note?: string;
     status: "pendente" | "confirmado" | "estornado";
@@ -21,6 +22,7 @@ const LedgerSchema = new Schema({
     userId: { type: Types.ObjectId, ref: "User" },
     type: { type: String, enum: ["debit", "credit"], required: true },
     method: { type: String, enum: ["pix", "dinheiro", "transf", "ajuste"], default: "pix" },
+    category: { type: String, enum: ["field-payment", "player-payment", "player-debt", "general"], default: "general" },
     amountCents: { type: Number, required: true },
     note: String,
     status: { type: String, enum: ["pendente", "confirmado", "estornado"], default: "confirmado" },

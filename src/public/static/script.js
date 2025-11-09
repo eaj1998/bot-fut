@@ -1,8 +1,8 @@
 const groupId = '1111111111111111111@g.us';
 const groupId2 = '999999999999999999@g.us';
 const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', groupId: groupId },
-{ id: 2, name: 'Edipão', phone: '+554992007299', groupId: groupId2 },
-{ id: 3, name: 'Mikelongelo', phone: '+554187770278', groupId: groupId2 },
+{ id: 2, name: 'Edipão', phone: '+554992007299', groupId: groupId },
+{ id: 3, name: 'Mikelongelo', phone: '+554187770278', groupId: groupId },
 { id: 4, name: 'Sabrina', phone: '+5547998542231', groupId: groupId },
 { id: 5, name: 'Vitinho', phone: '+5547997334122', groupId: groupId },
 { id: 6, name: 'Carlinhos', phone: '+5548998893012', groupId: groupId },
@@ -21,8 +21,8 @@ const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', group
 
 const USERS = [
   { id: 1, name: 'Luquinhas', phone: '+5549988124389@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 2, name: 'Edipão', phone: '+554992007299@c.us', groupId: groupId2, participants: PARTICIPANTS },
-  { id: 3, name: 'Mikelongelo', phone: '+554187770278@c.us', groupId: groupId2, participants: PARTICIPANTS },
+  { id: 2, name: 'Edipão', phone: '+554992007299@c.us', groupId: groupId, participants: PARTICIPANTS },
+  { id: 3, name: 'Mikelongelo', phone: '+554187770278@c.us', groupId: groupId, participants: PARTICIPANTS },
   { id: 4, name: 'Sabrina', phone: '+5547998542231@c.us', groupId: groupId, participants: PARTICIPANTS },
   { id: 5, name: 'Vitinho', phone: '+5547997334122@c.us', groupId: groupId, participants: PARTICIPANTS },
   { id: 6, name: 'Carlinhos', phone: '+5548998893012@c.us', groupId: groupId, participants: PARTICIPANTS },
@@ -90,12 +90,27 @@ $(document).ready(() => {
     handleInput(input);
   };
 
+  const parseWhatsAppFormatting = (text) => {
+    text = text.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
+
+    text = text.replace(/_(.+?)_/g, '<em>$1</em>');
+
+    text = text.replace(/~(.+?)~/g, '<del>$1</del>');
+
+    text = text.replace(/``````/g, '<pre><code>$1</code></pre>');
+
+    return text;
+  };
+
+
   const sanitizeMessage = (content) => {
     if (content.mimetype == 'image/webp') {
       return `<img src="data:${content.mimetype};base64,${content.data}" alt="sticker" />`;
     }
 
-    return content.replaceAll('\n', '<br>');
+    let formatted = parseWhatsAppFormatting(content);
+
+    return formatted.replaceAll('\n', '<br>');
   };
 
   const appendMessage = (template, content, joinLastMessage) => {
@@ -203,5 +218,5 @@ $(document).ready(() => {
     });
   };
 
-  // preencherLista();
+  preencherLista();
 });

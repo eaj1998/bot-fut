@@ -37,7 +37,7 @@ export class LineUpAddCommand implements Command {
       return;
     }
 
-    const user = await this.userRepo.upsertByPhone(workspace._id, author.id._serialized, author.pushname || author.name || "Jogador");
+    const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
 
     this.lineupSvc.pullFromOutlist(game, user);
 

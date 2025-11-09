@@ -19,44 +19,35 @@ export class DebtsCommand implements Command {
 
 
     async handle(message: Message): Promise<void> {
-        console.log('message from: ', message.from);
-        
-        // if (!message.from.endsWith("@c.us")) {
-        //     await message.reply("Use este comando no privado comigo. Ex.: */debitos viana*");
-        //     return;
-        // }
+        if (!message.from.endsWith("@c.us")) {
+            await message.reply("Use este comando no privado comigo. Ex.: */debitos viana*");
+            return;
+        }
 
         const [, ...args] = message.body.trim().split(/\s+/);
-        const slug = (args[0] || "").toLowerCase();
-        if (!slug) {
-            await message.reply("Informe o workspace. Ex.: */debitos viana*");
-            return;
-        }
+        const slug = (args[0] || "");
 
         const contact = await message.getContact();
-        
-        const phoneE164 = contact.number ? `${contact.number}` : undefined;
-        
-        if (!phoneE164) {
-            await message.reply("Não consegui identificar seu telefone. Tente novamente.");
-            return;
-        }
         const user = await this.userRepo.findByPhoneE164(contact.id._serialized);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;
         }
 
-        const workspace = await this.workspaceSvc.resolveWorkspaceBySlug(slug);
-        if (!workspace) {
-            await message.reply(`Workspace *${slug}* não encontrado.`);
+        if (slug) {
+            const workspace = await this.workspaceSvc.resolveWorkspaceBySlug(slug);
+            if (!workspace) {
+                await message.reply(`Workspace *${slug}* não encontrado.`);
+                return;
+            }
+            const summary = await this.lineupSvc.getDebtsSummary(workspace, user);
+            const texto = this.lineupSvc.formatDebtsMessage(summary);
+            this.server.sendMessage(message.from, texto);
             return;
         }
 
-        const summary = await this.lineupSvc.getDebtsSummary(workspace, user);
-        
-        const texto = this.lineupSvc.formatDebtsMessage(summary);
-
+        const grouped = await this.lineupSvc.getUserDebtsGrouped(user._id.toString());
+        const texto = this.lineupSvc.formatUserDebtsDetailedMessage(grouped);
         this.server.sendMessage(message.from, texto);
     }
 }

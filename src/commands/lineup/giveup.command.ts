@@ -38,7 +38,7 @@ export class GiveUpCommand implements Command {
         ) as GameDoc | null;
         if (!game) return;
 
-        const user = await this.userRepo.upsertByPhone(workspace._id, author.id._serialized, author.pushname || author.name || "Jogador");
+        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
 
         if (!this.lineupSvc.giveUpFromList(game, user, nomeAutor, (txt: string) => message.reply(txt))) {
             await message.reply("Seu nome não foi encontrado na lista.");

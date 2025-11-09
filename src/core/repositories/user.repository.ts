@@ -11,9 +11,9 @@ export class UserRepository {
         return this.model.findOne({ workspaceId, phoneE164 });
     }
 
-    async upsertByPhone(workspaceId: Types.ObjectId, phoneE164: string, name: string) {
+    async upsertByPhone(phoneE164: string, name: string) {
         return this.model.findOneAndUpdate(
-            { workspaceId, phoneE164 },
+            { phoneE164 },
             { $setOnInsert: { name } },
             { new: true, upsert: true }
         );

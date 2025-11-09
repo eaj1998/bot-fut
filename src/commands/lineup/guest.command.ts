@@ -47,7 +47,7 @@ export class GuestCommand implements Command {
 
         const contact = await message.getContact();
 
-        const user = await this.userRepo.upsertByPhone(workspace._id, contact.id._serialized, contact.pushname || contact.name || "Jogador");
+        const user = await this.userRepo.upsertByPhone(contact.id._serialized, contact.pushname || contact.name || "Jogador");
 
         const res = this.lineupSvc.addGuestWithInviter(
             game,

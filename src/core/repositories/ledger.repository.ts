@@ -3,6 +3,20 @@ import { BalanceModel } from "../models/balance.model";
 import { Model, Types } from "mongoose";
 import { inject, injectable, singleton } from "tsyringe";
 
+
+type AddDebitInput = {
+  workspaceId: string;
+  userId?: string;
+  amountCents: number;
+  gameId?: string;
+  note?: string;
+  category: "field-payment" | "player-payment" | "player-debt" | "general";
+  method?: string;
+  status?: "pendente" | "confirmado";
+  confirmedAt?: Date;
+};
+
+
 @singleton()
 @injectable()
 export class LedgerRepository {
@@ -17,25 +31,52 @@ export class LedgerRepository {
       workspaceId: new Types.ObjectId(workspaceId),
       userId: new Types.ObjectId(userId),
       gameId: gameId ? new Types.ObjectId(gameId) : undefined,
-      type: "credit", method, amountCents, status: "confirmado", confirmedAt: new Date(), note
+      type: "credit", method, amountCents, status: "confirmado", confirmedAt: new Date(), note,
+      category: "player-payment"
     });
     return await this.recomputeUserBalance(workspaceId, userId);
   }
 
-  async addDebit({ workspaceId, userId, amountCents, gameId, note }: {
-    workspaceId: string; userId: string; amountCents: number; gameId?: string; note?: string;
-  }) {
-    await this.model.create({
+  async addDebit(input: AddDebitInput) {
+    const {
+      workspaceId,
+      userId,
+      amountCents,
+      gameId,
+      note,
+      category = "general", 
+      status = "confirmado",
+      confirmedAt = new Date(),
+    } = input;
+
+    const doc: any = {
       workspaceId: new Types.ObjectId(workspaceId),
-      userId: new Types.ObjectId(userId),
-      gameId: gameId ? new Types.ObjectId(gameId) : undefined,
-      type: "debit", method: "ajuste", amountCents, status: "confirmado", confirmedAt: new Date(), note
-    });
-    return await this.recomputeUserBalance(workspaceId, userId);
+      type: "debit",
+      method: "pix",
+      amountCents,
+      status,
+      confirmedAt,
+      note,
+      category,
+    };
+
+    if (userId && Types.ObjectId.isValid(userId)) {
+      doc.userId = new Types.ObjectId(userId);
+    }
+    if (gameId && Types.ObjectId.isValid(gameId)) {
+      doc.gameId = new Types.ObjectId(gameId);
+    }
+
+    await this.model.create(doc);
+
+    if (doc.userId) {
+      return await this.recomputeUserBalance(workspaceId, (doc.userId as Types.ObjectId).toString());
+    }
+    return 0;
   }
 
-  async deleteCredit (workspaceId: Types.ObjectId, userId: Types.ObjectId, gameId?: Types.ObjectId){
-    return this.model.deleteOne({workspaceId: workspaceId, userId: userId, gameId: gameId, type: 'credit'});
+  async deleteCredit(workspaceId: Types.ObjectId, userId: Types.ObjectId, gameId?: Types.ObjectId) {
+    return this.model.deleteOne({ workspaceId: workspaceId, userId: userId, gameId: gameId, type: 'credit' });
   }
 
   async recomputeUserBalance(workspaceId: string, userId: string) {
@@ -73,6 +114,78 @@ export class LedgerRepository {
     }).lean();
 
     return doc?.balanceCents ?? 0;
+  }
+
+  async listBalancesByUser(userId: string) {
+    return BalanceModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .select({ _id: 0, workspaceId: 1, userId: 1, balanceCents: 1, lastUpdatedAt: 1 })
+      .lean();
+  }
+
+  async listLedgersByUser(userId: string) {
+    return this.model
+      .find({
+        userId: new Types.ObjectId(userId),
+        status: "confirmado"
+      })
+      .select({ _id: 1, workspaceId: 1, userId: 1, gameId: 1, type: 1, amountCents: 1, confirmedAt: 1, note: 1 })
+      .lean();
+  }
+
+
+  async sumWorkspaceNet(workspaceId: string): Promise<number> {
+    const [agg] = await this.model.aggregate([
+      { $match: { workspaceId: new Types.ObjectId(workspaceId), status: "confirmado" } },
+      {
+        $group: {
+          _id: "$workspaceId",
+          debits: { $sum: { $cond: [{ $eq: ["$type", "debit"] }, "$amountCents", 0] } },
+          credits: { $sum: { $cond: [{ $eq: ["$type", "credit"] }, "$amountCents", 0] } },
+        },
+      },
+      { $project: { _id: 0, netCents: { $subtract: ["$credits", "$debits"] } } },
+    ]);
+    return agg?.netCents ?? 0;
+  }
+
+  async sumBalances(workspaceId: string): Promise<number> {
+    const [agg] = await BalanceModel.aggregate([
+      { $match: { workspaceId: new Types.ObjectId(workspaceId) } },
+      { $group: { _id: "$workspaceId", total: { $sum: "$balanceCents" } } },
+      { $project: { _id: 0, total: 1 } },
+    ]);
+    return agg?.total ?? 0;
+  }
+
+  async sumWorkspaceCashbox(workspaceId: string): Promise<number> {
+    const ws = new Types.ObjectId(workspaceId);
+
+    const [agg] = await this.model.aggregate([
+      { $match: { workspaceId: ws, status: "confirmado" } },
+      {
+        $group: {
+          _id: null,
+          playerCredits: {
+            $sum: {
+              $cond: [{ $eq: ["$type", "credit"] }, "$amountCents", 0]
+            }
+          },
+          fieldDebits: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$type", "debit"] }, { $eq: ["$category", "field-payment"] }] },
+                "$amountCents",
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $project: { _id: 0, cashCents: { $subtract: ["$playerCredits", "$fieldDebits"] } } }
+    ]);
+
+    return agg?.cashCents ?? 0;
   }
 
 }

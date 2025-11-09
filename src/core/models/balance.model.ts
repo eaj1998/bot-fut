@@ -3,7 +3,7 @@ import { Schema, model, Types } from "mongoose";
 const BalanceSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", index: true, required: true },
     userId: { type: Types.ObjectId, ref: "User", index: true, required: true },
-    balanceCents: { type: Number, default: 0 }, // + = deve | - = adiantado
+    balanceCents: { type: Number, default: 0 }, 
     lastUpdatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

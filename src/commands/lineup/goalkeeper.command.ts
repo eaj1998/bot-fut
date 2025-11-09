@@ -37,7 +37,7 @@ export class GoalKeeperAddCommand implements Command {
       return;
     }
     
-    const user = await this.userRepo.upsertByPhone(workspace._id, author.id._serialized, author.pushname || author.name || "Jogador");
+    const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
 
     if (this.lineupSvc.alreadyInList(game.roster, user)) {
       await message.reply("Você já está na lista!");

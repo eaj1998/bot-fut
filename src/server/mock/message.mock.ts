@@ -13,8 +13,8 @@ export type SyntheticUser = {
 type MockParticipantInput = {
     id: number;
     name: string;
-    phone: string;      // ex: "+5547999123456"
-    groupId: string;    // ex: "1111111111111111111@g.us"
+    phone: string;      
+    groupId: string;    
 };
 
 function digitsFromPhone(phone: string): string {

@@ -29,20 +29,21 @@ export class HttpServer extends IBotServerPort {
     chatId: string,
     message: WAWebJS.MessageContent,
     options?: WAWebJS.MessageSendOptions
-  ): void {
+  ): any {  
     if (!this.socket) {
       this.loggerService.log('No socket available');
-      return;
+      return { pin: async (duration?: number) => true };
     }
     this.socket.emit('message', { chat: chatId, message, options });
+    return { pin: async (duration?: number) => true };
   }
 
   private async dispatchAsyncMessage(input: string, user: any) {
     console.log(`Received message from ${user.name} - ${user.groupId}: ${input}`);
-    
+
     try {
       if (!this.events.message) return;
-      
+
       const msg = makeMockMessage(input, user, this as unknown as IBotServerPort);
       this.events.message(msg as Message);
     } catch (error) {

@@ -71,7 +71,7 @@ export class WeatherCommand implements Command {
             const url = new URL('https://api.open-meteo.com/v1/forecast');
             url.searchParams.set('latitude', String(coords.lat));
             url.searchParams.set('longitude', String(coords.lon));
-            url.searchParams.set('forecast_days', '1'); // SOMENTE HOJE
+            url.searchParams.set('forecast_days', '1');
             url.searchParams.set('timezone', 'auto');
             url.searchParams.set(
                 'daily',
@@ -99,9 +99,11 @@ export class WeatherCommand implements Command {
 
             const i = 0; // HOJE
 
-            if (daily.rain_sum != undefined && daily.rain_sum[i] > 0 || daily.precipitation_sum != undefined && daily.precipitation_sum[i] > 0) {
+            const rain = daily.rain_sum?.[i] ?? daily.precipitation_sum?.[i];
+
+            if (rain != undefined && rain > 0) {
                 console.log(`[COMANDO] Enviando figurinha de chuva para ${message.from}.`);
-                
+
                 const sticker = MessageMedia.fromFilePath('./assets/pedro.webp');
                 this.server.sendMessage(message.from, sticker, { sendMediaAsSticker: true });
             }
@@ -145,7 +147,7 @@ export class WeatherCommand implements Command {
     }
 
     private formatToday(place: string, d: DailyForecast, i: number): string {
-        const date = this.formatDateBR(d.time[i]); // YYYY-MM-DD → dd/MM
+        const date = this.formatDateBR(d.time[i]); 
         const code = d.weather_code[i];
         const icon = this.wmoIcon(code);
         const desc = this.wmoPtBr(code);

@@ -16,6 +16,7 @@ import { todayISOyyyy_mm_dd, formatDateBR } from "../utils/date";
 import axios from "axios";
 import { LoggerService } from "../logger/logger.service";
 import { isOutfield } from "../utils/lineup";
+import { WorkspaceRepository } from "../core/repositories/workspace.repository";
 
 type ClosePlayerResult = {
   success: boolean;
@@ -37,6 +38,41 @@ type CancelGameResult = {
 type OwnDebts = { type: "your place"; slot?: number | null };
 type GuestDebts = { type: "guest"; name?: string; slot?: number | null };
 
+type UserDebtByWorkspace = {
+  workspaceId: string;
+  workspaceName?: string;
+  workspaceSlug?: string;
+  balanceCents: number;
+  games: UserDebtByGame[];
+};
+
+type UserDebtByGame = {
+  gameId?: string;
+  date?: Date;
+  title?: string;
+  debitsCents: number;
+  creditsCents: number;
+  totalCents?: number | undefined;
+  lines?: GameLine[];
+};
+
+type FormattedGame = {
+  date?: Date;
+  title?: string;
+  totalCents: number;        
+  lines: GameLine[];         
+};
+
+type FormattedWorkspace = {
+  workspaceName?: string;
+  workspaceSlug?: string;
+  balanceCents: number;
+  games: FormattedGame[];    
+};
+
+
+type GameLine = { label: string; amountCents: number };
+
 
 @singleton()
 
@@ -45,6 +81,7 @@ export class LineUpService {
     @inject(LineUpRepository) private readonly repo: LineUpRepository,
     @inject(GameRepository) private readonly gameRepo: GameRepository,
     @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+    @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
     @inject(ConfigService) private readonly configService: ConfigService,
     @inject(LoggerService) private readonly loggerService: LoggerService
   ) { }
@@ -104,7 +141,8 @@ export class LineUpService {
                 gameId: game._id.toString(),
                 note: player.guest
                   ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
-                  : `Débito referente ao jogo ${game._id} - ${formatDateBR(game.date)}`
+                  : `Débito referente ao jogo ${playerName} - ${formatDateBR(game.date)}`,
+                category: "player-debt"
               });
               ledgerOk = true;
             } else {
@@ -472,11 +510,26 @@ export class LineUpService {
     return { placed: false, finalName: label, role: "outfield" };
   }
 
+
+  private async buildMentionForUserId(userId?: any): Promise<{ text: string; mentions?: any[] }> {
+    try {
+      if (!userId) return { text: "" };
+      const u = typeof userId === "object" && userId._id ? userId : await this.gameRepo["model"].db.model("User").findById(userId).lean();
+      const phone = u?.phoneE164; 
+      if (!phone) return { text: "" };
+
+      const jid = `${phone.replace(/\D/g, "")}@c.us`;
+      return { text: `@${phone.replace(/\D/g, "")}`, mentions: [{ id: jid }] };
+    } catch {
+      return { text: "" };
+    }
+  }
+
   async giveUpFromList(
     game: GameDoc,
     user: UserDoc,
     nomeAutor: string,
-    reply: (txt: string) => void
+    reply: (txt: string, opts?: { mentions?: any[] }) => void
   ): Promise<boolean> {
     const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
     const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
@@ -486,9 +539,13 @@ export class LineUpService {
 
     let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
     if (idxPlayer <= -1) {
-      idxPlayer = players.findIndex(p => (p.userId?._id.toString() ?? "").toLowerCase().includes(user._id.toString()));
+      idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
+        .toLowerCase()
+        .includes(user._id.toString()));
     }
+
     let mensagemPromocao = "";
+    let mencoes: any[] | undefined;
 
     if (idxPlayer > -1) {
       const removed = players[idxPlayer];
@@ -497,34 +554,47 @@ export class LineUpService {
 
       if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
         const promovido = waitlist.shift()!;
-        players.push({
+
+        const promotedPlayer = {
           slot: removedSlot,
+          userId: promovido.userId,
           name: promovido.name ?? "Jogador",
           paid: false,
-        });
-        mensagemPromocao = `\n\n📢 Atenção: ${(promovido.name ?? "Jogador")} foi promovido da suplência para a lista principal!`;
+        };
+
+        players.push(promotedPlayer as any);
+
+        const { text: mentionText, mentions } = await this.buildMentionForUserId(promovido.userId?._id ?? promovido.userId);
+        mencoes = mentions;
+
+        const nomePromovidoVisivel = promovido.name ?? "Jogador";
+        const alvo = mentionText ? `${mentionText}` : `*${nomePromovidoVisivel}*`;
+
+        mensagemPromocao = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
       }
 
       if (await game.save()) {
-        await reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
+        await reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`, mencoes ? { mentions: mencoes } : undefined);
         const texto = await this.formatList(game);
         await reply(texto);
+        return true;
       }
     }
 
     const idxWait = waitlist.findIndex(w => (w.name ?? "").toLowerCase().includes(nomeTarget));
     if (idxWait > -1) {
       waitlist.splice(idxWait, 1);
-      await game.save();
-
-      await reply(`Ok, ${nomeAutor}, você foi removido da suplência.`);
-      const texto = await this.formatList(game);
-      await reply(texto);
-      return true;
+      if (await game.save()) {
+        await reply(`Ok, ${nomeAutor}, você foi removido da suplência.`);
+        const texto = await this.formatList(game);
+        await reply(texto);
+        return true;
+      }
     }
 
     return false;
   }
+
 
   async getActiveListOrWarn(
     workspaceId: string,
@@ -860,6 +930,172 @@ export class LineUpService {
     return game;
   }
 
+
+  async getUserDebtsGrouped(userId: string): Promise<FormattedWorkspace[]> {
+    const balances = await this.ledgerRepo.listBalancesByUser(userId);
+    const ledgers = await this.ledgerRepo.listLedgersByUser(userId);
+
+    const map = new Map<string, {
+      workspaceId: string;
+      balanceCents: number;
+      games: Array<{
+        gameId?: string;
+        debitsCents: number;
+        creditsCents: number;
+        date?: Date;
+        title?: string;
+        totalCents?: number;
+        lines?: GameLine[];
+      }>;
+      workspaceName?: string;
+      workspaceSlug?: string;
+    }>();
+
+    for (const b of balances) {
+      const wsId = (b.workspaceId as any)?.toString?.() ?? String(b.workspaceId);
+      if (!map.has(wsId)) {
+        map.set(wsId, { workspaceId: wsId, balanceCents: b.balanceCents ?? 0, games: [] });
+      } else {
+        map.get(wsId)!.balanceCents += b.balanceCents ?? 0;
+      }
+    }
+
+    for (const l of ledgers) {
+      const wsId = (l.workspaceId as any)?.toString?.() ?? String(l.workspaceId);
+      if (!map.has(wsId)) {
+        map.set(wsId, { workspaceId: wsId, balanceCents: 0, games: [] });
+      }
+    }
+
+    for (const l of ledgers) {
+      const wsId = (l.workspaceId as any)?.toString?.() ?? String(l.workspaceId);
+      const ws = map.get(wsId)!;
+
+      const gid = l.gameId ? ((l.gameId as any)?.toString?.() ?? String(l.gameId)) : undefined;
+      const key = gid ?? "_no_game_";
+
+      let game = ws.games.find(g => (g.gameId ?? "_no_game_") === key);
+      if (!game) {
+        game = { gameId: gid, debitsCents: 0, creditsCents: 0 };
+        ws.games.push(game);
+      }
+
+      const cents = Number(l.amountCents ?? 0);
+      if (l.type === "debit") game.debitsCents += cents;
+      if (l.type === "credit") game.creditsCents += cents;
+    }
+
+    const wsIds = Array.from(map.keys())
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    const workspaces = wsIds.length
+      ? await (this.workspaceRepo as any).model
+        ?.find({ _id: { $in: wsIds } })
+        .select({ name: 1, slug: 1 })
+        .lean()
+      : [];
+
+    const wsInfo = new Map<string, { name?: string; slug?: string }>();
+    for (const w of workspaces ?? []) {
+      wsInfo.set(w._id.toString(), { name: w.name, slug: w.slug });
+    }
+
+    const allGameIds = Array.from(map.values())
+      .flatMap(ws => ws.games.map(g => g.gameId).filter(Boolean)) as string[];
+    const uniqueGameIds = Array.from(new Set(allGameIds))
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    const gInfo = new Map<string, { date?: Date; title?: string; priceCents?: number; roster?: any }>();
+    const rawGameDocs = new Map<string, any>();
+
+    if (uniqueGameIds.length > 0) {
+      const games = await (this.gameRepo as any).model
+        ?.find({ _id: { $in: uniqueGameIds } })
+        .select({ _id: 1, date: 1, title: 1, priceCents: 1, roster: 1, workspaceId: 1 })
+        .lean();
+
+      for (const g of games ?? []) {
+        const id = g._id.toString();
+        gInfo.set(id, { date: g.date, title: g.title, priceCents: g.priceCents, roster: g.roster });
+        rawGameDocs.set(id, g);
+      }
+    }
+
+    const defaultPriceFrom = (workspaceId: string): number => {
+      return this.configService.organizze?.valorJogo ?? 0;
+    };
+
+    for (const ws of map.values()) {
+      for (const g of ws.games) {
+        const gid = g.gameId;
+        const gameDoc = gid ? rawGameDocs.get(gid) : undefined;
+        const gi = gid ? gInfo.get(gid) : undefined;
+
+        const priceCents =
+          (gameDoc?.priceCents ?? null) != null
+            ? Number(gameDoc.priceCents)
+            : defaultPriceFrom(ws.workspaceId);
+
+        const lines: GameLine[] = [];
+
+        if (gameDoc) {
+          const roster = gameDoc.roster ?? {};
+          const goalieSlots = Math.max(0, roster.goalieSlots ?? 2);
+          const players = Array.isArray(roster.players) ? roster.players : [];
+
+          const ownUnpaid = players.filter((p: any) =>
+            String(p.userId) === String(userId) &&
+            (p.slot ?? 0) > goalieSlots &&
+            !p.paid
+          );
+          for (const p of ownUnpaid) {
+            lines.push({ label: "Própria vaga", amountCents: priceCents });
+          }
+
+          const guestUnpaid = players.filter((p: any) =>
+            p.guest === true &&
+            String(p.invitedByUserId) === String(userId) &&
+            (p.slot ?? 0) > goalieSlots &&
+            !p.paid
+          );
+          for (const p of guestUnpaid) {
+            const clean = (p.name ?? "").replace(/\s*\(conv\.[^)]+\)\s*$/i, "").trim() || "Convidado";
+            lines.push({ label: `Convidado ${clean}`, amountCents: priceCents });
+          }
+        }
+
+        const totalLines = lines.reduce((s, l) => s + (l.amountCents ?? 0), 0);
+
+        g.date = gi?.date;
+        g.title = gi?.title ?? "Jogo";
+        g.totalCents = Number.isFinite(totalLines) ? totalLines : 0;
+        g.lines = Array.isArray(lines) ? lines : [];
+      }
+    }
+
+    for (const [id, ws] of map) {
+      const inf = wsInfo.get(id);
+      ws.workspaceName = inf?.name;
+      ws.workspaceSlug = inf?.slug;
+    }
+
+    const result: FormattedWorkspace[] = Array.from(map.values()).map(ws => ({
+      workspaceName: ws.workspaceName,
+      workspaceSlug: ws.workspaceSlug,
+      balanceCents: ws.balanceCents,
+      games: ws.games.map(g => ({
+        date: g.date,
+        title: g.title,
+        totalCents: g.totalCents ?? 0,
+        lines: g.lines ?? [],
+      })),
+    }));
+
+    return result;
+  }
+
   async getDebtsSummary(workspace: WorkspaceDoc, user: UserDoc) {
     const balanceCents = await this.ledgerRepo.getUserBalance(
       workspace._id.toString(),
@@ -890,6 +1126,7 @@ export class LineUpService {
         .filter(p =>
           p.guest === true &&
           String(p.invitedByUserId) === String(user._id) &&
+          isOutfield(p, goalieSlots) &&
           !p.paid
         )
         .map(p => ({ type: "guest" as const, name: p.name, slot: p.slot }));
@@ -940,6 +1177,131 @@ export class LineUpService {
 
     linhas.push(`\nℹ️ Goleiros não geram débito.`);
     return linhas.join("\n");
+  }
+
+  formatUserDebtsGroupedMessage(groups: UserDebtByWorkspace[]) {
+    const out: string[] = [];
+    if (!groups || groups.length === 0) {
+      out.push("✅ Você não possui pendências em nenhum workspace.");
+      return out.join("\n");
+    }
+
+    for (const ws of groups) {
+      out.push(`\n🏟️ ${ws.workspaceName ?? "Workspace"} (${ws.workspaceSlug ?? ws.workspaceId})`);
+      out.push(`Saldo: ${Utils.formatCentsToReal(ws.balanceCents)}`);
+
+      const rows: string[] = [];
+      for (const g of ws.games) {
+        const net = (g.debitsCents ?? 0) - (g.creditsCents ?? 0);
+        if (net <= 0) continue; 
+        const data = g.date ? `${String(new Date(g.date).getDate()).padStart(2, "0")}/${String(new Date(g.date).getMonth() + 1).padStart(2, "0")}` : "—";
+        const title = g.title ?? "Jogo";
+        rows.push(`- ${data} — ${title}: ${Utils.formatCentsToReal(net)}`);
+      }
+
+      if (rows.length === 0) {
+        out.push("Sem pendências de jogos aqui.");
+      } else {
+        out.push("Pendências por jogo:");
+        out.push(...rows);
+      }
+    }
+
+    return out.join("\n");
+  }
+
+
+
+
+  formatWorkspaceBlock(ws: {
+    workspaceName?: string;
+    workspaceSlug?: string;
+    balanceCents: number;
+    games: Array<{
+      date?: Date;
+      title?: string;
+      totalCents: number;
+      lines: { label: string; amountCents: number }[];
+    }>;
+  }): string {
+    const out: string[] = [];
+    const title = `🏟️ ${ws.workspaceName ?? "Workspace"}${ws.workspaceSlug ? ` (${ws.workspaceSlug})` : ""}`;
+    out.push(title);
+    out.push(`Saldo: ${Utils.formatCentsToReal(ws.balanceCents)}`);
+    const pending = ws.games.filter(g => g.totalCents > 0);
+    if (pending.length === 0) {
+      out.push("");
+      out.push("Sem pendências de jogos aqui");
+      return out.join("\n");
+    }
+    out.push("");
+    out.push("Pendências por jogo");
+    for (const g of pending) {
+      const d = g.date ? new Date(g.date) : undefined;
+      const data = d ? `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}` : "—";
+      out.push(`— ${data} · ${g.title ?? "Jogo"} · ${Utils.formatCentsToReal(g.totalCents)}`);
+      const lefts = g.lines.map(l => l.label);
+      const maxLen = Math.min(28, Math.max(...lefts.map(s => s.length), 0) || 0);
+      for (const line of g.lines) {
+        const left = this.padDots(line.label, 30);
+        out.push(`   • ${left}${Utils.formatCentsToReal(line.amountCents)}`);
+      }
+      out.push("");
+    }
+    return out.join("\n").trim();
+  }
+
+  private padDots(left: string, width = 24): string {
+    const clean = (left ?? "").trim();
+    const dots = Math.max(1, width - clean.length);
+    return clean + " " + ".".repeat(dots) + " ";
+  }
+
+  formatUserDebtsDetailedMessage(groups: Array<{
+    workspaceName?: string;
+    workspaceSlug?: string;
+    balanceCents: number;
+    games: Array<{ date?: Date; title?: string; totalCents: number; lines: { label: string; amountCents: number }[] }>;
+  }>): string {
+    if (!groups || groups.length === 0) return "✅ Você não possui pendências em nenhum workspace.";
+    const blocks = groups.map(ws => this.formatWorkspaceBlock(ws));
+    return blocks.join("\n\n");
+  }
+
+  async getWorkspaceReceivablesCents(workspaceId: string): Promise<{
+    totalCents: number;
+    games: Array<{ gameId: string; date: Date; title: string; receivableCents: number }>;
+  }> {
+    const games = await (this.gameRepo as any).model
+      ?.find({ workspaceId: new Types.ObjectId(workspaceId), status: { $in: ["open", "closed"] } })
+      .select({ _id: 1, date: 1, title: 1, priceCents: 1, roster: 1 })
+      .lean();
+
+    let total = 0;
+    const items: Array<{ gameId: string; date: Date; title: string; receivableCents: number }> = [];
+
+    for (const g of games ?? []) {
+      const roster = g.roster ?? {};
+      const goalieSlots = Math.max(0, roster.goalieSlots ?? 2);
+      const players = Array.isArray(roster.players) ? roster.players : [];
+
+      const priceCents = g.priceCents ?? this.configService.organizze.valorJogo;
+
+      const unpaidOutfield = players.filter((p: any) => (p.slot ?? 0) > goalieSlots && !p.paid);
+      const receivable = unpaidOutfield.length * priceCents;
+
+      if (receivable > 0) {
+        total += receivable;
+        items.push({
+          gameId: g._id.toString(),
+          date: g.date,
+          title: g.title ?? "Jogo",
+          receivableCents: receivable,
+        });
+      }
+    }
+
+    return { totalCents: total, games: items };
   }
 
 

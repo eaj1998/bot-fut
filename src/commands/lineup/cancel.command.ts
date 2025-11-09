@@ -41,8 +41,6 @@ export class CancelCommand implements Command {
 
         if (res.added) {
             const sent = await this.server.sendMessage(groupId, "Jogo Cancelado!");
-            console.log(`sent = `, sent);
-            
             sent.pin(86400);
 
         } else {

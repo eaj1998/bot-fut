@@ -46,3 +46,9 @@ export function tryParseDDMM(arg?: string): { start: Date; end: Date } | null {
     const end = new Date(year, mm - 1, d, 23, 59, 59, 999);
     return { start, end };
 }
+
+export function buildUtcCalendarDay(y: number, m: number, d: number) {
+  const startZ = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+  const endZ = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+  return { startZ, endZ };
+}

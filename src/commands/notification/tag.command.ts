@@ -44,14 +44,8 @@ export class TagCommand implements Command {
         if (group) {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
-                console.log(`participantNumber=${participantNumber}`);
                 const user = await this.userRepo.findByPhoneE164(participantNumber);
-                if (user) {
-                    console.log(`UserId_ = ${user._id}`);
-                    console.log(`UserId = ${user.id}`);
-
-                }
-                if (user && game?.roster.outlist.some(w => w.userId === user?._id)) {
+                if (user && game?.roster.outlist.some(w => w.userId?._id === user?._id)) {
 
                     jogadoresForaCount++;
                     continue;

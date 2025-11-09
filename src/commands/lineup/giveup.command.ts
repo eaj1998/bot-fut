@@ -6,6 +6,7 @@ import { LineUpService } from '../../services/lineup.service';
 import { GameDoc } from '../../core/models/game.model';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
+import { LoggerService } from '../../logger/logger.service';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -14,6 +15,7 @@ export class GiveUpCommand implements Command {
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(LoggerService) private readonly loggerSvc: LoggerService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
@@ -40,9 +42,12 @@ export class GiveUpCommand implements Command {
         if (!game) return;
 
         const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
-        const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor, (txt: string) => message.reply(txt));
+        this.loggerSvc.log(`user: ${user}`);
+        
+        const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor);
         if (!res.removed) {
             await this.server.sendMessage(message.from, res.message);
+            return;
         }
 
         this.server.sendMessage(message.from, res.message, { mentions: res.mentions })

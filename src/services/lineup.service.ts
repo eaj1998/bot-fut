@@ -516,7 +516,6 @@ export class LineUpService {
     game: GameDoc,
     user: UserDoc,
     nomeAutor: string,
-    reply: (txt: string, opts?: { mentions?: any[] }) => void
   ): Promise<{ removed: boolean, message: string, mentions?: string[] }> {
     const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
     const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
@@ -525,6 +524,7 @@ export class LineUpService {
     const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
 
     let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
+    this.loggerService.log(`idxPlayer: ${idxPlayer}`);
     if (idxPlayer <= -1) {
       idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
         .toLowerCase()

@@ -4,6 +4,7 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { GroupChat, Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
 import { WorkspaceService } from '../../services/workspace.service';
+import { UserRepository } from '../../core/repositories/user.repository';
 
 @injectable()
 export class TagCommand implements Command {
@@ -12,7 +13,8 @@ export class TagCommand implements Command {
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(LineUpService) private readonly lineupSvc: LineUpService,
-        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService
+        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+        @inject(UserRepository) private readonly userRepo: UserRepository,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -43,18 +45,19 @@ export class TagCommand implements Command {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
                 console.log(`participantNumber=${participantNumber}`);
-                
-                if (game?.roster.outlist.some(w => w.phoneE164 === participantNumber)) {
+                const user = await this.userRepo.findByPhoneE164(participantNumber);
+                if (user && game?.roster.outlist.some(w => w.userId === user?._id)) {
+                    console.log(`UserId = ${user._id}`);
+
                     jogadoresForaCount++;
                     continue;
                 }
-
                 mentions.push(participant.id._serialized);
                 text += `@${participant.id.user} `;
 
             }
         }
-        
-        this.server.sendMessage(groupId, text, { mentions });        
+
+        this.server.sendMessage(groupId, text, { mentions });
     }
 }

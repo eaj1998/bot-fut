@@ -1107,7 +1107,7 @@ export class LineUpService {
       50
     );
 
-    const debts = games.map(g => {
+    const debts = games.filter(w=> w.status === "open" || w.status === "closed").map(g => {
       const goalieSlots = Math.max(0, g.roster?.goalieSlots ?? 2);
       const players: GamePlayer[] = g.roster?.players ?? [];
 

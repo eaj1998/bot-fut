@@ -137,7 +137,7 @@ export class LineUpService {
               await this.ledgerRepo.addDebit({
                 workspaceId: game.workspaceId.toString(),
                 userId: targetUserId,
-                amountCents,
+                amountCents: !this.configService.whatsApp.adminNumbers.includes('554992007299@c.us') ? amountCents : 0,
                 gameId: game._id.toString(),
                 note: player.guest
                   ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
@@ -320,7 +320,7 @@ export class LineUpService {
         await this.ledgerRepo.addCredit({
           workspaceId: game.workspaceId.toString(),
           userId: inviterId,
-          amountCents,
+          amountCents: !this.configService.whatsApp.adminNumbers.includes('554992007299@c.us') ? amountCents : 0,
           gameId: game._id.toString(),
           note,
           method: payMethod,

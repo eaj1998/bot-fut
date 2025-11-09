@@ -530,7 +530,7 @@ export class LineUpService {
         .toLowerCase()
         .includes(user._id.toString()));
 
-        this.loggerService.log(`idxPlayer: ${idxPlayer}`);
+      this.loggerService.log(`idxPlayer: ${idxPlayer}`);
     }
 
     let mensagemPromocao = "";
@@ -540,34 +540,44 @@ export class LineUpService {
       const removedSlot = removed?.slot ?? 0;
       players.splice(idxPlayer, 1);
 
-      if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
-        const promovido = waitlist.shift()!;
+      let promotedPlayer: any | null = null;
+      let promovido: any | null = null;
 
-        const promotedPlayer = {
+      if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
+        promovido = waitlist.shift()!;
+
+        promotedPlayer = {
           slot: removedSlot,
           userId: promovido.userId,
           name: promovido.name ?? "Jogador",
           paid: false,
         };
 
-        players.push(promotedPlayer as any);
-        const mentions: string[] = [];
-        const phone = promovido.phoneE164;
+        players.push(promotedPlayer);
+      }
 
-        if (phone) {
-          const e164 = phone.replace(/@c\.us$/i, "");
-          mentions.push(phone);
-        }
+      const mentions: string[] = [];
+      if (promovido?.phoneE164) {
+        const e164 = promovido.phoneE164.replace(/@c\.us$/i, ""); 
+        const jid = `${e164.replace(/\D/g, "")}@c.us`;            
+        mentions.push(jid);
+      }
 
-        const alvo = `*@${promovido.phoneE164 ? promovido.phoneE164.replace(/@c\.us$/i, "") : `Jogador`}*`;
+      const alvo =
+        promovido?.phoneE164
+          ? `*@${promovido.phoneE164.replace(/@c\.us$/i, "")}*`
+          : `*${promovido?.name ?? "Jogador"}*`;
 
+      if (promovido) {
         mensagemPromocao = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
-        if (await game.save()) {
-          console.log(mentions);
+      }
 
-          const texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`;
-          return { removed: true, message: texto, mentions: mentions }
-        }
+      game.markModified("roster.players");
+      game.markModified("roster.waitlist");
+
+      if (await game.save()) {
+        const texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`;
+        return { removed: true, message: texto, mentions };
       }
     }
 

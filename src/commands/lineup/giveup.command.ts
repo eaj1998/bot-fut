@@ -41,8 +41,7 @@ export class GiveUpCommand implements Command {
         ) as GameDoc | null;
         if (!game) return;
 
-        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
-        this.loggerSvc.log(`user: ${user}`);
+        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");        
         
         const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor);
         if (!res.removed) {

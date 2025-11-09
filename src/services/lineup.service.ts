@@ -529,8 +529,6 @@ export class LineUpService {
       idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
         .toLowerCase()
         .includes(user._id.toString()));
-
-      this.loggerService.log(`idxPlayer: ${idxPlayer}`);
     }
 
     let mensagemPromocao = "";
@@ -539,6 +537,7 @@ export class LineUpService {
       const removed = players[idxPlayer];
       const removedSlot = removed?.slot ?? 0;
       players.splice(idxPlayer, 1);
+      nomeAutor = user.name;
 
       let promotedPlayer: any | null = null;
       let promovido: any | null = null;
@@ -558,8 +557,8 @@ export class LineUpService {
 
       const mentions: string[] = [];
       if (promovido?.phoneE164) {
-        const e164 = promovido.phoneE164.replace(/@c\.us$/i, ""); 
-        const jid = `${e164.replace(/\D/g, "")}@c.us`;            
+        const e164 = promovido.phoneE164.replace(/@c\.us$/i, "");
+        const jid = `${e164.replace(/\D/g, "")}@c.us`;
         mentions.push(jid);
       }
 

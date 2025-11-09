@@ -14,100 +14,117 @@ export class HelpCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    const helpText = `*🤖 COMANDOS DISPONÍVEIS*
+    const helpText = `🤖 COMANDOS DISPONÍVEIS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 *COMANDOS GERAIS (Todos os usuários)*
+📋 COMANDOS GERAIS (Todos os usuários)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-*/bora* ⚽
-Adiciona você à lista de jogadores (posições de linha).
-_Exemplo: /bora_
+/bora ⚽
+Inscreve você na lista de jogadores (posições de linha).
+Exemplo: /bora
 
-*/goleiro* 🧤
-Adiciona você à lista como goleiro (posições 1 ou 2).
-_Exemplo: /goleiro_
+/goleiro 🧤
+Inscreve você como goleiro (posições 1 e 2).
+Exemplo: /goleiro
 
-*/desistir* ❌
-Remove você da lista de jogadores. Se houver suplentes, o primeiro será promovido automaticamente.
-Também aceita nome de convidado para remover.
-_Exemplo: /desistir_
-_Exemplo: /desistir João_
+/desistir [nome?] ❌
+Remove você (ou um convidado) da lista.
+Se houver suplentes, o primeiro será promovido automaticamente.
+Exemplo: /desistir
+Exemplo: /desistir João Silva
 
-*/convidado [nome]* 👥
-Adiciona um convidado à lista. Use 🧤 antes do nome para adicionar como goleiro.
-_Exemplo: /convidado Carlos_
-_Exemplo: /convidado 🧤 Pedro_
+/convidado [nome] 👥
+Adiciona um convidado à lista.
+Use 🧤 antes do nome para marcar como goleiro.
+Exemplo: /convidado Carlos
+Exemplo: /convidado 🧤 Pedro
 
-*/fora* 🚫
-Marca você como "fora" desta semana. Você não receberá notificações do comando /marcar.
-_Exemplo: /fora_
+/fora 🚫
+Marca você como “fora” desta semana.
+Você não será marcado no /marcar.
+Exemplo: /fora
 
-*/joao* 🃏
-Envia uma figurinha especial.
-_Exemplo: /joao_
+/joao 🃏
+Envia uma figurinha (sticker) divertida.
+Exemplo: /joao
 
-*/previsao* ☀️
-Envia a previsão do tempo para o dia.
-_Exemplo: /previsao_
+/previsao [cidade? | lat,lon?] ☀️
+Mostra a previsão do tempo para o local informado (ou padrão do grupo).
+Exemplo: /previsao Chapecó
+Exemplo: /previsao -23.5,-46.6
+Exemplo: /previsao
 
-*/debitos* 💳
-Mostra todas as dívidas pendentes do jogador. Para ver as dívidas de um grupo específico, passe a tag do grupo. Comando deve ser enviado no privado do BOT.
-_Exemplo: /debitos_
-_/debitos [tag do campo]_
+/debitos [campo?] 💳
+Mostra seus débitos pendentes com o grupo.
+Use no privado do bot.
+Exemplo: /debitos
+Exemplo: /debitos viana
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👨‍💼 *COMANDOS ADMIN (Apenas administradores)*
+👨‍💼 COMANDOS ADMIN (Apenas administradores)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-*/bind <slug>* 🔗
-Vincula o grupo atual a um workspace.
-_Exemplo: /bind meu-workspace_
+/lista 🎯
+Cria uma nova lista (jogo) para o grupo.
+Exemplo: /lista
 
-*/schedule [parametros]* 📅
-Agenda um novo jogo com os parâmetros especificados.
-_Parâmetros:_
-  • weekday=N (dia da semana, 0-6)
-  • time=HH:MM (horário do jogo)
-  • price=XX (preço em reais)
-  • pix=email@email.com (chave PIX)
-  • title=TEXTO (título do jogo)
-_Exemplo: /schedule weekday=1 time=19:00 price=18 pix=novopix@pix.com title=⚽ CAMPO VIANAAA_
+/fechar 🔐
+Fecha a lista atual e gera débitos dos jogadores.
+Exemplo: /fechar
 
-*/lista* 🎯
-Cria uma nova lista de jogadores (escalação).
-_Exemplo: /lista_
+/cancelar ⛔
+Cancela o jogo agendado e notifica o grupo.
+Exemplo: /cancelar
 
-*/fechar* 🔐
-Fecha a lista de jogadores atual e gera os débitos.
-_Exemplo: /fechar_
+/bind <slug> 🔗
+Vincula o grupo a um workspace (identificador).
+Exemplo: /bind meu-workspace
 
-*/cancelar* ⛔
-Cancela o jogo agendado para este grupo. Pina a mensagem por 24h.
-_Exemplo: /cancelar_
+/schedule [parâmetros] 📅
+Configura o agendamento do grupo (dia, hora, valor, pix, título).
+Parâmetros:
+• weekday=N (0=domingo, 6=sábado)
+• time=HH:MM
+• price=XX,XX
+• pix=chave@pix
+• title="TÍTULO"
+Exemplo: /schedule weekday=2 time=20:30 price=14,00 pix=seu@pix title="⚽ CAMPO VIANA"
 
-*/pago [slot da lista]* 💰
-Marca o pagamento de um jogador como recebido.
-_Exemplo: /pago 3_
+/marcar 📢
+Faz a chamada geral, mencionando todos os jogadores confirmados.
+Exemplo: /marcar
 
-*/desmarcar [slot da lista]* ↩️
+/pago [número] 💰
+Marca o jogador da posição N como pago.
+Exemplo: /pago 3
+
+/desmarcar [número] ↩️
 Remove a marcação de pagamento de um jogador.
-_Exemplo: /desmarcar 3_
+Exemplo: /desmarcar 3
 
-*/marcar* 📢
-Marca todos os jogadores que não estiverem na lista de fora.
-_Exemplo: /marcar_
+/adicionar-credito [slug] [valor] 💵
+Adiciona crédito manualmente a um usuário ou workspace.
+Exemplo: /adicionar-credito viana 20,00
+
+/pagar-campo [workspace] [data] [<valor>] 🏟️
+Registra o pagamento do campo na data especificada.
+Exemplo: /pagar-campo 15/12
+
+/saldo 📊
+Mostra o saldo do workspace (valores a receber).
+Exemplo: /saldo
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 *INFORMAÇÕES IMPORTANTES*
+💡 INFORMAÇÕES IMPORTANTES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ A lista principal tem 16 posições (2 goleiros + 14 jogadores de linha)
-✅ Posições 1 e 2 são exclusivas para goleiros
-✅ Se a lista estiver cheia, você entra automaticamente como suplente
+✅ A lista principal tem 16 vagas (2 goleiros + 14 jogadores de linha)
+✅ Se a lista estiver cheia, novos entram como suplentes
 ✅ Suplentes são promovidos automaticamente quando alguém desiste
-✅ Use /fora se não quiser receber marcações naquela semana
-✅ Administradores gerenciam agendamentos e escalações`;
+✅ Use /fora se não quiser ser marcado na chamada da semana
+✅ Apenas administradores podem criar, fechar ou cancelar listas
+✅ Comandos podem ser enviados no grupo ou no privado (onde indicado)`;
 
     await this.server.sendMessage(groupId, helpText);
 

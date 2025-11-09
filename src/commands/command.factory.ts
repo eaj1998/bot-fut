@@ -19,6 +19,7 @@ import { ScheduleCommand } from './admin/schedule.command';
 import { CancelCommand } from './lineup/cancel.command';
 import { WorkspaceBalanceCommand } from './payment/workspaceBalance.command';
 import { PayFieldCommand } from './payment/payField.command';
+import { AddCreditCommand } from './payment/addCredit.command';
 
 @injectable()
 export class CommandFactory {
@@ -33,6 +34,7 @@ export class CommandFactory {
       case '/convidado': return container.resolve(GuestCommand);
       case '/fora': return container.resolve(OutCommand);
       case '/pagar-campo': return container.resolve(PayFieldCommand);
+      case '/adicionar-credito': return container.resolve(AddCreditCommand);
       case '/pago': return container.resolve(PaymentCommand);
       case '/debitos': return container.resolve(DebtsCommand);
       case '/desmarcar': return container.resolve(UncheckPaymentCommand);

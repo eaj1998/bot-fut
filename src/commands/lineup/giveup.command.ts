@@ -12,6 +12,7 @@ export class GiveUpCommand implements Command {
     role = IRole.USER;
 
     constructor(
+        @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(LineUpService) private readonly lineupSvc: LineUpService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository
@@ -39,9 +40,11 @@ export class GiveUpCommand implements Command {
         if (!game) return;
 
         const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
-
-        if (!this.lineupSvc.giveUpFromList(game, user, nomeAutor, (txt: string) => message.reply(txt))) {
-            await message.reply("Seu nome não foi encontrado na lista.");
+        const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor, (txt: string) => message.reply(txt));
+        if (!res.removed) {
+            await this.server.sendMessage(message.from, res.message);
         }
+
+        this.server.sendMessage(message.from, res.message, { mentions: res.mentions })
     }
 }

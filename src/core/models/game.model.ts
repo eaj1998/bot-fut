@@ -12,6 +12,7 @@ export interface GamePlayer {
   organizzeId?: number | null;
   guest?: boolean;
   invitedByUserId?: Types.ObjectId
+  phoneE164?: string;
 }
 
 /**
@@ -20,6 +21,7 @@ export interface GamePlayer {
 export interface GameWaitlistEntry {
   userId?: Types.ObjectId;
   name?: string;
+  phoneE164?: string;
   createdAt: Date;
 }
 
@@ -69,7 +71,8 @@ const RosterPlayerSchema = new Schema<GamePlayer>(
     paidAt: Date,
     guest: { type: Boolean, default: false },
     organizzeId: Number,
-    invitedByUserId: {type: Types.ObjectId, ref: "User"}
+    invitedByUserId: {type: Types.ObjectId, ref: "User"},
+    phoneE164: String,
   },
   { _id: false }
 );
@@ -78,6 +81,7 @@ const RosterWaitlistSchema = new Schema<GameWaitlistEntry>(
   {
     userId: { type: Types.ObjectId, ref: "User" },
     name: String,
+    phoneE164: String,
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -87,6 +91,7 @@ const RosterOutlistSchema = new Schema<GameOutlistEntry>(
   {
     userId: { type: Types.ObjectId, ref: "User" },
     name: String,
+    phoneE164: String,
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }

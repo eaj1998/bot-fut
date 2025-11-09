@@ -24,15 +24,15 @@ export class LedgerRepository {
     @inject(LEDGER_MODEL_TOKEN) private readonly model: Model<LedgerDoc> = LedgerModel
   ) { }
 
-  async addCredit({ workspaceId, userId, amountCents, gameId, method = "pix", note }: {
-    workspaceId: string; userId: string; amountCents: number; gameId?: string; method?: string; note?: string;
+  async addCredit({ workspaceId, userId, amountCents, gameId, method = "pix", note, category }: {
+    workspaceId: string; userId: string; amountCents: number; gameId?: string; method?: string; note?: string; category: string
   }) {
     await this.model.create({
       workspaceId: new Types.ObjectId(workspaceId),
       userId: new Types.ObjectId(userId),
       gameId: gameId ? new Types.ObjectId(gameId) : undefined,
       type: "credit", method, amountCents, status: "confirmado", confirmedAt: new Date(), note,
-      category: "player-payment"
+      category: category,
     });
     return await this.recomputeUserBalance(workspaceId, userId);
   }
@@ -44,7 +44,7 @@ export class LedgerRepository {
       amountCents,
       gameId,
       note,
-      category = "general", 
+      category = "general",
       status = "confirmado",
       confirmedAt = new Date(),
     } = input;

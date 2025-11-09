@@ -1,4 +1,4 @@
-import { Message } from "whatsapp-web.js";
+import { Message, MessageSendOptions } from "whatsapp-web.js";
 import { inject } from "tsyringe";
 import { LineUpRepository } from "../repository/lineup.repository";
 import { singleton } from "tsyringe";
@@ -59,15 +59,15 @@ type UserDebtByGame = {
 type FormattedGame = {
   date?: Date;
   title?: string;
-  totalCents: number;        
-  lines: GameLine[];         
+  totalCents: number;
+  lines: GameLine[];
 };
 
 type FormattedWorkspace = {
   workspaceName?: string;
   workspaceSlug?: string;
   balanceCents: number;
-  games: FormattedGame[];    
+  games: FormattedGame[];
 };
 
 
@@ -315,6 +315,7 @@ export class LineUpService {
     if (inviterId) {
       const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
       const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
+      const category = "player-payment";
       try {
         await this.ledgerRepo.addCredit({
           workspaceId: game.workspaceId.toString(),
@@ -323,6 +324,7 @@ export class LineUpService {
           gameId: game._id.toString(),
           note,
           method: payMethod,
+          category,
         });
         const res = await this.updateMovimentacaoOrganizze(game, slot)
         if (!res.added) {
@@ -510,27 +512,12 @@ export class LineUpService {
     return { placed: false, finalName: label, role: "outfield" };
   }
 
-
-  private async buildMentionForUserId(userId?: any): Promise<{ text: string; mentions?: any[] }> {
-    try {
-      if (!userId) return { text: "" };
-      const u = typeof userId === "object" && userId._id ? userId : await this.gameRepo["model"].db.model("User").findById(userId).lean();
-      const phone = u?.phoneE164; 
-      if (!phone) return { text: "" };
-
-      const jid = `${phone.replace(/\D/g, "")}@c.us`;
-      return { text: `@${phone.replace(/\D/g, "")}`, mentions: [{ id: jid }] };
-    } catch {
-      return { text: "" };
-    }
-  }
-
   async giveUpFromList(
     game: GameDoc,
     user: UserDoc,
     nomeAutor: string,
     reply: (txt: string, opts?: { mentions?: any[] }) => void
-  ): Promise<boolean> {
+  ): Promise<{ removed: boolean, message: string, mentions?: string[] }> {
     const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
     const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
     const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
@@ -545,7 +532,6 @@ export class LineUpService {
     }
 
     let mensagemPromocao = "";
-    let mencoes: any[] | undefined;
 
     if (idxPlayer > -1) {
       const removed = players[idxPlayer];
@@ -563,21 +549,23 @@ export class LineUpService {
         };
 
         players.push(promotedPlayer as any);
+        const mentions: string[] = [];
+        const phone = promovido.phoneE164;
 
-        const { text: mentionText, mentions } = await this.buildMentionForUserId(promovido.userId?._id ?? promovido.userId);
-        mencoes = mentions;
+        if (phone) {
+          const e164 = phone.replace(/@c\.us$/i, "");
+          mentions.push(phone);
+        }
 
-        const nomePromovidoVisivel = promovido.name ?? "Jogador";
-        const alvo = mentionText ? `${mentionText}` : `*${nomePromovidoVisivel}*`;
+        const alvo = `*@${promovido.phoneE164 ? promovido.phoneE164.replace(/@c\.us$/i, "") : `Jogador`}*`;
 
         mensagemPromocao = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
-      }
+        if (await game.save()) {
+          console.log(mentions);
 
-      if (await game.save()) {
-        await reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`, mencoes ? { mentions: mencoes } : undefined);
-        const texto = await this.formatList(game);
-        await reply(texto);
-        return true;
+          const texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`;
+          return { removed: true, message: texto, mentions: mentions }
+        }
       }
     }
 
@@ -585,14 +573,12 @@ export class LineUpService {
     if (idxWait > -1) {
       waitlist.splice(idxWait, 1);
       if (await game.save()) {
-        await reply(`Ok, ${nomeAutor}, você foi removido da suplência.`);
-        const texto = await this.formatList(game);
-        await reply(texto);
-        return true;
+        mensagemPromocao = `Ok, ${nomeAutor}, você foi removido da suplência.`;
+        return { removed: true, message: mensagemPromocao }
       }
     }
-
-    return false;
+    mensagemPromocao = `Não foi possível remover da lista!`
+    return { removed: false, message: mensagemPromocao }
   }
 
 
@@ -669,13 +655,13 @@ export class LineUpService {
 
     for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
       if (!used.has(slot)) {
-        game.roster.players.push({ userId: user._id, slot, name: user.name, paid: false, organizzeId: null });
+        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164, slot, name: user.name, paid: false, organizzeId: null });
         game.save();
         return { added: true };
       }
     }
 
-    game.roster.waitlist.push({ userId: user._id, name: user.name, createdAt: new Date() });
+    game.roster.waitlist.push({ userId: user._id, phoneE164: user.phoneE164, name: user.name, createdAt: new Date() });
     game.save();
     return { added: false, suplentePos: game.roster.waitlist.length };
   }
@@ -1193,7 +1179,7 @@ export class LineUpService {
       const rows: string[] = [];
       for (const g of ws.games) {
         const net = (g.debitsCents ?? 0) - (g.creditsCents ?? 0);
-        if (net <= 0) continue; 
+        if (net <= 0) continue;
         const data = g.date ? `${String(new Date(g.date).getDate()).padStart(2, "0")}/${String(new Date(g.date).getMonth() + 1).padStart(2, "0")}` : "—";
         const title = g.title ?? "Jogo";
         rows.push(`- ${data} — ${title}: ${Utils.formatCentsToReal(net)}`);

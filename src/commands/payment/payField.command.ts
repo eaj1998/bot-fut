@@ -69,8 +69,7 @@ export class PayFieldCommand implements Command {
             await message.reply("Valor inválido. Ex.: 150,00 ou R$ 150,00");
             return;
         }
-
-        console.log(cents);
+        
         try {
             await this.ledgerRepo.addDebit({
                 workspaceId: ws._id.toString(), userId: "",

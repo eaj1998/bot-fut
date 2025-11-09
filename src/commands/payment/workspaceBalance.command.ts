@@ -6,6 +6,7 @@ import { LedgerRepository } from "../../core/repositories/ledger.repository";
 import { LineUpService } from "../../services/lineup.service";
 import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
+import { ChatService } from "../../services/chat.service";
 
 @injectable()
 export class WorkspaceBalanceCommand implements Command {
@@ -16,6 +17,7 @@ export class WorkspaceBalanceCommand implements Command {
     @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
     @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
     @inject(LineUpService) private readonly lineupSvc: LineUpService,
+    @inject(ChatService) private readonly chatSvc: ChatService,
   ) {}
 
   async handle(message: Message): Promise<void> {
@@ -31,8 +33,13 @@ export class WorkspaceBalanceCommand implements Command {
     if (!ws) {
       await message.reply(`Workspace *${slug}* não encontrado.`);
       return;
-    }
+    }    
 
+    const chat = this.chatSvc.findByWorkspaceAndChat(ws._id, message.from);
+    if (!chat) {
+      await message.reply(`Este grupo não está vinculado ao workspace *${ws.slug}*.`);
+      return;
+    }
     const netCents = await this.ledgerRepo.sumWorkspaceCashbox(ws._id.toString());
 
     const receivables = await this.lineupSvc.getWorkspaceReceivablesCents(ws._id.toString());

@@ -524,11 +524,13 @@ export class LineUpService {
     const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
 
     let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
-    this.loggerService.log(`idxPlayer: ${idxPlayer}`);
+    this.loggerService.log(`idxPlayer guest: ${idxPlayer}`);
     if (idxPlayer <= -1) {
       idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
         .toLowerCase()
         .includes(user._id.toString()));
+
+        this.loggerService.log(`idxPlayer: ${idxPlayer}`);
     }
 
     let mensagemPromocao = "";

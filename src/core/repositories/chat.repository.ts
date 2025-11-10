@@ -10,7 +10,9 @@ export class ChatRepository {
     ) { }
 
     async findByWorkspaceAndChat(workspaceId: Types.ObjectId, chatId: string) {
-        return this.model.findOne({ workspaceId, chatId }).lean();
+        const q = this.model.findOne({ workspaceId, chatId }).lean();
+        console.log('Filter', q.getFilter())
+        return q;
     }
 
     async updateSchedule(workspaceId: Types.ObjectId, chatId: string, patch: Record<string, any>) {

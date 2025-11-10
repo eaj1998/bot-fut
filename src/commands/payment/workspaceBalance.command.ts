@@ -23,6 +23,7 @@ export class WorkspaceBalanceCommand implements Command {
   async handle(message: Message): Promise<void> {
     const [, ...args] = message.body.trim().split(/\s+/);
     const slug = (args[0] || "").toLowerCase();
+    const chat = await message.getChat();
 
     if (!slug) {
       await message.reply("Informe o workspace. Ex.: */saldo viana*");
@@ -40,11 +41,11 @@ export class WorkspaceBalanceCommand implements Command {
     
     
 
-    const chat = this.chatSvc.findByWorkspaceAndChat(ws._id, message.from);
+    const chatBot = this.chatSvc.findByWorkspaceAndChat(ws._id, chat.id._serialized);
 
     console.log('chat',chat);
     
-    if (!chat) {
+    if (!chatBot) {
       await message.reply(`Este grupo não está vinculado ao workspace *${ws.slug}*.`);
       return;
     }

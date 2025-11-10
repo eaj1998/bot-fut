@@ -41,6 +41,9 @@ export class WorkspaceBalanceCommand implements Command {
     
 
     const chat = this.chatSvc.findByWorkspaceAndChat(ws._id, message.from);
+
+    console.log('chat',chat);
+    
     if (!chat) {
       await message.reply(`Este grupo não está vinculado ao workspace *${ws.slug}*.`);
       return;

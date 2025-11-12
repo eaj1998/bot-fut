@@ -20,6 +20,7 @@ import { CancelCommand } from './lineup/cancel.command';
 import { WorkspaceBalanceCommand } from './payment/workspaceBalance.command';
 import { PayFieldCommand } from './payment/payField.command';
 import { AddCreditCommand } from './payment/addCredit.command';
+import { AddDebitCommand } from './payment/addDebit.command';
 
 @injectable()
 export class CommandFactory {
@@ -35,6 +36,7 @@ export class CommandFactory {
       case '/fora': return container.resolve(OutCommand);
       case '/pagar-campo': return container.resolve(PayFieldCommand);
       case '/adicionar-credito': return container.resolve(AddCreditCommand);
+      case '/adicionar-debito': return container.resolve(AddDebitCommand);
       case '/pago': return container.resolve(PaymentCommand);
       case '/debitos': return container.resolve(DebtsCommand);
       case '/desmarcar': return container.resolve(UncheckPaymentCommand);

@@ -13,6 +13,24 @@ export function applyTime(date: Date, timeHHmm: string): Date {
     return d;
 }
 
+// export function getNextWeekday(base: Date, weekday: number): Date {
+//   const d = new Date(base);
+//   const diff = (weekday + 7 - d.getDay()) % 7 || 7;
+//   d.setDate(d.getDate() + diff);
+//   const y = d.getFullYear();
+//   const m = d.getMonth();
+//   const day = d.getDate();
+//   return new Date(Date.UTC(y, m, day, 0, 0, 0, 0));
+// }
+// export function applyTime(date: Date, timeHHmm: string): Date {
+//   const [hh, mm] = timeHHmm.split(":").map(Number);
+//   const y = date.getUTCFullYear();
+//   const m = date.getUTCMonth();
+//   const day = date.getUTCDate();
+//   return new Date(Date.UTC(y, m, day, hh || 0, mm || 0, 0, 0));
+// }
+
+
 export function formatHorario(date: Date): string {
     return date
         .toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })

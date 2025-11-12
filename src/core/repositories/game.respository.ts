@@ -36,11 +36,23 @@ export class GameRepository {
         }).exec();
     }
 
+    async findByWorkspaceAndDate(workspaceId: Types.ObjectId, day: { start: Date; end: Date }) {
+
+        return this.model.findOne({ workspaceId: workspaceId.toString(), date: { $gte: day.start, $lte: day.end }, }).exec();
+    }
+
     async findGameClosedOrFinishedByDate(workspaceId: Types.ObjectId, day: { start: Date; end: Date }) {
         return this.model.findOne({
             workspaceId,
             date: { $gte: day.start, $lte: day.end },
             status: { $in: ["closed", "finished"] }
+        }).exec();
+    }
+
+    async findByDate(workspaceId: Types.ObjectId, day: { start: Date; end: Date }) {
+        return this.model.findOne({
+            workspaceId,
+            date: { $gte: day.start, $lte: day.end },
         }).exec();
     }
 
@@ -55,6 +67,7 @@ export class GameRepository {
     async save(game: GameDoc) {
         return game.save();
     }
+
     async criarMovimentacaoOrganizze(player: GamePlayer, dataDoJogo: Date): Promise<{ added: boolean }> {
         if (!this.configService.organizze.email || !this.configService.organizze.apiKey) {
             console.log('[ORGANIZZE] Credenciais não configuradas. Pulando integração.');

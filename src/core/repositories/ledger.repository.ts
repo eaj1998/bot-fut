@@ -202,7 +202,7 @@ export class LedgerRepository {
           fieldDebits: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ["$type", "debit"] }, { $eq: ["$category", "field-payment"] }] },
+                { $and: [{ $eq: ["$type", "debit"] }, { $in: ["$category", ["field-payment", "general"]] }] },
                 "$amountCents",
                 0
               ]

@@ -17,7 +17,6 @@ export class ScheduleCommand {
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(ChatService) private readonly chatSvc: ChatService,
         @inject(ChatRepository) private readonly chatRepo: ChatRepository,
-        @inject(LoggerService) private readonly logger: LoggerService,
     ) { }
 
     async handle(message: Message) {

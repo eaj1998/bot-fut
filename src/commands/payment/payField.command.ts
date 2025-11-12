@@ -54,10 +54,7 @@ export class PayFieldCommand implements Command {
         const year = new Date().getFullYear();
         const { startZ: start, endZ: end } = buildUtcCalendarDay(year, dmy.month, dmy.day);
 
-        const game = await (this.gameRepo as any).model
-            ?.findOne({ workspaceId: ws._id.toString(), date: { $gte: start, $lte: end }, })
-            .select({ _id: 1, title: 1, date: 1 })
-            .lean();
+        const game = await this.gameRepo.findByWorkspaceAndDate(ws._id, { start: start, end: end });
 
         if (!game) {
             await message.reply(`Jogo não encontrado em ${rawDate} para ${ws.name}.`);
@@ -74,7 +71,7 @@ export class PayFieldCommand implements Command {
             await this.ledgerRepo.addDebit({
                 workspaceId: ws._id.toString(), userId: "",
                 amountCents: cents,
-                gameId: game._id,
+                gameId: game._id.toString(),
                 note: `Pagamento ao campo do jogo ${rawDate} (${game.title ?? "Jogo"})`,
                 category: "field-payment",
 

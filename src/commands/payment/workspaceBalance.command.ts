@@ -36,19 +36,13 @@ export class WorkspaceBalanceCommand implements Command {
       return;
     }    
 
-    console.log('from: ', message.from);
-    console.log('ws._id', ws._id);
-    
-    
-
     const chatBot = await this.chatSvc.findByWorkspaceAndChat(ws._id, chat.id._serialized);
 
-    console.log('chat',chatBot);
-    
     if (!chatBot) {
       await message.reply(`Este grupo não está vinculado ao workspace *${ws.slug}*.`);
       return;
     }
+    
     const netCents = await this.ledgerRepo.sumWorkspaceCashbox(ws._id.toString());
 
     const receivables = await this.lineupSvc.getWorkspaceReceivablesCents(ws._id.toString());

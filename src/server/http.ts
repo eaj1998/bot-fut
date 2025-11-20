@@ -7,6 +7,7 @@ import WAWebJS, { Contact, Message } from 'whatsapp-web.js';
 import { inject, injectable } from 'tsyringe';
 import { LoggerService } from '../logger/logger.service';
 import { ConfigService } from '../config/config.service';
+import { makeMockMessage } from './mock/message.mock';
 
 @injectable()
 export class HttpServer extends IBotServerPort {
@@ -28,46 +29,23 @@ export class HttpServer extends IBotServerPort {
     chatId: string,
     message: WAWebJS.MessageContent,
     options?: WAWebJS.MessageSendOptions
-  ): void {
+  ): any {  
     if (!this.socket) {
       this.loggerService.log('No socket available');
-      return;
+      return { pin: async (duration?: number) => true };
     }
     this.socket.emit('message', { chat: chatId, message, options });
+    return { pin: async (duration?: number) => true };
   }
 
-  // sendMessage(chatId: string, message: string): void {
-  //   if (!this.socket) {
-  //     this.loggerService.log('No socket available');
-  //     return;
-  //   }
-
-  //   this.socket.emit('message', { chat: chatId, message });
-  // }
-
   private async dispatchAsyncMessage(input: string, user: any) {
+    console.log(`Received message from ${user.name} - ${user.groupId}: ${input}`);
+
     try {
       if (!this.events.message) return;
-      const chatId = String(user.groupId ?? 'unknown@g.us');
-      const isGroup = chatId.endsWith('@g.us');
 
-      const msg: Partial<Message> = {
-        from: user.groupId ?? user.id,
-        author: (user.phone ?? user.id ?? '0000000000') + '@c.us',
-        body: input,
-        getContact: async () =>
-          ({
-            pushname: user.name,
-            name: user.name,
-          }) as unknown as Contact,
-        reply: async (message) => {
-          this.sendMessage(user.id, message as string);
-
-          return {} as unknown as Message;
-        },
-      };
-
-      this.events.message(msg as unknown as Message);
+      const msg = makeMockMessage(input, user, this as unknown as IBotServerPort);
+      this.events.message(msg as Message);
     } catch (error) {
       console.error(error);
     }

@@ -30,8 +30,15 @@ export class ConfigService {
   organizze = {
     email: process.env.ORGANIZE_EMAIL,
     apiKey: process.env.ORGANIZE_API_KEY,
+    accountId: Number(process.env.ORGANIZE_ACCOUNT_ID) || 9099386,
+    categoryId: Number(process.env.ORGANIZE_CATEGORY_ID) || 152977750,
     valorJogo: Number(process.env.ORGANIZE_VALOR_JOGO) || 1400,
   };
+
+  database = {
+    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
+    mongoDb: process.env.MONGO_DB || 'bot_futebol',
+  }
 
   weatherDefaultPlace = process.env.WEATHER_DEFAULT_PLACE || 'São Paulo, BR';
 }

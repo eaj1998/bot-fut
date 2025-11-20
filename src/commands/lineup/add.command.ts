@@ -2,8 +2,10 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
-import { LineUpRepository } from '../../repository/lineup.repository';
 import { LineUpService } from '../../services/lineup.service';
+import { WorkspaceService } from '../../services/workspace.service';
+import { GameRepository } from '../../core/repositories/game.respository';
+import { UserRepository } from '../../core/repositories/user.repository';
 
 @injectable()
 export class LineUpAddCommand implements Command {
@@ -11,39 +13,49 @@ export class LineUpAddCommand implements Command {
 
   constructor(
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-    @inject(LineUpRepository) private readonly lineUpRepo: LineUpRepository,
-    @inject(LineUpService) private readonly lineupSvc: LineUpService
+    @inject(LineUpService) private readonly lineupSvc: LineUpService,
+    @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+    @inject(GameRepository) private readonly gameRepo: GameRepository,
+    @inject(UserRepository) private readonly userRepo: UserRepository
   ) { }
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
-    const nomeAutor = await this.lineupSvc.getAuthorName(message);
+    const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
+
     const author = await message.getContact();
 
-    const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
-    if (!groupLineUp) return;
+    if (!workspace) {
+      await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
+      return;
+    }
 
-    groupLineUp.jogadoresFora = groupLineUp.jogadoresFora.filter(p => p !== author.id._serialized);
+    let game = await this.gameRepo.findActiveForChat(workspace._id, groupId);
 
-    console.log(`Adicionando jogador à lista: ${nomeAutor}`);
-    console.log(`Jogadores atualmente na lista de fora: ${groupLineUp.jogadoresFora.join(', ')}`);
+    if (!game) {
+      await message.reply("Nenhum jogo agendado encontrado para este grupo.");
+      return;
+    }
 
+    const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
 
-    if (this.lineupSvc.alreadyInList(groupLineUp, nomeAutor)) {
+    this.lineupSvc.pullFromOutlist(game, user);
+
+    if (this.lineupSvc.alreadyInList(game.roster, user)) {
       await message.reply("Você já está na lista!");
       return;
     }
 
-    const res = this.lineupSvc.addOutfieldPlayer(groupLineUp, nomeAutor);
+    const res = await this.lineupSvc.addOutfieldPlayer(game, user);
 
     if (res.added) {
-      const texto = this.lineupSvc.formatList(groupLineUp);
+      const texto = await this.lineupSvc.formatList(game);
       await this.server.sendMessage(groupId, texto);
     } else {
       await message.reply(
         `Lista principal cheia! Você foi adicionado como o ${res.suplentePos}º suplente.`
       );
-      const texto = this.lineupSvc.formatList(groupLineUp);
+      const texto = await this.lineupSvc.formatList(game);
       await this.server.sendMessage(groupId, texto);
     }
   }

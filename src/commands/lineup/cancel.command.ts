@@ -5,12 +5,11 @@ import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { GameRepository } from '../../core/repositories/game.respository';
-import { parseGuestArg } from '../../utils/lineup';
 import { UserRepository } from '../../core/repositories/user.repository';
 
 @injectable()
-export class GuestCommand implements Command {
-    role = IRole.USER;
+export class CancelCommand implements Command {
+    role = IRole.ADMIN;
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
@@ -22,14 +21,9 @@ export class GuestCommand implements Command {
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
-        let nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');        
-
-        if (!nomeConvidado) {
-            message.reply('Uso correto: /convidado <nome do convidado>');
-            return;
-        }
-
         const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
+
+        const author = await message.getContact();
 
         if (!workspace) {
             await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
@@ -43,35 +37,16 @@ export class GuestCommand implements Command {
             return;
         }
 
-        const { name: guestName, asGoalie } = parseGuestArg(nomeConvidado);
+        const res = await this.lineupSvc.cancelGame(game);
 
-        const contact = await message.getContact();
+        if (res.added) {
+            const sent = await this.server.sendMessage(groupId, "Jogo Cancelado!");
+            sent.pin(86400);
 
-        const user = await this.userRepo.upsertByPhone(contact.id._serialized, contact.pushname || contact.name || "Jogador");
-
-        const res = this.lineupSvc.addGuestWithInviter(
-            game,
-            guestName,
-            {_id: user._id, name: user.name},
-            { asGoalie }
-        );
-
-        if (!res.placed) {
-            if (res.role === "goalie") {
-                await message.reply(`🧤 Não há vaga de goleiro no momento para "${res.finalName}".`);
-            } else {
-                await message.reply(`Lista principal cheia para jogadores de linha. "${res.finalName}" não pôde ser adicionado.`);
-            }
-            return;
+        } else {
+            await message.reply(
+                `Não foi possível cancelar o jogo, tente novamente mais tarde.`
+            );
         }
-
-        await game.save();
-
-        await message.reply(
-            `${res.role === "goalie" ? "🧤" : "✅"} "${res.finalName}" entrou na lista (slot ${res.slot}).`
-        );
-
-        const texto = await this.lineupSvc.formatList(game);
-        await this.server.sendMessage(groupId, texto);
     }
 }

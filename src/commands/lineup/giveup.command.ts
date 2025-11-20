@@ -3,6 +3,10 @@ import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { LineUpService } from '../../services/lineup.service';
+import { GameDoc } from '../../core/models/game.model';
+import { WorkspaceService } from '../../services/workspace.service';
+import { UserRepository } from '../../core/repositories/user.repository';
+import { LoggerService } from '../../logger/logger.service';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -10,54 +14,41 @@ export class GiveUpCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService
+        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(LoggerService) private readonly loggerSvc: LoggerService,
+        @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+        @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
 
     async handle(message: Message): Promise<void> {
-        const groupId = message.from;
-        let nomeAutor = await this.lineupSvc.getAuthorName(message);
-        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(' ');
+        let nomeAutor = ""
+        const author = await message.getContact();
+        const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(" ").trim();
+        if (nomeConvidado) nomeAutor = nomeConvidado;
 
-        if(nomeConvidado){
-            nomeAutor = nomeConvidado;
+        const groupId = message.from;        
+
+        const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
+        if (!workspace) {
+            await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
+            return;
         }
 
-        const groupLineUp = this.lineupSvc.getActiveListOrWarn(groupId, (txt) => message.reply(txt));
-        if (!groupLineUp) return;
+        const game = await this.lineupSvc.getActiveListOrWarn(
+            workspace._id.toString(),
+            groupId,
+            (txt: string) => message.reply(txt)
+        ) as GameDoc | null;
+        if (!game) return;
 
-        let jogadorRemovido = false;
-        let mensagemPromocao = '';
-        const indexPrincipal = groupLineUp.jogadores.findIndex(
-            (j) => j && j.includes(nomeAutor)
-        );
-
-        if (indexPrincipal > -1) {
-            if (indexPrincipal < 2) {
-                groupLineUp.jogadores[indexPrincipal] = '🧤';
-            } else {
-                groupLineUp.jogadores[indexPrincipal] = null;
-            }
-            jogadorRemovido = true;
-
-            if (indexPrincipal >= 2 && groupLineUp.suplentes.length > 0) {
-                const promovido = groupLineUp.suplentes.shift() ?? null;
-                groupLineUp.jogadores[indexPrincipal] = promovido;
-                mensagemPromocao = `\n\n📢 Atenção: ${promovido} foi promovido da suplência para a lista principal!`;
-            }
-        } else {
-            const indexSuplente = groupLineUp.suplentes.indexOf(nomeAutor);
-            if (indexSuplente > -1) {
-                groupLineUp.suplentes.splice(indexSuplente, 1);
-                jogadorRemovido = true;
-            }
+        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");        
+        
+        const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor);
+        if (!res.removed) {
+            await this.server.sendMessage(message.from, res.message);
+            return;
         }
 
-        if (jogadorRemovido) {
-            message.reply(`Ok, ${nomeAutor}, seu nome foi removido da lista.` + mensagemPromocao);
-            const listaAtualizada = this.lineupSvc.formatList(groupLineUp);
-            await this.server.sendMessage(groupId, listaAtualizada);
-        } else {
-            message.reply('Seu nome não foi encontrado na lista.');
-        }
+        this.server.sendMessage(message.from, res.message, { mentions: res.mentions })
     }
 }

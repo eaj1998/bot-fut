@@ -1,0 +1,20 @@
+meta {
+  name: Close Game
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/games/691f8a463499aed2b3a5f256/close
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

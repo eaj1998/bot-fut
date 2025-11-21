@@ -1,21 +1,18 @@
 import { inject, injectable } from "tsyringe";
 import { Command, IRole } from "../type";
 import { Message } from "whatsapp-web.js";
-import { LineUpService } from "../../services/lineup.service";
-import { GameDoc } from "../../core/models/game.model";
-import { UserModel, UserDoc } from "../../core/models/user.model";
+import { GameService } from "../../services/game.service";
 import { WorkspaceService } from "../../services/workspace.service";
-import { GameRepository } from "../../core/repositories/game.respository";
-import { UserRepository } from "../../core/repositories/user.repository";
+import Utils from "../../utils/utils";
 
 @injectable()
 export class OutCommand implements Command {
     role = IRole.USER;
 
     constructor(
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-        @inject(UserRepository) private readonly userRepo: UserRepository
+        @inject(Utils) private readonly util: Utils
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -27,49 +24,23 @@ export class OutCommand implements Command {
             return;
         }
 
-        const game = (await this.lineupSvc.getActiveListOrWarn(
-            workspace._id.toString(),
-            groupId,
-            (txt: string) => message.reply(txt)
-        )) as GameDoc | null;
+        const game = await this.gameService.getActiveGame(workspace._id.toString(), groupId);
 
         if (!game) return;
 
-        if (!game.roster) (game as any).roster = { goalieSlots: 2, players: [], waitlist: [], outlist: [] };
-        const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
-        const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
         const author = await message.getContact();
-        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
+        const phone = this.util.normalizePhone(author.id._serialized);
 
-        const userIdStr = user._id.toString();
-        const inMain = players.some(p => p.userId?._id.toString() === userIdStr);
-
-        if (inMain) {
-            await message.reply(
-                'Você está escalado pro jogo! 💪\nSe não puder ir, use /desistir pra liberar a vaga — mas se puder, ajuda a fechar o time! ⚽'
-            );
-            return;
-        }
-
-        const alreadyOut =
-            outlist.some(o => o.userId?.toString() === userIdStr) ||
-            outlist.some(o => (o.name ?? "").toLowerCase() === (user!.name ?? "").toLowerCase());
-
-        if (alreadyOut) {
-            await message.reply('Você já está marcado como "fora" para esta semana.');
-            return;
-        }
-
-        const res = this.lineupSvc.addOffLineupPlayer(game, user);
+        const res = await this.gameService.addOffLineupPlayer(game, phone, author.pushname || author.name || "Jogador");
 
         if (res.added) {
             await game.save();
-            await message.reply(`✅ ${user.name}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
+            await message.reply(`✅ ${author.pushname || author.name}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
             return;
         }
 
         await message.reply(
-            `✅ ${user.name}, Ocorreu um erro, tente novamente mais tarde.`
+            `✅ ${author.pushname || author.name}, Ocorreu um erro, tente novamente mais tarde.`
         );
     }
 

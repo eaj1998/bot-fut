@@ -1,22 +1,27 @@
-import { Message, MessageSendOptions } from "whatsapp-web.js";
-import { inject } from "tsyringe";
-import { LineUpRepository } from "../repository/lineup.repository";
-import { singleton } from "tsyringe";
-import Utils from "../utils/utils";
-import { GameDoc, GameModel, GameRoster, GamePlayer } from "../core/models/game.model";
-import { WorkspaceDoc } from "../core/models/workspace.model";
-import { ChatModel } from "../core/models/chat.model";
-import { getNextWeekday, applyTime, formatHorario } from "../utils/date";
-import { UserDoc } from "../core/models/user.model";
-import { GameRepository } from "../core/repositories/game.respository";
-import { Types } from "mongoose";
-import { LedgerRepository } from "../core/repositories/ledger.repository";
-import { ConfigService } from "../config/config.service";
-import { todayISOyyyy_mm_dd, formatDateBR } from "../utils/date";
-import axios from "axios";
-import { LoggerService } from "../logger/logger.service";
-import { isOutfield } from "../utils/lineup";
-import { WorkspaceRepository } from "../core/repositories/workspace.repository";
+import { injectable, inject } from 'tsyringe';
+import { Model, Types } from 'mongoose';
+import { GAME_MODEL_TOKEN, IGame } from '../core/models/game.model';
+import { USER_MODEL_TOKEN, IUser } from '../core/models/user.model';
+import { GameDetailResponseDto, GameResponseDto, PlayerInGameDto, WaitlistPlayerDto, OutlistPlayerDto, AddPlayerToGameDto, UpdateGameDto } from '../api/dto/game.dto';
+import { ApiError } from '../api/middleware/error.middleware';
+
+import { WhatsAppService } from './whatsapp.service';
+
+import { WorkspaceService } from './workspace.service';
+import { GameRepository } from '../core/repositories/game.respository';
+import { LedgerRepository } from '../core/repositories/ledger.repository';
+import { ConfigService } from '../config/config.service';
+import { LoggerService } from '../logger/logger.service';
+
+import { WorkspaceRepository } from '../core/repositories/workspace.repository';
+import { ChatModel } from '../core/models/chat.model';
+import { WorkspaceDoc } from '../core/models/workspace.model';
+import Utils from '../utils/utils';
+import { getNextWeekday, applyTime, formatHorario, todayISOyyyy_mm_dd, formatDateBR } from '../utils/date';
+import { isOutfield } from '../utils/lineup';
+import axios from 'axios';
+import { Message, MessageSendOptions } from 'whatsapp-web.js';
+import { GameModel, GameRoster, GamePlayer } from '../core/models/game.model';
 
 type ClosePlayerResult = {
   success: boolean;
@@ -70,39 +75,167 @@ type FormattedWorkspace = {
   games: FormattedGame[];
 };
 
-
 type GameLine = { label: string; amountCents: number };
 
-
-@singleton()
-
-export class LineUpService {
+@injectable()
+export class GameService {
   constructor(
-    @inject(LineUpRepository) private readonly repo: LineUpRepository,
+    @inject(GAME_MODEL_TOKEN) private gameModel: Model<IGame>,
+    @inject(USER_MODEL_TOKEN) private userModel: Model<IUser>,
+    private whatsappService: WhatsAppService,
+    @inject(WorkspaceService) private workspaceService: WorkspaceService,
     @inject(GameRepository) private readonly gameRepo: GameRepository,
     @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
-    @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
     @inject(ConfigService) private readonly configService: ConfigService,
-    @inject(LoggerService) private readonly loggerService: LoggerService
+    @inject(LoggerService) private readonly loggerService: LoggerService,
+
+    @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
   ) { }
 
-  async getAuthorName(message: Message): Promise<string> {
-    const contato = await message.getContact();
-    return (
-      contato.pushname ??
-      contato.name ??
-      message.author?.split("@")[0] ??
-      "Desconhecido"
-    );
-  }
-  async cancelGame(game: GameDoc): Promise<CancelGameResult> {
-    game.status = "cancelled";
-    if (await this.gameRepo.save(game)) {
-      return { added: true }
+  async listGames(filters: {
+    status?: string;
+    type?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ games: GameResponseDto[]; total: number; page: number; totalPages: number }> {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const query: any = {};
+    if (filters.status) query.status = filters.status;
+    if (filters.type) query.gameType = filters.type;
+    if (filters.search) {
+      query.$or = [
+        { title: { $regex: filters.search, $options: 'i' } },
+        { location: { $regex: filters.search, $options: 'i' } },
+      ];
     }
-    return { added: false }
+
+    const [games, total] = await Promise.all([
+      this.gameModel.find(query).sort({ date: -1 }).skip(skip).limit(limit).exec(),
+      this.gameModel.countDocuments(query).exec(),
+    ]);
+
+    return {
+      games: games.map((game) => this.mapToGameResponse(game)),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
-  async closeGame(game: GameDoc): Promise<CloseGameResult> {
+
+  async getGameById(gameId: string): Promise<IGame | null> {
+    return this.gameModel.findById(gameId).exec();
+  }
+
+  async getGameDetail(gameId: string): Promise<GameDetailResponseDto> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    const players: PlayerInGameDto[] = [];
+    const substitutes: PlayerInGameDto[] = [];
+    const waitlist: WaitlistPlayerDto[] = [];
+    const outlist: OutlistPlayerDto[] = [];
+
+    for (const player of game.roster.players) {
+      const playerDto: PlayerInGameDto = {
+        id: (player.invitedByUserId ?? player.userId)?.toString() ?? '',
+        name: player.name,
+        phone: player.phoneE164,
+        isPaid: player.paid || false,
+      };
+
+      players.push(playerDto);
+    }
+
+    game.roster.waitlist?.forEach((wp, index) => {
+      waitlist.push({
+        id: wp.userId?.toString() ?? '',
+        name: wp.name ?? '',
+        phone: wp.phoneE164 ?? '',
+        position: index + 1,
+      });
+    });
+
+    game.roster.outlist?.forEach((op) => {
+      outlist.push({
+        id: op.userId?.toString() ?? '',
+        name: op.name ?? '',
+        phone: op.phoneE164 ?? '',
+      });
+    });
+
+    const totalPlayers = players.length;
+    const paidPlayers = players.filter((p) => p.isPaid);
+    const totalToReceive = totalPlayers * game.priceCents / 100;
+    const totalPaid = paidPlayers.length * game.priceCents / 100;
+
+    return {
+      ...this.mapToGameResponse(game),
+      players,
+      substitutes,
+      waitlist,
+      outlist,
+      financialSummary: {
+        totalToReceive,
+        totalPaid,
+        totalPending: totalToReceive - totalPaid,
+        paidCount: paidPlayers.length,
+        unpaidCount: totalPlayers - paidPlayers.length,
+      },
+    };
+  }
+
+  async createGame(data: any, createdByPhone: string): Promise<GameResponseDto> {
+    const creator = await this.userModel.findOne({ phone: createdByPhone }).exec();
+    if (!creator) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    const game = await this.gameModel.create({
+      title: data.name,
+      gameType: data.type,
+      date: new Date(data.date + 'T' + data.time),
+      location: data.location,
+      maxPlayers: data.maxPlayers,
+      price: data.pricePerPlayer,
+      chatId: data.chatId,
+      status: 'scheduled',
+      createdBy: creator._id,
+      players: [],
+      waitlist: [],
+      outlist: [],
+    });
+
+    return this.mapToGameResponse(game);
+  }
+
+  async cancelGame(gameId: string): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    game.status = "cancelled";
+    await this.gameRepo.save(game);
+  }
+
+  async closeGame(gameId: string): Promise<GameResponseDto> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    await this.closeGameInternal(game);
+
+    return this.mapToGameResponse(game);
+  }
+
+  async closeGameInternal(game: IGame): Promise<CloseGameResult> {
     try {
       const amountCents =
         game.priceCents ?? this.configService.organizze.valorJogo;
@@ -118,7 +251,7 @@ export class LineUpService {
             const targetUserId =
               player.guest
                 ? player.invitedByUserId?.toString()
-                : player.userId?.toString();            
+                : player.userId?.toString();
 
             if (!targetUserId) {
               // Pagamento sem dono, tratado como erro de lancamento
@@ -204,8 +337,323 @@ export class LineUpService {
     }
   }
 
+  async addPlayer(gameId: string, data: AddPlayerToGameDto): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    let user = await this.userModel.findOne({ phone: data.phone }).exec();
+    if (!user) {
+      if (!data.name) {
+        throw new ApiError(400, 'User not found and name not provided to create one');
+      }
+      user = await this.userModel.create({
+        phone: data.phone,
+        name: data.name,
+      });
+    }
+
+    if (data.isGoalkeeper) {
+      await this.addGoalkeeper(game, user);
+    } else {
+      await this.addOutfieldPlayer(game, user);
+    }
+  }
+
+  async removePlayer(gameId: string, playerId: string): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    const user = await this.userModel.findById(playerId).exec();
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    await this.giveUpFromList(game, user, user.name);
+  }
+
+  async addOutfieldPlayer(
+    game: IGame,
+    user: IUser,
+    maxPlayers = 16
+  ): Promise<{ added: boolean; suplentePos?: number }> {
+    game.roster.players = game.roster.players ?? [];
+    game.roster.waitlist = game.roster.waitlist ?? [];
+
+    const firstOutfieldSlot = Math.max(1, (game.roster.goalieSlots ?? 2) + 1);
+
+    const used = new Set<number>(
+      game.roster.players
+        .map(p => p.slot)
+        .filter((s): s is number => typeof s === 'number')
+    );
+
+    for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
+      if (!used.has(slot)) {
+        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164, slot, name: user.name, paid: false, organizzeId: null });
+        game.save();
+        return { added: true };
+      }
+    }
+
+    game.roster.waitlist.push({ userId: user._id, phoneE164: user.phoneE164, name: user.name, createdAt: new Date() });
+    game.save();
+    return { added: false, suplentePos: game.roster.waitlist.length };
+  }
+
+  async addGoalkeeper(game: IGame, user: IUser): Promise<{ added: boolean; suplentePos?: number }> {
+    const usedSlots = new Set<number>(
+      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
+    );
+    let placed = false;
+
+    for (let slot = 1; slot <= game.roster.goalieSlots; slot++) {
+      if (!usedSlots.has(slot)) {
+        game.roster.players.push({
+          slot,
+          userId: user._id,
+          name: user.name,
+          paid: false,
+        });
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      game.roster.waitlist.push({
+        userId: user._id,
+        name: user.name,
+        createdAt: new Date(),
+      });
+
+      if (await game.save()) {
+        return { added: true, suplentePos: game.roster.waitlist.length };
+      }
+    }
+    return { added: false, suplentePos: game.roster.waitlist.length };
+  }
+
+  async giveUpFromList(
+    game: IGame,
+    user: IUser,
+    nomeAutor: string,
+  ): Promise<{ removed: boolean, message: string, mentions?: string[] }> {
+    const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
+    const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
+    const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
+
+    const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
+
+    let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
+    this.loggerService.log(`idxPlayer guest: ${idxPlayer}`);
+    if (idxPlayer <= -1) {
+      idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
+        .toLowerCase()
+        .includes(user._id.toString()));
+    }
+
+    let mensagemPromocao = "";
+
+    if (idxPlayer > -1) {
+      const removed = players[idxPlayer];
+      const removedSlot = removed?.slot ?? 0;
+      players.splice(idxPlayer, 1);
+      nomeAutor = removed.name;
+
+      let promotedPlayer: any | null = null;
+      let promovido: any | null = null;
+
+      if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
+        promovido = waitlist.shift()!;
+
+        promotedPlayer = {
+          slot: removedSlot,
+          userId: promovido.userId,
+          name: promovido.name ?? "Jogador",
+          paid: false,
+        };
+
+        players.push(promotedPlayer);
+      }
+
+      const mentions: string[] = [];
+      if (promovido?.phoneE164) {
+        const e164 = promovido.phoneE164.replace(/@c\.us$/i, "");
+        const jid = `${e164.replace(/\D/g, "")}@c.us`;
+        mentions.push(jid);
+      }
+
+      const alvo =
+        promovido?.phoneE164
+          ? `*@${promovido.phoneE164.replace(/@c\.us$/i, "")}*`
+          : `*${promovido?.name ?? "Jogador"}*`;
+
+      if (promovido) {
+        mensagemPromocao = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
+      }
+
+      game.markModified("roster.players");
+      game.markModified("roster.waitlist");
+
+      if (await game.save()) {
+        let texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`;
+
+        if (removed.guest) {
+          texto = `Ok, o convidado: ${nomeAutor}, foi removido da lista.`;
+        }
+        return { removed: true, message: texto, mentions };
+      }
+    }
+
+    const idxWait = waitlist.findIndex(w => (w.name ?? "").toLowerCase().includes(nomeTarget));
+    if (idxWait > -1) {
+      waitlist.splice(idxWait, 1);
+      if (await game.save()) {
+        mensagemPromocao = `Ok, ${nomeAutor}, você foi removido da suplência.`;
+        return { removed: true, message: mensagemPromocao }
+      }
+    }
+    mensagemPromocao = `Não foi possível remover da lista!`
+    return { removed: false, message: mensagemPromocao }
+  }
+
+  pullFromOutlist(
+    game: IGame,
+    user: IUser,
+  ): void {
+    if (!game.roster?.outlist) game.roster.outlist = [];
+
+    const uid = user._id.toString();
+
+    game.roster.outlist = game.roster.outlist.filter((o) => {
+      const sameUser = o.userId?._id.toString() === uid;
+      return !sameUser;
+    });
+  }
+
+  alreadyInMainByLabel(game: IGame, label: string): boolean {
+    return (game.roster.players ?? []).some(p => p.name?.trim().toLocaleLowerCase() === label?.trim().toLocaleLowerCase());
+  }
+
+  alreadyInList(roster: GameRoster, user: IUser): boolean {
+    return (
+      roster.players.some(p => p.userId?.toString() === user._id.toString()) ||
+      roster.waitlist.some(p => p.userId?.toString() === user._id.toString())
+    );
+  }
+
+  takeNextGoalieSlot(game: IGame, user: IUser, name?: string): { placed: boolean } {
+    if (!Array.isArray(game.roster.players)) game.roster.players = [];
+    const goalieSlots = Math.max(1, game.roster.goalieSlots ?? 2);
+
+    const used = new Set<number>(
+      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
+    );
+
+    for (let slot = 1; slot <= goalieSlots; slot++) {
+      if (!used.has(slot)) {
+        game.roster.players.push({
+          slot,
+          userId: user._id,
+          name: name ?? user.name,
+          paid: false,
+        });
+        return { placed: true };
+      }
+    }
+    return { placed: false };
+  }
+
+  pushToWaitlist(game: IGame, user: IUser, name?: string) {
+    if (!Array.isArray(game.roster.waitlist)) game.roster.waitlist = [];
+    game.roster.waitlist.push({
+      userId: user._id,
+      name: name ?? user.name,
+      createdAt: new Date(),
+    });
+    return game.roster.waitlist.length;
+  }
+
+  buildGuestLabel(guestName: string, inviterName: string): string {
+    const g = guestName.trim();
+    const i = inviterName.trim();
+    return `${g} (conv. ${i})`;
+  }
+
+  addGuestWithInviter(
+    game: IGame,
+    guestName: string,
+    inviter: { _id: Types.ObjectId; name: string },
+    opts?: { asGoalie?: boolean }
+  ): { placed: boolean; slot?: number; finalName: string; role: "goalie" | "outfield" } {
+    if (!Array.isArray(game.roster.players)) game.roster.players = [];
+
+    const asGoalie = !!opts?.asGoalie;
+    const label = this.buildGuestLabel(guestName, inviter.name);
+    const maxPlayers = game.maxPlayers ?? 16;
+    const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+
+    const used = new Set<number>(
+      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
+    );
+
+    const basePlayer: Partial<GamePlayer> = {
+      name: label,
+      paid: false,
+      guest: true,
+      invitedByUserId: inviter._id,
+    };
+
+    if (asGoalie) {
+      for (let slot = 1; slot <= goalieSlots; slot++) {
+        if (!used.has(slot)) {
+          game.roster.players.push({ ...basePlayer, slot } as GamePlayer);
+          return { placed: true, slot, finalName: label, role: "goalie" };
+        }
+      }
+      return { placed: false, finalName: label, role: "goalie" };
+    }
+
+
+    for (let slot = goalieSlots + 1; slot <= maxPlayers; slot++) {
+      if (!used.has(slot)) {
+        game.roster.players.push({ ...basePlayer, slot } as GamePlayer);
+        return { placed: true, slot, finalName: label, role: "outfield" };
+      }
+    }
+    return { placed: false, finalName: label, role: "outfield" };
+  }
+
+  async markPayment(gameId: string, playerId: string, isPaid: boolean): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    // Find the player in the roster to get the slot
+    const player = game.roster.players.find(p => p.userId?.toString() === playerId || p.userId?._id?.toString() === playerId);
+
+    if (!player) {
+      throw new ApiError(404, 'Player not found in game');
+    }
+
+    if (typeof player.slot !== 'number') {
+      throw new ApiError(400, 'Player has no valid slot');
+    }
+
+    if (isPaid) {
+      await this.markAsPaid(game._id, player.slot);
+    } else {
+      await this.unmarkAsPaid(game, player.slot);
+    }
+  }
+
   async unmarkAsPaid(
-    game: GameDoc,
+    game: IGame,
     slot?: number
   ): Promise<{ updated: boolean; reason?: string; playerName?: string }> {
     if (typeof slot !== "number") {
@@ -269,7 +717,7 @@ export class LineUpService {
     gameId: Types.ObjectId,
     slot?: number,
     opts?: { method?: "pix" | "dinheiro" | "transf" | "ajuste" }
-  ): Promise<{ updated: boolean; reason?: string; game: GameDoc | null }> {
+  ): Promise<{ updated: boolean; reason?: string; game: IGame | null }> {
     if (typeof slot !== "number") {
       return { updated: false, reason: "Slot inválido", game: null };
     }
@@ -359,9 +807,8 @@ export class LineUpService {
     return { updated: true, game: game };
   }
 
-
   private async updateMovimentacaoOrganizze(
-    game: GameDoc,
+    game: IGame,
     slot: Number
   ): Promise<{ added: boolean; }> {
     const { email, apiKey } = this.configService.organizze ?? {};
@@ -461,324 +908,93 @@ export class LineUpService {
     }
   }
 
-
-  buildGuestLabel(guestName: string, inviterName: string): string {
-    const g = guestName.trim();
-    const i = inviterName.trim();
-    return `${g} (conv. ${i})`;
-  }
-
-  addGuestWithInviter(
-    game: GameDoc,
-    guestName: string,
-    inviter: { _id: Types.ObjectId; name: string },
-    opts?: { asGoalie?: boolean }
-  ): { placed: boolean; slot?: number; finalName: string; role: "goalie" | "outfield" } {
-    if (!Array.isArray(game.roster.players)) game.roster.players = [];
-
-    const asGoalie = !!opts?.asGoalie;
-    const label = this.buildGuestLabel(guestName, inviter.name);
-    const maxPlayers = game.maxPlayers ?? 16;
-    const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
-
-    const used = new Set<number>(
-      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
-    );
-
-    const basePlayer: Partial<GamePlayer> = {
-      name: label,
-      paid: false,
-      guest: true,
-      invitedByUserId: inviter._id,
-    };
-
-    if (asGoalie) {
-      for (let slot = 1; slot <= goalieSlots; slot++) {
-        if (!used.has(slot)) {
-          game.roster.players.push({ ...basePlayer, slot } as GamePlayer);
-          return { placed: true, slot, finalName: label, role: "goalie" };
-        }
-      }
-      return { placed: false, finalName: label, role: "goalie" };
-    }
-
-
-    for (let slot = goalieSlots + 1; slot <= maxPlayers; slot++) {
-      if (!used.has(slot)) {
-        game.roster.players.push({ ...basePlayer, slot } as GamePlayer);
-        return { placed: true, slot, finalName: label, role: "outfield" };
-      }
-    }
-    return { placed: false, finalName: label, role: "outfield" };
-  }
-
-  async giveUpFromList(
-    game: GameDoc,
-    user: UserDoc,
-    nomeAutor: string,
-  ): Promise<{ removed: boolean, message: string, mentions?: string[] }> {
-    const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
-    const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
-    const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
-
-    const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
-
-    let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
-    this.loggerService.log(`idxPlayer guest: ${idxPlayer}`);
-    if (idxPlayer <= -1) {
-      idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
-        .toLowerCase()
-        .includes(user._id.toString()));
-    }
-
-    let mensagemPromocao = "";
-
-    if (idxPlayer > -1) {
-      const removed = players[idxPlayer];
-      const removedSlot = removed?.slot ?? 0;
-      players.splice(idxPlayer, 1);
-      nomeAutor = user.name;
-
-      let promotedPlayer: any | null = null;
-      let promovido: any | null = null;
-
-      if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
-        promovido = waitlist.shift()!;
-
-        promotedPlayer = {
-          slot: removedSlot,
-          userId: promovido.userId,
-          name: promovido.name ?? "Jogador",
-          paid: false,
-        };
-
-        players.push(promotedPlayer);
-      }
-
-      const mentions: string[] = [];
-      if (promovido?.phoneE164) {
-        const e164 = promovido.phoneE164.replace(/@c\.us$/i, "");
-        const jid = `${e164.replace(/\D/g, "")}@c.us`;
-        mentions.push(jid);
-      }
-
-      const alvo =
-        promovido?.phoneE164
-          ? `*@${promovido.phoneE164.replace(/@c\.us$/i, "")}*`
-          : `*${promovido?.name ?? "Jogador"}*`;
-
-      if (promovido) {
-        mensagemPromocao = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
-      }
-
-      game.markModified("roster.players");
-      game.markModified("roster.waitlist");
-
-      if (await game.save()) {
-        const texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`;
-        return { removed: true, message: texto, mentions };
-      }
-    }
-
-    const idxWait = waitlist.findIndex(w => (w.name ?? "").toLowerCase().includes(nomeTarget));
-    if (idxWait > -1) {
-      waitlist.splice(idxWait, 1);
-      if (await game.save()) {
-        mensagemPromocao = `Ok, ${nomeAutor}, você foi removido da suplência.`;
-        return { removed: true, message: mensagemPromocao }
-      }
-    }
-    mensagemPromocao = `Não foi possível remover da lista!`
-    return { removed: false, message: mensagemPromocao }
-  }
-
-
-  async getActiveListOrWarn(
-    workspaceId: string,
-    groupId: string,
-    reply: (txt: string) => void
-  ): Promise<GameDoc | null> {
-    if (!workspaceId || !groupId) {
-      reply("Erro interno: workspace ou grupo não encontrado.");
-      return null;
-    }
-
-    const game = await GameModel.findOne({
-      workspaceId,
-      chatId: groupId,
-      status: "open",
-    }).populate("roster.players.userId");
-
+  async updateGame(gameId: string, data: UpdateGameDto): Promise<GameResponseDto> {
+    const game = await this.gameModel.findById(gameId).exec();
     if (!game) {
-      reply(
-        "⚠️ Nenhuma lista ativa encontrada. Peça a um admin para iniciar com /lista."
-      );
-      return null;
+      throw new ApiError(404, 'Game not found');
     }
 
+    if (data.name) game.title = data.name;
+    if (data.date || data.time) {
+      const dateStr = data.date || game.date.toISOString().split('T')[0];
+      const timeStr = data.time || game.date.toTimeString().slice(0, 5);
+      game.date = new Date(dateStr + 'T' + timeStr);
+    }
+    if (data.location) game.location = data.location;
+    if (data.maxPlayers) game.maxPlayers = data.maxPlayers;
+    if (data.pricePerPlayer) game.priceCents = data.pricePerPlayer * 100;
+    if (data.status) game.status = data.status;
+
+    await game.save();
+    return this.mapToGameResponse(game);
+  }
+
+  async sendReminder(gameId: string): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    if (!game.chatId) {
+      throw new ApiError(400, 'Game has no associated chat');
+    }
+
+    const message = await this.formatList(game);
+    await this.whatsappService.sendMessage(game.chatId, message);
+  }
+
+  async getActiveGame(workspaceId: string, chatId: string): Promise<IGame | null> {
+    return await this.gameRepo.findActiveForChat(new Types.ObjectId(workspaceId), chatId);
+  }
+
+  async formatGameList(game: IGame): Promise<string> {
+    return this.formatList(game);
+  }
+
+  argsFromMessage(message: Message): string[] {
+    const commandParts = message.body.split('\n');
+    return commandParts[0].split(' ').slice(1);
+  }
+
+  async createGameForChat(workspace: any, chatId: string): Promise<IGame> {
+    const { game } = await this.initListForChat(workspace, chatId);
     return game;
   }
 
-  async getActiveGame(workspaceId: Types.ObjectId, chatId: string): Promise<GameDoc | null> {
-    return await this.gameRepo.findActiveForChat(workspaceId, chatId);
-  }
+  async addPlayerToGame(game: IGame, phone: string, name: string): Promise<{ added: boolean; message?: string; suplentePos?: number }> {
+    const user = await this.userModel.findOneAndUpdate(
+      { phoneE164: phone },
+      { $set: { name, phoneE164: phone } },
+      { upsert: true, new: true }
+    ).exec();
 
-  pullFromOutlist(
-    game: GameDoc,
-    user: UserDoc,
-  ): void {
-    if (!game.roster?.outlist) game.roster.outlist = [];
+    if (!user) throw new Error("Failed to create/update user");
 
-    const uid = user._id.toString();
+    this.pullFromOutlist(game, user);
 
-    game.roster.outlist = game.roster.outlist.filter((o) => {
-      const sameUser = o.userId?._id.toString() === uid;
-      return !sameUser;
-    });
-  }
-
-  alreadyInMainByLabel(game: GameDoc, label: string): boolean {
-    return (game.roster.players ?? []).some(p => p.name?.trim().toLocaleLowerCase() === label?.trim().toLocaleLowerCase());
-  }
-
-  alreadyInList(roster: GameRoster, user: UserDoc): boolean {
-    return (
-      roster.players.some(p => p.userId?.toString() === user._id.toString()) ||
-      roster.waitlist.some(p => p.userId?.toString() === user._id.toString())
-    );
-  }
-
-  async addOutfieldPlayer(
-    game: GameDoc,
-    user: UserDoc,
-    maxPlayers = 16
-  ): Promise<{ added: boolean; suplentePos?: number }> {
-    game.roster.players = game.roster.players ?? [];
-    game.roster.waitlist = game.roster.waitlist ?? [];
-
-    const firstOutfieldSlot = Math.max(1, (game.roster.goalieSlots ?? 2) + 1);
-
-    const used = new Set<number>(
-      game.roster.players
-        .map(p => p.slot)
-        .filter((s): s is number => typeof s === 'number')
-    );
-
-    for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
-      if (!used.has(slot)) {
-        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164, slot, name: user.name, paid: false, organizzeId: null });
-        game.save();
-        return { added: true };
-      }
+    if (this.alreadyInList(game.roster, user)) {
+      return { added: false, message: "Você já está na lista!" };
     }
 
-    game.roster.waitlist.push({ userId: user._id, phoneE164: user.phoneE164, name: user.name, createdAt: new Date() });
-    game.save();
-    return { added: false, suplentePos: game.roster.waitlist.length };
+    const res = await this.addOutfieldPlayer(game, user);
+    return { added: res.added, suplentePos: res.suplentePos };
   }
 
-  async addGoalkeeper(game: GameDoc, user: UserDoc): Promise<{ added: boolean; suplentePos?: number }> {
-    const usedSlots = new Set<number>(
-      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
-    );
-    let placed = false;
-
-    for (let slot = 1; slot <= game.roster.goalieSlots; slot++) {
-      if (!usedSlots.has(slot)) {
-        game.roster.players.push({
-          slot,
-          userId: user._id,
-          name: user.name,
-          paid: false,
-        });
-        placed = true;
-        break;
-      }
-    }
-
-    if (!placed) {
-      game.roster.waitlist.push({
-        userId: user._id,
-        name: user.name,
-        createdAt: new Date(),
-      });
-
-      if (await game.save()) {
-        return { added: true, suplentePos: game.roster.waitlist.length };
-      }
-    }
-    return { added: false, suplentePos: game.roster.waitlist.length };
+  async closeGameForBot(game: IGame): Promise<any> {
+    return this.closeGameInternal(game);
   }
 
-  takeNextGoalieSlot(game: GameDoc, user: UserDoc, name?: string): { placed: boolean } {
-    if (!Array.isArray(game.roster.players)) game.roster.players = [];
-    const goalieSlots = Math.max(1, game.roster.goalieSlots ?? 2);
+  async addOffLineupPlayer(game: IGame, phone: string, name: string): Promise<{ added: boolean; message?: string }> {
+    const user = await this.userModel.findOneAndUpdate(
+      { phoneE164: phone },
+      { $set: { name, phoneE164: phone } },
+      { upsert: true, new: true }
+    ).exec();
 
-    const used = new Set<number>(
-      game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
-    );
+    if (!user) throw new Error("Failed to create/update user");
 
-    for (let slot = 1; slot <= goalieSlots; slot++) {
-      if (!used.has(slot)) {
-        game.roster.players.push({
-          slot,
-          userId: user._id,
-          name: name ?? user.name,
-          paid: false,
-        });
-        return { placed: true };
-      }
-    }
-    return { placed: false };
-  }
-
-  pushToWaitlist(game: GameDoc, user: UserDoc, name?: string) {
-    if (!Array.isArray(game.roster.waitlist)) game.roster.waitlist = [];
-    game.roster.waitlist.push({
-      userId: user._id,
-      name: name ?? user.name,
-      createdAt: new Date(),
-    });
-    return game.roster.waitlist.length;
-  }
-
-  initList(groupId: string, gameDate: Date, gameTime: string) {
-    const jogadores = Array<string | null>(16).fill(null);
-    jogadores[0] = "🧤"; // goleiro 1
-    jogadores[1] = "🧤"; // goleiro 2
-
-    this.repo.listasAtuais[groupId] = {
-      data: gameDate,
-      horario: gameTime,
-      jogadores,
-      suplentes: [],
-      jogadoresFora: [],
-    };
-  }
-
-  async getOrCreateTodayList(workspaceId: string) {
-    const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-
-    let game = await GameModel.findOne({
-      workspaceId,
-      date: { $gte: startOfDay },
-    });
-
-    if (!game) {
-      game = await GameModel.create({
-        workspaceId,
-        date: new Date(),
-        title: "⚽ Jogo da Semana",
-        roster: { goalieSlots: 2, players: [], waitlist: [] },
-      });
-    }
-
-    return game;
-  }
-
-  addOffLineupPlayer(game: GameDoc, user: UserDoc): { added: boolean; } {
     try {
+      game.roster.outlist = game.roster.outlist ?? [];
       game.roster.outlist.push({
         userId: user._id,
         name: user.name,
@@ -791,8 +1007,61 @@ export class LineUpService {
     }
   }
 
+  async removePlayerFromGame(game: IGame, phone: string, name: string, authorName?: string): Promise<{ removed: boolean; message: string; mentions?: string[] }> {
+    const user = await this.userModel.findOneAndUpdate(
+      { phoneE164: phone },
+      { $set: { name, phoneE164: phone } },
+      { upsert: true, new: true }
+    ).exec();
+
+    if (!user) throw new Error("Failed to create/update user");
+
+    return this.giveUpFromList(game, user, authorName ?? '');
+  }
+
+  async addGuestPlayer(game: IGame, inviterPhone: string, inviterName: string, guestName: string, options: { asGoalie: boolean }): Promise<{ placed: boolean; role?: string; finalName?: string; slot?: number; message?: string }> {
+    const user = await this.userModel.findOneAndUpdate(
+      { phoneE164: inviterPhone },
+      { $set: { name: inviterName, phoneE164: inviterPhone } },
+      { upsert: true, new: true }
+    ).exec();
+
+    if (!user) throw new Error("Failed to create/update user");
+
+    return this.addGuestWithInviter(
+      game,
+      guestName,
+      { _id: user._id, name: user.name ?? '' },
+      options
+    );
+  }
+
+  async addGoalkeeperToGame(game: IGame, phone: string, name: string): Promise<{ placed: boolean; pos?: number; message?: string }> {
+    const user = await this.userModel.findOneAndUpdate(
+      { phoneE164: phone },
+      { $set: { name, phoneE164: phone } },
+      { upsert: true, new: true }
+    ).exec();
+
+    if (!user) throw new Error("Failed to create/update user");
+
+    if (this.alreadyInList(game.roster, user)) {
+      return { placed: false, message: "Você já está na lista!" };
+    }
+
+    this.pullFromOutlist(game, user);
+
+    const { placed } = this.takeNextGoalieSlot(game, user, user.name);
+    if (!placed) {
+      const pos = this.pushToWaitlist(game, user, user.name);
+      return { placed: false, pos };
+    }
+
+    return { placed: true };
+  }
+
   async formatList(
-    game: GameDoc,
+    game: IGame,
   ): Promise<string> {
     if (!game) return "Erro: jogo não encontrado.";
 
@@ -864,11 +1133,6 @@ export class LineUpService {
     return texto.trim();
   }
 
-  argsFromMessage(message: Message): string[] {
-    const commandParts = message.body.split('\n');
-    return commandParts[0].split(' ').slice(1);
-  }
-
   async initListForChat(workspace: WorkspaceDoc, chatId: string) {
     const chat = await ChatModel.findOne({ chatId, workspaceId: workspace._id }).lean();
     if (!chat || !chat.schedule) {
@@ -926,7 +1190,6 @@ export class LineUpService {
     }
     return game;
   }
-
 
   async getUserDebtsGrouped(userId: string): Promise<FormattedWorkspace[]> {
     const balances = await this.ledgerRepo.listBalancesByUser(userId);
@@ -1005,7 +1268,7 @@ export class LineUpService {
       .map(id => new Types.ObjectId(id));
 
     const gInfo = new Map<string, { date?: Date; title?: string; priceCents?: number; roster?: any }>();
-    const rawGameDocs = new Map<string, any>();
+    const rawIGames = new Map<string, any>();
 
     if (uniqueGameIds.length > 0) {
       const games = await (this.gameRepo as any).model
@@ -1016,7 +1279,7 @@ export class LineUpService {
       for (const g of games ?? []) {
         const id = g._id.toString();
         gInfo.set(id, { date: g.date, title: g.title, priceCents: g.priceCents, roster: g.roster });
-        rawGameDocs.set(id, g);
+        rawIGames.set(id, g);
       }
     }
 
@@ -1027,18 +1290,18 @@ export class LineUpService {
     for (const ws of map.values()) {
       for (const g of ws.games) {
         const gid = g.gameId;
-        const gameDoc = gid ? rawGameDocs.get(gid) : undefined;
+        const IGame = gid ? rawIGames.get(gid) : undefined;
         const gi = gid ? gInfo.get(gid) : undefined;
 
         const priceCents =
-          (gameDoc?.priceCents ?? null) != null
-            ? Number(gameDoc.priceCents)
+          (IGame?.priceCents ?? null) != null
+            ? Number(IGame.priceCents)
             : defaultPriceFrom(ws.workspaceId);
 
         const lines: GameLine[] = [];
 
-        if (gameDoc) {
-          const roster = gameDoc.roster ?? {};
+        if (IGame) {
+          const roster = IGame.roster ?? {};
           const goalieSlots = Math.max(0, roster.goalieSlots ?? 2);
           const players = Array.isArray(roster.players) ? roster.players : [];
 
@@ -1093,7 +1356,7 @@ export class LineUpService {
     return result;
   }
 
-  async getDebtsSummary(workspace: WorkspaceDoc, user: UserDoc) {
+  async getDebtsSummary(workspace: WorkspaceDoc, user: IUser) {
     const balanceCents = await this.ledgerRepo.getUserBalance(
       workspace._id.toString(),
       user._id.toString()
@@ -1205,9 +1468,6 @@ export class LineUpService {
     return out.join("\n");
   }
 
-
-
-
   formatWorkspaceBlock(ws: {
     workspaceName?: string;
     workspaceSlug?: string;
@@ -1244,12 +1504,6 @@ export class LineUpService {
       out.push("");
     }
     return out.join("\n").trim();
-  }
-
-  private padDots(left: string, width = 24): string {
-    const clean = (left ?? "").trim();
-    const dots = Math.max(1, width - clean.length);
-    return clean + " " + ".".repeat(dots) + " ";
   }
 
   formatUserDebtsDetailedMessage(groups: Array<{
@@ -1299,5 +1553,23 @@ export class LineUpService {
     return { totalCents: total, games: items };
   }
 
+  private padDots(left: string, width = 24): string {
+    const clean = (left ?? "").trim();
+    const dots = Math.max(1, width - clean.length);
+    return clean + " " + ".".repeat(dots) + " ";
+  }
 
+  private mapToGameResponse(game: IGame): GameResponseDto {
+    return {
+      id: game._id.toString(),
+      name: game.title ?? '',
+      date: game.date.toISOString().split('T')[0],
+      time: game.date.toTimeString().slice(0, 5),
+      maxPlayers: game.maxPlayers ?? 16,
+      currentPlayers: game.roster.players.length,
+      pricePerPlayer: game.priceCents / 100,
+      status: game.status as any,
+      createdAt: game.createdAt?.toISOString() || new Date().toISOString(),
+    };
+  }
 }

@@ -1,0 +1,43 @@
+meta {
+  name: Verify OTP
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/auth/verify-otp
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {    
+    "phone":"5549992007299",
+    "code": "652078",
+    "name": "LUQUETA"
+  }
+  
+}
+
+tests {
+  const jsonResponse = res.getBody();
+  
+  if (jsonResponse && jsonResponse.success && jsonResponse.data && jsonResponse.data.accessToken) {
+      const accessToken = jsonResponse.data.accessToken;
+  
+      // 4. Salva o token na variável de ambiente chamada 'accessToken'
+      // Certifique-se de que essa variável existe no seu ambiente (Settings -> Variables)
+      bru.setEnvVar('accessToken', accessToken);
+      
+      // Opcional: Log para confirmar que a variável foi salva
+      console.log('Access Token salvo no ambiente:', accessToken);
+  } else {
+      // Opcional: Log em caso de falha
+      console.error('Falha ao obter o Access Token na resposta.');
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

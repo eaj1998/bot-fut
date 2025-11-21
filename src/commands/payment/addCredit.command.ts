@@ -2,7 +2,6 @@ import { inject, injectable } from "tsyringe";
 import { Command, IRole } from "../type";
 import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
-import { LineUpService } from "../../services/lineup.service";
 import { Message } from "whatsapp-web.js";
 import { UserRepository } from "../../core/repositories/user.repository";
 import { LedgerRepository } from "../../core/repositories/ledger.repository";
@@ -15,7 +14,6 @@ export class AddCreditCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
         @inject(LoggerService) private readonly loggerService: LoggerService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
@@ -47,7 +45,7 @@ export class AddCreditCommand implements Command {
 
             const amountCents = Utils.parsePriceToCents(amount);
 
-            if (amountCents!= null && amountCents > 0) {
+            if (amountCents != null && amountCents > 0) {
                 console.log(`amount`, amountCents);
                 try {
                     await this.ledgerRepo.addCredit({

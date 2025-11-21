@@ -2,7 +2,7 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
-import { LineUpService } from '../../services/lineup.service';
+import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
 import { GameRepository } from '../../core/repositories/game.respository';
@@ -14,14 +14,14 @@ export class PaymentCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(GameService) private readonly gameSvc: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(GameRepository) private readonly gameRepo: GameRepository,
     ) { }
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
-        const args = this.lineupSvc.argsFromMessage(message);
+        const args = this.gameSvc.argsFromMessage(message);
         const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
         if (args.length === 0) {
@@ -72,14 +72,14 @@ export class PaymentCommand implements Command {
             return;
         }
 
-        const res = await this.lineupSvc.markAsPaid(game._id, slot);
+        const res = await this.gameSvc.markAsPaid(game._id, slot);
 
         if (!res.updated || !res.game) {
             message.reply(`Ocorreu um erro, não foi possível marcar como pago!`)
             return;
         }
 
-        const texto = await this.lineupSvc.formatList(res.game);
+        const texto = await this.gameSvc.formatList(res.game);
         await this.server.sendMessage(groupId, texto);
         return;
     }

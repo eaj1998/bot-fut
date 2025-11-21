@@ -41,4 +41,56 @@ export class ConfigService {
   }
 
   weatherDefaultPlace = process.env.WEATHER_DEFAULT_PLACE || 'São Paulo, BR';
+  
+  jwt: {
+    secret: string;
+    expiresIn: string;
+    refreshExpiresIn: string;
+  } = {
+      secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+    };
+
+  api = {
+    port: parseInt(process.env.API_PORT || '3001', 10),
+    cors: {
+      origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
+    },
+  };
+
+  private getRequiredEnv(key: string): string {
+    const value = process.env[key];
+
+    if (!value && this.env === 'production') {
+      throw new Error(
+        `❌ Required environment variable ${key} is not set in production`
+      );
+    }
+
+    if (!value) {
+      console.warn(`⚠️  ${key} not set, using default value (not safe for production)`);
+      return 'development-secret-key-change-in-production';
+    }
+
+    return value;
+  }
+  validate(): void {
+    const errors: string[] = [];
+
+    if (this.env === 'production') {
+      if (!process.env.JWT_SECRET) {
+        errors.push('JWT_SECRET is required in production');
+      }
+      if (!process.env.MONGO_URI) {
+        errors.push('MONGO_URI is required in production');
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(
+        `Configuration validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`
+      );
+    }
+  }
 }

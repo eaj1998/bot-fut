@@ -3,7 +3,7 @@ import { Command, IRole } from "../type";
 import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
 import { LedgerRepository } from "../../core/repositories/ledger.repository";
-import { LineUpService } from "../../services/lineup.service";
+import { GameService } from "../../services/game.service";
 import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { ChatService } from "../../services/chat.service";
@@ -16,9 +16,9 @@ export class WorkspaceBalanceCommand implements Command {
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
     @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
     @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
-    @inject(LineUpService) private readonly lineupSvc: LineUpService,
+    @inject(GameService) private readonly gameSvc: GameService,
     @inject(ChatService) private readonly chatSvc: ChatService,
-  ) {}
+  ) { }
 
   async handle(message: Message): Promise<void> {
     const [, ...args] = message.body.trim().split(/\s+/);
@@ -34,7 +34,7 @@ export class WorkspaceBalanceCommand implements Command {
     if (!ws) {
       await message.reply(`Workspace *${slug}* não encontrado.`);
       return;
-    }    
+    }
 
     const chatBot = await this.chatSvc.findByWorkspaceAndChat(ws._id, chat.id._serialized);
 
@@ -42,10 +42,10 @@ export class WorkspaceBalanceCommand implements Command {
       await message.reply(`Este grupo não está vinculado ao workspace *${ws.slug}*.`);
       return;
     }
-    
+
     const netCents = await this.ledgerRepo.sumWorkspaceCashbox(ws._id.toString());
 
-    const receivables = await this.lineupSvc.getWorkspaceReceivablesCents(ws._id.toString());
+    const receivables = await this.gameSvc.getWorkspaceReceivablesCents(ws._id.toString());
 
     const linhas: string[] = [];
     linhas.push(`🏦 ${ws.name} (${ws.slug})`);
@@ -53,9 +53,9 @@ export class WorkspaceBalanceCommand implements Command {
 
     if (receivables.totalCents > 0) {
       linhas.push(`A receber: ${Utils.formatCentsToReal(receivables.totalCents)}`);
-      for (const g of receivables.games.sort((a,b)=>+new Date(b.date)-+new Date(a.date))) {
+      for (const g of receivables.games.sort((a, b) => +new Date(b.date) - +new Date(a.date))) {
         const d = new Date(g.date);
-        const data = `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+        const data = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
         linhas.push(`— ${data} · ${g.title}: ${Utils.formatCentsToReal(g.receivableCents)}`);
       }
     } else {

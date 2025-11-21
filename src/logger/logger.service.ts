@@ -5,10 +5,22 @@ export class LoggerService {
   private name: string = 'Unnamed';
 
   public log(...args: any[]) {
-    console.log.apply(null, [`[${this.name}]`, ...args, new Date()]);
+    console.log(`[${this.name}]`, ...args, new Date());
   }
 
   public setName(name: string) {
     this.name = name;
+  }
+
+  public error(...args: any[]) {
+    console.error(`[${this.name}]`, ...args, new Date());
+  }
+
+  public warn(...args: any[]) {
+    console.warn(`[${this.name}]`, ...args, new Date());
+  }
+
+  public info(...args: any[]) {
+    console.info(`[${this.name}]`, ...args, new Date());
   }
 }

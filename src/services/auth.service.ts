@@ -1,0 +1,210 @@
+import { injectable, inject } from 'tsyringe';
+import { Model } from 'mongoose';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { USER_MODEL_TOKEN, IUser } from '../core/models/user.model';
+import { OTP_MODEL_TOKEN, IOtp } from '../core/models/otp.model';
+import { ConfigService } from '../config/config.service';
+import { WhatsAppService } from './whatsapp.service';
+import { AuthResponseDto, RequestOtpDto, VerifyOtpDto } from '../api/dto/auth.dto';
+import { ApiError } from '../api/middleware/error.middleware';
+import { LoggerService } from '../logger/logger.service';
+import Utils from '../utils/utils';
+
+@injectable()
+export class AuthService {
+    private readonly OTP_LENGTH = 6;
+    private readonly OTP_EXPIRY_MINUTES = 5;
+    private readonly MAX_OTP_ATTEMPTS = 3;
+
+    constructor(
+        @inject(USER_MODEL_TOKEN) private userModel: Model<IUser>,
+        @inject(OTP_MODEL_TOKEN) private otpModel: Model<IOtp>,
+        @inject(ConfigService) private config: ConfigService,
+        @inject(WhatsAppService) private whatsappService: WhatsAppService,
+        @inject(LoggerService) private loggerService: LoggerService,
+        @inject(Utils) private util: Utils
+    ) {
+        this.loggerService.setName('AuthService');
+    }
+
+    async requestOtp(dto: RequestOtpDto): Promise<{ message: string; expiresIn: number }> {
+        const phone = this.util.normalizePhone(dto.phone);
+        this.loggerService.info(`Normalized phone: ${phone}`);
+        let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+
+        if (!user) {
+            this.loggerService.info(`Nao achou USER`);
+            const isValidPhone = await this.whatsappService.isPhoneNumberRegistered(phone);
+            if (!isValidPhone) {
+                throw new ApiError(404, 'Phone number not found on WhatsApp!');
+            }
+
+
+            user = await this.userModel.create({
+                phoneE164: phone,
+                name: phone,
+                role: 'user',
+            });
+
+            this.loggerService.info(`New user auto-created for phone: ${phone}`);
+        }
+
+        await this.otpModel.updateMany(
+            { phone, verified: false },
+            { verified: true },
+        ).exec();
+
+        // Generate OTP
+        const code = this.generateOTP();
+        const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MINUTES * 60 * 1000);
+
+        // Save OTP
+        await this.otpModel.create({
+            phone,
+            code,
+            expiresAt,
+            verified: false,
+            attempts: 0,
+        });
+
+        // Send OTP via WhatsApp
+        const sent = await this.whatsappService.sendOTP(phone, code);
+
+        if (!sent) {
+            throw new ApiError(500, 'Failed to send OTP. Please try again.');
+        }
+
+        this.loggerService.info(`OTP requested for phone: ${phone}`);
+
+        return {
+            message: 'OTP sent to your WhatsApp',
+            expiresIn: this.OTP_EXPIRY_MINUTES * 60, // seconds
+        };
+    }
+
+
+    async verifyOtp(dto: VerifyOtpDto): Promise<AuthResponseDto> {
+        const { phone, code, name } = dto;
+
+        // Find OTP
+        const otp = await this.otpModel
+            .findOne({
+                phone,
+                code,
+                verified: false,
+                expiresAt: { $gt: new Date() },
+            })
+            .exec();
+
+        if (!otp) {
+            await this.otpModel.updateOne(
+                { phone, verified: false },
+                { $inc: { attempts: 1 } },
+            ).exec();
+
+            const existingOtp = await this.otpModel.findOne({ phone, verified: false }).exec();
+            if (existingOtp && existingOtp.attempts >= this.MAX_OTP_ATTEMPTS) {
+                await this.otpModel.updateOne(
+                    { _id: existingOtp._id },
+                    { verified: true },
+                ).exec();
+                throw new ApiError(429, 'Too many failed attempts. Please request a new code.');
+            }
+
+            throw new ApiError(401, 'Invalid or expired OTP code');
+        }
+
+        otp.verified = true;
+        await otp.save();
+
+        let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
+        const isNewUser = user.name === phone || !user.name;
+
+        if (name) {
+            user.name = name;
+            await user.save();
+
+            if (isNewUser) {
+                await this.whatsappService.sendWelcomeMessage(phone, name);
+            }
+        }
+
+        this.loggerService.info(`OTP verified successfully for phone: ${phone}`);
+
+        return this.generateAuthResponse(user);
+    }
+
+    async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
+        try {
+            const decoded = jwt.verify(refreshToken, this.config.jwt.secret) as { id: string };
+            const user = await this.userModel.findById(decoded.id).exec();
+
+            if (!user) {
+                throw new ApiError(401, 'User not found');
+            }
+
+            return this.generateAuthResponse(user);
+        } catch (error) {
+            throw new ApiError(401, 'Invalid refresh token');
+        }
+    }
+
+    async getMe(userId: string): Promise<any> {
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
+        return {
+            id: user._id.toString(),
+            name: user.name,
+            phone: user.phoneE164,
+            role: user.role || 'user',
+        };
+    }
+
+    private generateOTP(): string {
+        const numbers = '0123456789';
+        let otp = '';
+
+        for (let i = 0; i < this.OTP_LENGTH; i++) {
+            const randomIndex = crypto.randomInt(0, numbers.length);
+            otp += numbers[randomIndex];
+        }
+
+        return otp;
+    }
+
+    private generateAuthResponse(user: IUser): AuthResponseDto {
+        const payload = {
+            id: user._id.toString(),
+            phone: user.phoneE164,
+            role: user.role || 'user',
+        };
+
+        const accessToken = jwt.sign(payload, this.config.jwt.secret, {
+            expiresIn: this.config.jwt.expiresIn,
+        });
+
+        const refreshToken = jwt.sign({ id: user._id.toString() }, this.config.jwt.secret, {
+            expiresIn: this.config.jwt.refreshExpiresIn,
+        });
+
+        return {
+            accessToken,
+            refreshToken,
+            user: {
+                id: user._id.toString(),
+                name: user.name,
+                phone: user.phoneE164,
+                role: user.role || 'user',
+            },
+        };
+    }
+}

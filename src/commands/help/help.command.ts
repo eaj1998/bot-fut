@@ -2,7 +2,6 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message, MessageMedia } from 'whatsapp-web.js';
-import { LineUpService } from '../../services/lineup.service';
 
 @injectable()
 export class HelpCommand implements Command {
@@ -129,7 +128,7 @@ Exemplo: /saldo
     const isGroup = message.from.includes('@g.us');
 
     if (isGroup) {
-      const userId = message.author; 
+      const userId = message.author;
       if (userId) {
         await this.server.sendMessage(userId, helpText);
         await this.server.sendMessage(

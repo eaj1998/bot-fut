@@ -184,6 +184,20 @@ export class GameRepository {
             return ownUnpaid || guestUnpaid;
         });
     }
+
+    async findOpenGamesForUser(userId: Types.ObjectId) {
+        return this.model.find({
+            'roster.players': {
+                $elemMatch: {
+                    $or: [
+                        { userId: userId },
+                        { invitedByUserId: userId }
+                    ]
+                }
+            },
+            status: 'open'
+        }).lean();
+    }
 }
 
 export const GAME_REPOSITORY_TOKEN = 'GAME_REPOSITORY_TOKEN';

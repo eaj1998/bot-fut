@@ -12,8 +12,8 @@ post {
 
 body:json {
   {
-    "phone": "5549992007299",
-    "code": "300537"
+    "phone": "49992007299",
+    "code": "970259"
   }
 }
 
@@ -21,19 +21,25 @@ tests {
   // 1. Analisa o corpo da resposta como JSON
   const jsonResponse = res.getBody();
   
-  // 2. Verifica se a resposta foi bem-sucedida e se o token existe
+  // 2. Verifica se a resposta foi bem-sucedida e se os dados e o token existem
   if (jsonResponse && jsonResponse.success && jsonResponse.data && jsonResponse.data.accessToken) {
       // 3. Extrai o accessToken
       const accessToken = jsonResponse.data.accessToken;
   
-      // 4. Salva o token na variável de ambiente chamada 'accessToken'
-      // Certifique-se de que essa variável existe no seu ambiente (Settings -> Variables)
+      // 4. Extrai o ID do usuário (dentro de data.user.id)
+      const playerId = jsonResponse.data.user.id;
+  
+      // 5. Salva o token e o ID na variáveis de ambiente
+      // Certifique-se de que as variáveis 'accessToken' e 'userId' existem no seu ambiente
       bru.setEnvVar('accessToken', accessToken);
+      bru.setEnvVar('playerId', playerId);
       
-      // Opcional: Log para confirmar que a variável foi salva
+      // Opcional: Log para confirmar que as variáveis foram salvas
       console.log('Access Token salvo no ambiente:', accessToken);
+      console.log('User ID salvo no ambiente:', playerId);
+  
   } else {
       // Opcional: Log em caso de falha
-      console.error('Falha ao obter o Access Token na resposta.');
+      console.error('Falha ao obter o Access Token ou User ID na resposta.');
   }
 }

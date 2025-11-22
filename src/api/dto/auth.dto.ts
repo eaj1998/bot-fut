@@ -22,7 +22,7 @@ export class VerifyOtpDto {
 
   @IsString()
   @IsOptional()
-  name?: string; // Optional name for first-time users
+  name?: string;
 }
 
 export class AuthResponseDto {
@@ -33,6 +33,8 @@ export class AuthResponseDto {
     name: string;
     phone: string;
     role: 'admin' | 'user';
+    createdAt: Date;
+    status: 'active' | 'inactive';
   };
 }
 

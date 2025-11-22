@@ -75,7 +75,10 @@ export class PaymentCommand implements Command {
         const res = await this.gameSvc.markAsPaid(game._id, slot);
 
         if (!res.updated || !res.game) {
-            message.reply(`Ocorreu um erro, não foi possível marcar como pago!`)
+            const errorMsg = res.reason
+                ? `Ocorreu um erro: ${res.reason}`
+                : `Ocorreu um erro, não foi possível marcar como pago!`;
+            message.reply(errorMsg);
             return;
         }
 

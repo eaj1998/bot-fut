@@ -1,0 +1,15 @@
+meta {
+  name: Get Games by Player
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/players/{{playerId}}/debts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

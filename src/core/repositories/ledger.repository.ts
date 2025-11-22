@@ -90,7 +90,7 @@ export class LedgerRepository {
         $match: {
           workspaceId: new Types.ObjectId(workspaceId),
           userId: new Types.ObjectId(userId),
-          status: "confirmado",
+          status: { $in: ["confirmado", "pendente"] }, // Incluir débitos pendentes e confirmados
         }
       },
       {
@@ -155,11 +155,12 @@ export class LedgerRepository {
     return this.model
       .find({
         userId: new Types.ObjectId(userId),
-        status: "confirmado"
+        status: { $in: ["confirmado", "pendente"] } // Incluir pendentes para mostrar na listagem de débitos
       })
       .select({ _id: 1, workspaceId: 1, userId: 1, gameId: 1, type: 1, amountCents: 1, confirmedAt: 1, note: 1 })
       .lean();
   }
+
 
 
   async sumWorkspaceNet(workspaceId: string): Promise<number> {
@@ -225,14 +226,111 @@ export class LedgerRepository {
   }
 
   /**
-   * Busca entradas do ledger por usuário
+   * Busca entradas do ledger por usuário (confirmados e pendentes)
    */
   async findByUserId(userId: Types.ObjectId) {
     return this.model
-      .find({ userId, status: 'confirmado' })
+      .find({ userId, status: { $in: ['confirmado'] } })
       .sort({ createdAt: -1 })
       .lean();
   }
+
+  /**
+   * Busca entradas do ledger por usuário (pendentes)
+   */
+  async findDebtsByUserId(userId: Types.ObjectId) {
+    return this.model
+      .find({ userId, status: { $in: ['pendente'] }, type: 'debit' })
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  /**
+   * Busca movimentações do usuário com paginação
+   */
+  async findByUserIdPaginated(userId: Types.ObjectId, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const [ledgers, total] = await Promise.all([
+      this.model
+        .find({ userId, status: { $in: ['confirmado', 'pendente'] } })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.model.countDocuments({ userId, status: { $in: ['confirmado', 'pendente'] } })
+    ]);
+
+    return {
+      ledgers,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      limit
+    };
+  }
+
+  /**
+   * Busca débito pendente por usuário e jogo
+   */
+  async findPendingDebitByUserAndGame(
+    workspaceId: string,
+    userId: string,
+    gameId: string
+  ): Promise<LedgerDoc | null> {
+    return this.model.findOne({
+      workspaceId: new Types.ObjectId(workspaceId),
+      userId: new Types.ObjectId(userId),
+      gameId: new Types.ObjectId(gameId),
+      type: "debit",
+      status: "pendente",
+      category: "player-debt"
+    }).exec();
+  }
+
+  /**
+   * Confirma um débito pendente
+   */
+  async confirmDebit(debitId: string): Promise<LedgerDoc | null> {
+    const debit = await this.model.findByIdAndUpdate(
+      debitId,
+      {
+        $set: {
+          status: "confirmado",
+          confirmedAt: new Date()
+        }
+      },
+      { new: true }
+    ).exec();
+
+    if (debit && debit.userId) {
+      await this.recomputeUserBalance(
+        debit.workspaceId.toString(),
+        debit.userId.toString()
+      );
+    }
+
+    return debit;
+  }
+
+  /**
+   * Busca todos os débitos pendentes de um usuário em um workspace
+   */
+  async findPendingDebitsByUser(
+    workspaceId: string,
+    userId: string
+  ): Promise<LedgerDoc[]> {
+    return this.model.find({
+      workspaceId: new Types.ObjectId(workspaceId),
+      userId: new Types.ObjectId(userId),
+      type: "debit",
+      status: "pendente",
+      category: "player-debt"
+    })
+      .sort({ createdAt: -1 })
+      .exec() as Promise<LedgerDoc[]>;
+  }
+
 
 }
 

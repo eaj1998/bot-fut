@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { UserRepository } from '../core/repositories/user.repository';
 import { LedgerRepository, LEDGER_REPOSITORY_TOKEN } from '../core/repositories/ledger.repository';
+import { GameRepository, GAME_REPOSITORY_TOKEN } from '../core/repositories/game.respository';
 import {
     CreatePlayerDto,
     UpdatePlayerDto,
@@ -14,7 +15,8 @@ import {
 export class PlayersService {
     constructor(
         @inject('USER_REPOSITORY_TOKEN') private readonly userRepository: UserRepository,
-        @inject(LEDGER_REPOSITORY_TOKEN) private readonly ledgerRepository: LedgerRepository
+        @inject(LEDGER_REPOSITORY_TOKEN) private readonly ledgerRepository: LedgerRepository,
+        @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository
     ) { }
 
     /**
@@ -206,7 +208,7 @@ export class PlayersService {
             throw new Error('Jogador não encontrado');
         }
 
-        return this.ledgerRepository.findByUserId(user._id);
+        return this.ledgerRepository.findDebtsByUserId(user._id);
     }
 
     /**
@@ -218,7 +220,44 @@ export class PlayersService {
             throw new Error('Jogador não encontrado');
         }
 
-        return [];
+        const games = await this.gameRepository.findOpenGamesForUser(user._id);
+
+        return games.map((game: any) => ({
+            id: game._id.toString(),
+            title: game.title || 'Jogo',
+            date: game.date,
+            status: game.status,
+            priceCents: game.priceCents || 0,
+            chatId: game.chatId,
+            workspaceId: game.workspaceId?.toString(),
+            currentPlayers: game.roster?.players?.length || 0,
+            maxPlayers: game.maxPlayers || 16,
+            playerInfo: {
+                slot: game.roster?.players?.find((p: any) =>
+                    p.userId?.toString() === user._id.toString() ||
+                    p.invitedByUserId?.toString() === user._id.toString()
+                )?.slot,
+                paid: game.roster?.players?.find((p: any) =>
+                    p.userId?.toString() === user._id.toString() ||
+                    p.invitedByUserId?.toString() === user._id.toString()
+                )?.paid || false,
+                isGuest: game.roster?.players?.find((p: any) =>
+                    p.invitedByUserId?.toString() === user._id.toString()
+                )?.guest || false
+            }
+        }));
+    }
+
+    /**
+     * Obtém movimentações (transações) de um jogador com paginação
+     */
+    async getPlayerTransactions(id: string, page: number = 1, limit: number = 20) {
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+            throw new Error('Jogador não encontrado');
+        }
+
+        return this.ledgerRepository.findByUserIdPaginated(user._id, page, limit);
     }
 }
 

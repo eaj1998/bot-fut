@@ -1,0 +1,15 @@
+meta {
+  name: Get Transactions By Player
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/players/{{playerId}}/games
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

@@ -275,7 +275,8 @@ export class GameService {
                 note: player.guest
                   ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
                   : `Débito referente ao jogo ${playerName} - ${formatDateBR(game.date)}`,
-                category: "player-debt"
+                category: "player-debt",
+                status: "pendente"
               });
               ledgerOk = true;
             } else {
@@ -740,8 +741,21 @@ export class GameService {
         ? player.invitedByUserId?.toString()
         : player.userId?.toString();
 
+    if (!inviterId) {
+      return { updated: false, reason: "Usuário não identificado para este jogador", game: game };
+    }
+
     const now = new Date();
     const payMethod = opts?.method ?? "pix";
+    const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
+    const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
+
+    // NOVO FLUXO: Buscar débito pendente
+    const pendingDebit = await this.ledgerRepo.findPendingDebitByUserAndGame(
+      game.workspaceId.toString(),
+      inviterId,
+      game._id.toString()
+    );
 
     const updatedPlayer = {
       name: player.name,
@@ -755,47 +769,93 @@ export class GameService {
     };
 
     game.roster.players[idx] = updatedPlayer;
-
     game.markModified("roster");
 
-
     let creditError: string | undefined;
-    if (inviterId) {
-      const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
-      const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
-      const category = "player-payment";
-      try {
+
+    try {
+      if (pendingDebit) {
+        // FLUXO NOVO: Confirmar débito pendente + criar crédito
+        this.loggerService.log(`[MARK-AS-PAID] Débito pendente encontrado, confirmando...`);
+
+        // 1. Confirmar o débito pendente
+        await this.ledgerRepo.confirmDebit(pendingDebit._id.toString());
+
+        // 2. Criar crédito confirmado
+        const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
+
         await this.ledgerRepo.addCredit({
           workspaceId: game.workspaceId.toString(),
           userId: inviterId,
-          amountCents: this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents,
+          amountCents: finalAmount,
           gameId: game._id.toString(),
           note,
           method: payMethod,
-          category,
+          category: "player-payment",
         });
-        const res = await this.updateMovimentacaoOrganizze(game, slot)
-        if (!res.added) {
-          return { updated: false, game: game };
-        }
-        const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+      } else {
+        // FALLBACK: Jogo antigo sem débito pendente - criar débito confirmado + crédito
+        this.loggerService.log(`[MARK-AS-PAID] Débito pendente NÃO encontrado, usando fluxo de fallback (criar débito+crédito)`);
 
-        const allPaidAfter = game.roster.players
-          .filter(p => (p.slot ?? 0) > goalieSlots)
-          .every(p => !!p.paid);
+        // 1. Criar débito confirmado
+        await this.ledgerRepo.addDebit({
+          workspaceId: game.workspaceId.toString(),
+          userId: inviterId,
+          amountCents: finalAmount,
+          gameId: game._id.toString(),
+          note: player.guest
+            ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
+            : `Débito referente ao jogo ${player.name} - ${formatDateBR(game.date)}`,
+          category: "player-debt",
+          status: "confirmado",
+          confirmedAt: now
+        });
 
-        if (allPaidAfter) {
-          game.status = "finished";
-        }
+        // 2. Criar crédito confirmado
+        const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
 
-        if (await game.save()) {
-          return { updated: true, game };
-        }
-
-      } catch (e: any) {
-        creditError = e?.message ?? String(e);
-        this.loggerService.log(`[GUEST-PAID] Falha ao creditar convidador: ${creditError}`);
+        await this.ledgerRepo.addCredit({
+          workspaceId: game.workspaceId.toString(),
+          userId: inviterId,
+          amountCents: finalAmount,
+          gameId: game._id.toString(),
+          note,
+          method: payMethod,
+          category: "player-payment",
+        });
       }
+
+      // 3. Atualizar Organizze
+      const res = await this.updateMovimentacaoOrganizze(game, slot);
+      if (!res.added) {
+        this.loggerService.log(`[ORGANIZZE] Falha ao atualizar movimentação para slot ${slot}`);
+        // Não retorna erro, apenas loga
+      }
+
+      // 4. Verificar se todos pagaram para marcar jogo como finished
+      const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+      const allPaidAfter = game.roster.players
+        .filter(p => (p.slot ?? 0) > goalieSlots)
+        .every(p => !!p.paid);
+
+      if (allPaidAfter) {
+        game.status = "finished";
+      }
+
+      if (await game.save()) {
+        return { updated: true, game };
+      }
+
+    } catch (e: any) {
+      creditError = e?.message ?? String(e);
+      this.loggerService.log(`[MARK-AS-PAID] Falha ao processar pagamento: ${creditError}`);
+
+      // Reverter o status de paid do jogador
+      game.roster.players[idx].paid = false;
+      game.roster.players[idx].paidAt = undefined;
+      await game.save();
+
+      return { updated: false, reason: `Erro ao processar pagamento: ${creditError}`, game };
     }
 
     await game.save();
@@ -806,6 +866,7 @@ export class GameService {
 
     return { updated: true, game: game };
   }
+
 
   private async updateMovimentacaoOrganizze(
     game: IGame,

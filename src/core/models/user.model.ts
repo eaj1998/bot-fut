@@ -6,7 +6,8 @@ export interface IUser extends Document {
     phoneE164: string;
     nick?: string;
     isGoalie: boolean;
-    role?: 'admin' | 'user'; 
+    role?: 'admin' | 'user';
+    status?: 'active' | 'inactive';
     createdAt: Date;
     updatedAt: Date;
 }
@@ -15,6 +16,7 @@ const UserSchema = new Schema({
     name: { type: String, required: true },
     phoneE164: { type: String, required: true, unique: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     nick: String,
     isGoalie: { type: Boolean, default: false },
 }, { timestamps: true });

@@ -24,7 +24,7 @@ export interface UpdatePlayerDto {
     nick?: string;
     isGoalie?: boolean;
     role?: 'admin' | 'user';
-    status?: 'active' | 'inactive' | 'suspended';
+    status?: 'active' | 'inactive';
 }
 
 /**
@@ -38,7 +38,7 @@ export interface PlayerResponseDto {
     cpf?: string;
     nick?: string;
     isGoalie: boolean;
-    status: 'active' | 'inactive' | 'suspended';
+    status: 'active' | 'inactive';
     balance: number;
     totalDebt: number;
     role: 'admin' | 'user';
@@ -52,7 +52,7 @@ export interface PlayerResponseDto {
  * DTO para listagem paginada de jogadores
  */
 export interface ListPlayersDto {
-    status?: 'active' | 'inactive' | 'suspended' | 'all';
+    status?: 'active' | 'inactive' | 'all';
     search?: string;
     page?: number;
     limit?: number;

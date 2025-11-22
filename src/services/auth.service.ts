@@ -83,23 +83,26 @@ export class AuthService {
 
     async verifyOtp(dto: VerifyOtpDto): Promise<AuthResponseDto> {
         const { phone, code, name } = dto;
+        const normalizedPhone = this.util.normalizePhone(phone);
 
         const otp = await this.otpModel
             .findOne({
-                phone,
+                phone: normalizedPhone,
                 code,
                 verified: false,
                 expiresAt: { $gt: new Date() },
             })
             .exec();
 
+        console.log(`otp`, otp);
+
         if (!otp) {
             await this.otpModel.updateOne(
-                { phone, verified: false },
+                { phone: normalizedPhone, verified: false },
                 { $inc: { attempts: 1 } },
             ).exec();
 
-            const existingOtp = await this.otpModel.findOne({ phone, verified: false }).exec();
+            const existingOtp = await this.otpModel.findOne({ phone: normalizedPhone, verified: false }).exec();
             if (existingOtp && existingOtp.attempts >= this.MAX_OTP_ATTEMPTS) {
                 await this.otpModel.updateOne(
                     { _id: existingOtp._id },
@@ -107,32 +110,30 @@ export class AuthService {
                 ).exec();
                 throw new ApiError(429, 'Too many failed attempts. Please request a new code.');
             }
-
-            throw new ApiError(401, 'Invalid or expired OTP code');
+            throw new ApiError(401, 'Invalid or expired OTP code CAIU AQUI');
         }
 
         otp.verified = true;
         await otp.save();
 
-        let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+        let user = await this.userModel.findOne({ phoneE164: normalizedPhone }).exec();
 
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        const isNewUser = user.name === phone || !user.name;
+        const isNewUser = user.name === normalizedPhone || !user.name;
 
         if (name) {
             user.name = name;
             await user.save();
 
             if (isNewUser) {
-                await this.whatsappService.sendWelcomeMessage(phone, name);
+                await this.whatsappService.sendWelcomeMessage(normalizedPhone, name);
             }
         }
 
-        this.loggerService.info(`OTP verified successfully for phone: ${phone}`);
-
+        this.loggerService.info(`OTP verified successfully for phone: ${normalizedPhone}`);
         return this.generateAuthResponse(user);
     }
 
@@ -200,6 +201,8 @@ export class AuthService {
                 name: user.name,
                 phone: user.phoneE164,
                 role: user.role || 'user',
+                createdAt: user.createdAt,
+                status: user.status || 'active',
             },
         };
     }

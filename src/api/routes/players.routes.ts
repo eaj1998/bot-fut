@@ -191,7 +191,7 @@ router.get('/:id', controller.getPlayerById);
  *       404:
  *         description: Jogador não encontrado
  */
-router.get('/:id/debts', controller.getPlayerDebts);
+router.get('/:id/debts', authenticate, controller.getPlayerDebts);
 
 /**
  * @swagger
@@ -220,6 +220,73 @@ router.get('/:id/debts', controller.getPlayerDebts);
  *         description: Jogador não encontrado
  */
 router.get('/:id/games', controller.getPlayerGames);
+
+/**
+ * @swagger
+ * /api/players/{id}/transactions:
+ *   get:
+ *     summary: Obtém movimentações (transações) de um jogador
+ *     description: Retorna lista paginada de movimentações do ledger de um jogador ordenadas por data
+ *     tags: [Players]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do jogador
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número da página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Itens por página
+ *     responses:
+ *       200:
+ *         description: Lista de movimentações
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ledgers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                         enum: [debit, credit]
+ *                       status:
+ *                         type: string
+ *                         enum: [pendente, confirmado, estornado]
+ *                       amountCents:
+ *                         type: integer
+ *                       note:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *       404:
+ *         description: Jogador não encontrado
+ */
+router.get('/:id/transactions', controller.getPlayerTransactions);
 
 /**
  * @swagger
@@ -337,7 +404,7 @@ router.post('/', requireAdmin, controller.createPlayer);
  *       403:
  *         description: Sem permissão de admin
  */
-router.put('/:id', requireAdmin, controller.updatePlayer);
+router.put('/:id', authenticate, controller.updatePlayer);
 
 /**
  * @swagger

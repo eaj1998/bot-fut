@@ -199,6 +199,26 @@ export class PlayersController {
     };
 
     /**
+     * Obtém movimentações (transações) de um jogador com paginação
+     */
+    getPlayerTransactions = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 20;
+
+            const result = await this.playersService.getPlayerTransactions(id, page, limit);
+            res.json(result);
+        } catch (error) {
+            if (error instanceof Error && error.message === 'Jogador não encontrado') {
+                next(new ApiError(404, error.message));
+            } else {
+                next(error);
+            }
+        }
+    };
+
+    /**
      * Exporta jogadores em CSV
      */
     exportPlayers = async (req: Request, res: Response, next: NextFunction) => {

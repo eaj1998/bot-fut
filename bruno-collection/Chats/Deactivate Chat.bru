@@ -1,0 +1,15 @@
+meta {
+  name: Deactivate Chat
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/chats/:id/deactivate
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 
+}

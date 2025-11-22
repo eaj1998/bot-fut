@@ -191,7 +191,7 @@ export class GameService {
   }
 
   async createGame(data: any, createdByPhone: string): Promise<GameResponseDto> {
-    const creator = await this.userModel.findOne({ phone: createdByPhone }).exec();
+    const creator = await this.userModel.findOne({ phoneE164: createdByPhone }).exec();
     if (!creator) {
       throw new ApiError(404, 'User not found');
     }
@@ -343,13 +343,13 @@ export class GameService {
       throw new ApiError(404, 'Game not found');
     }
 
-    let user = await this.userModel.findOne({ phone: data.phone }).exec();
+    let user = await this.userModel.findOne({ phoneE164: data.phone }).exec();
     if (!user) {
       if (!data.name) {
         throw new ApiError(400, 'User not found and name not provided to create one');
       }
       user = await this.userModel.create({
-        phone: data.phone,
+        phoneE164: data.phone,
         name: data.name,
       });
     }
@@ -1571,5 +1571,57 @@ export class GameService {
       status: game.status as any,
       createdAt: game.createdAt?.toISOString() || new Date().toISOString(),
     };
+  }
+
+  /**
+   * Obtém estatísticas gerais de jogos
+   */
+  async getStats(): Promise<any> {
+    const total = await this.gameModel.countDocuments();
+    const scheduled = await this.gameModel.countDocuments({ status: 'scheduled' });
+    const open = await this.gameModel.countDocuments({ status: 'open' });
+    const closed = await this.gameModel.countDocuments({ status: 'closed' });
+    const finished = await this.gameModel.countDocuments({ status: 'finished' });
+    const cancelled = await this.gameModel.countDocuments({ status: 'cancelled' });
+
+    // Jogos próximos (próximos 7 dias)
+    const now = new Date();
+    const next7Days = new Date();
+    next7Days.setDate(now.getDate() + 7);
+
+    const upcoming = await this.gameModel.countDocuments({
+      date: { $gte: now, $lte: next7Days },
+      status: { $in: ['scheduled', 'open'] }
+    });
+
+    return {
+      total,
+      scheduled,
+      open,
+      closed,
+      finished,
+      cancelled,
+      upcoming,
+    };
+  }
+
+  /**
+   * Atualiza o status de um jogo
+   */
+  async updateStatus(gameId: string, status: string): Promise<GameResponseDto> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    const validStatuses = ['scheduled', 'open', 'closed', 'finished', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      throw new ApiError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    game.status = status as any;
+    await game.save();
+
+    return this.mapToGameResponse(game);
   }
 }

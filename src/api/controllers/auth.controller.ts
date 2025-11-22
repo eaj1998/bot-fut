@@ -7,7 +7,7 @@ import { RequestOtpDto, VerifyOtpDto, RefreshTokenDto } from '../dto/auth.dto';
 
 @injectable()
 export class AuthController {
-  constructor(@inject(AuthService) private authService: AuthService) {}
+  constructor(@inject(AuthService) private authService: AuthService) { }
 
   /**
    * POST /api/auth/request-otp
@@ -71,7 +71,6 @@ export class AuthController {
    * Logout (client-side token deletion)
    */
   logout = asyncHandler(async (req: Request, res: Response) => {
-    // In a production app, you might want to blacklist the token
     res.json({
       success: true,
       message: 'Logged out successfully',

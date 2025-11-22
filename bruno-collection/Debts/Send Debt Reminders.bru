@@ -1,0 +1,18 @@
+meta {
+  name: Send Debt Reminders
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/debts/send-reminders
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "workspaceId": "6913c948ca7eed38f9a1d402",
+    "onlyOverdue": true
+  }
+}

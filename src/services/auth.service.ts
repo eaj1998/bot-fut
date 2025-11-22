@@ -55,11 +55,9 @@ export class AuthService {
             { verified: true },
         ).exec();
 
-        // Generate OTP
         const code = this.generateOTP();
         const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MINUTES * 60 * 1000);
 
-        // Save OTP
         await this.otpModel.create({
             phone,
             code,
@@ -68,7 +66,6 @@ export class AuthService {
             attempts: 0,
         });
 
-        // Send OTP via WhatsApp
         const sent = await this.whatsappService.sendOTP(phone, code);
 
         if (!sent) {
@@ -79,7 +76,7 @@ export class AuthService {
 
         return {
             message: 'OTP sent to your WhatsApp',
-            expiresIn: this.OTP_EXPIRY_MINUTES * 60, // seconds
+            expiresIn: this.OTP_EXPIRY_MINUTES * 60,
         };
     }
 
@@ -87,7 +84,6 @@ export class AuthService {
     async verifyOtp(dto: VerifyOtpDto): Promise<AuthResponseDto> {
         const { phone, code, name } = dto;
 
-        // Find OTP
         const otp = await this.otpModel
             .findOne({
                 phone,

@@ -1,0 +1,18 @@
+meta {
+  name: List Players
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/players
+  body: none
+  auth: none
+}
+
+query {
+  ~page: 1
+  ~limit: 20
+  ~search: 
+  ~status: 
+}

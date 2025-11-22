@@ -1,0 +1,23 @@
+meta {
+  name: Pay Debt
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/debts/{{debtId}}/pay
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": 50.00,
+    "method": "pix",
+    "notes": "Pagamento via PIX"
+  }
+}
+
+vars:pre-request {
+  debtId: 6920b593553bead6996e03ad
+}

@@ -5,7 +5,8 @@ import rateLimit from 'express-rate-limit';
 import { inject, injectable } from 'tsyringe';
 import { ConfigService } from '../config/config.service';
 import { LoggerService } from '../logger/logger.service';
-import { createErrorHandler } from '../api/middleware/error.middleware';
+import { createErrorHandler, notFoundHandler } from '../api/middleware/error.middleware';
+import { sanitizeInput } from '../api/middleware/validation.middleware';
 
 @injectable()
 export class ApiServer {
@@ -39,7 +40,10 @@ export class ApiServer {
         // Body parsing
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-    }  
+
+        // Sanitize input
+        this.app.use(sanitizeInput);
+    }
 
     public initialize(): void {
         const apiRoutes = require('../api/routes').default;
@@ -52,16 +56,25 @@ export class ApiServer {
                     health: '/api/health',
                     auth: '/api/auth',
                     games: '/api/games',
+                    players: '/api/players',
+                    debts: '/api/debts',
+                    workspaces: '/api/workspaces',
+                    chats: '/api/chats',
+                    docs: '/api-docs',
                 },
             });
         });
 
         this.app.use('/api', apiRoutes);
 
+        // 404 handler for undefined routes
+        this.app.use(notFoundHandler);
+
+        // Error handler (must be last)
         const errorLogger = new LoggerService();
         errorLogger.setName('ErrorHandler');
         this.app.use(createErrorHandler(errorLogger));
-        
+
         this.logger.log('Routes initialized');
     }
 

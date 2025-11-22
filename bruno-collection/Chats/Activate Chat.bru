@@ -1,0 +1,15 @@
+meta {
+  name: Activate Chat
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/chats/:id/activate
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 
+}

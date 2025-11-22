@@ -295,6 +295,460 @@ const options: Options = {
                         },
                     },
                 },
+                PlayerResponseDto: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'ID único do jogador',
+                            example: '507f1f77bcf86cd799439011',
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'Nome do jogador',
+                            example: 'João Silva',
+                        },
+                        email: {
+                            type: 'string',
+                            description: 'Email do jogador',
+                            example: 'joao@email.com',
+                        },
+                        phone: {
+                            type: 'string',
+                            description: 'Telefone do jogador',
+                            example: '+5511999999999',
+                        },
+                        cpf: {
+                            type: 'string',
+                            description: 'CPF do jogador',
+                            example: '123.456.789-00',
+                        },
+                        nick: {
+                            type: 'string',
+                            description: 'Apelido do jogador',
+                            example: 'Joãozinho',
+                        },
+                        isGoalie: {
+                            type: 'boolean',
+                            description: 'Indica se é goleiro',
+                            example: false,
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive', 'suspended'],
+                            description: 'Status do jogador',
+                            example: 'active',
+                        },
+                        balance: {
+                            type: 'number',
+                            description: 'Saldo do jogador em reais',
+                            example: 50.0,
+                        },
+                        totalDebt: {
+                            type: 'number',
+                            description: 'Débito total em reais',
+                            example: 28.0,
+                        },
+                        role: {
+                            type: 'string',
+                            enum: ['admin', 'user'],
+                            description: 'Papel do usuário',
+                            example: 'user',
+                        },
+                        joinDate: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data de cadastro',
+                            example: '2024-01-15T10:00:00.000Z',
+                        },
+                        lastActivity: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Última atividade',
+                            example: '2024-12-20T15:30:00.000Z',
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data de criação',
+                            example: '2024-01-15T10:00:00.000Z',
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data da última atualização',
+                            example: '2024-12-20T15:30:00.000Z',
+                        },
+                    },
+                },
+                DebtResponseDto: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'ID único do débito',
+                            example: '507f1f77bcf86cd799439011',
+                        },
+                        playerId: {
+                            type: 'string',
+                            description: 'ID do jogador',
+                            example: '507f1f77bcf86cd799439012',
+                        },
+                        playerName: {
+                            type: 'string',
+                            description: 'Nome do jogador',
+                            example: 'João Silva',
+                        },
+                        gameId: {
+                            type: 'string',
+                            description: 'ID do jogo',
+                            example: '507f1f77bcf86cd799439013',
+                        },
+                        gameName: {
+                            type: 'string',
+                            description: 'Nome do jogo',
+                            example: '⚽ CAMPO DO VIANA',
+                        },
+                        workspaceId: {
+                            type: 'string',
+                            description: 'ID do workspace',
+                            example: '507f1f77bcf86cd799439014',
+                        },
+                        amount: {
+                            type: 'number',
+                            description: 'Valor do débito em reais',
+                            example: 14.0,
+                        },
+                        amountCents: {
+                            type: 'integer',
+                            description: 'Valor do débito em centavos',
+                            example: 1400,
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['pending', 'paid', 'overdue', 'cancelled'],
+                            description: 'Status do débito',
+                            example: 'pending',
+                        },
+                        notes: {
+                            type: 'string',
+                            description: 'Observações sobre o débito',
+                            example: 'Débito referente ao jogo do dia 25/12',
+                        },
+                        category: {
+                            type: 'string',
+                            description: 'Categoria do débito',
+                            example: 'player-debt',
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data de criação',
+                            example: '2024-12-20T10:00:00.000Z',
+                        },
+                        paidAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data do pagamento',
+                            example: '2024-12-21T14:30:00.000Z',
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data da última atualização',
+                            example: '2024-12-21T14:30:00.000Z',
+                        },
+                    },
+                },
+                WorkspaceResponseDto: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'ID único do workspace',
+                            example: '507f1f77bcf86cd799439011',
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'Nome do workspace',
+                            example: 'Arena Viana',
+                        },
+                        slug: {
+                            type: 'string',
+                            description: 'Slug único do workspace',
+                            example: 'viana',
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'Descrição do workspace',
+                            example: 'Workspace Arena Viana',
+                        },
+                        platform: {
+                            type: 'string',
+                            enum: ['whatsapp', 'telegram', 'discord'],
+                            description: 'Plataforma do workspace',
+                            example: 'whatsapp',
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive', 'maintenance'],
+                            description: 'Status do workspace',
+                            example: 'active',
+                        },
+                        timezone: {
+                            type: 'string',
+                            description: 'Fuso horário',
+                            example: 'America/Sao_Paulo',
+                        },
+                        totalChats: {
+                            type: 'integer',
+                            description: 'Total de chats',
+                            example: 5,
+                        },
+                        activeChats: {
+                            type: 'integer',
+                            description: 'Chats ativos',
+                            example: 3,
+                        },
+                        settings: {
+                            type: 'object',
+                            properties: {
+                                maxPlayers: {
+                                    type: 'integer',
+                                    description: 'Máximo de jogadores',
+                                    example: 16,
+                                },
+                                pricePerGame: {
+                                    type: 'number',
+                                    description: 'Preço por jogo em reais',
+                                    example: 14.0,
+                                },
+                                pricePerGameCents: {
+                                    type: 'integer',
+                                    description: 'Preço por jogo em centavos',
+                                    example: 1400,
+                                },
+                                commandsEnabled: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: 'Comandos habilitados',
+                                    example: ['/lista', '/entrar', '/sair'],
+                                },
+                                pix: {
+                                    type: 'string',
+                                    description: 'Chave PIX',
+                                    example: '+5549999999999',
+                                },
+                                title: {
+                                    type: 'string',
+                                    description: 'Título',
+                                    example: '⚽ VIANA',
+                                },
+                            },
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data de criação',
+                            example: '2024-01-15T10:00:00.000Z',
+                        },
+                        lastSync: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Última sincronização',
+                            example: '2024-12-20T15:30:00.000Z',
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data da última atualização',
+                            example: '2024-12-20T15:30:00.000Z',
+                        },
+                    },
+                },
+                ChatScheduleDto: {
+                    type: 'object',
+                    properties: {
+                        weekday: {
+                            type: 'integer',
+                            minimum: 0,
+                            maximum: 6,
+                            description: 'Dia da semana (0=Dom, 1=Seg, ..., 6=Sáb)',
+                            example: 1,
+                        },
+                        time: {
+                            type: 'string',
+                            description: 'Horário (HH:mm)',
+                            example: '20:30',
+                        },
+                        title: {
+                            type: 'string',
+                            description: 'Título do jogo',
+                            example: '⚽ CAMPO DO VIANA',
+                        },
+                        priceCents: {
+                            type: 'integer',
+                            description: 'Preço em centavos',
+                            example: 1400,
+                        },
+                        pix: {
+                            type: 'string',
+                            description: 'Chave PIX',
+                            example: '+5549999999999',
+                        },
+                    },
+                },
+                ChatResponseDto: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'ID único do chat',
+                            example: '507f1f77bcf86cd799439011',
+                        },
+                        workspaceId: {
+                            type: 'string',
+                            description: 'ID do workspace',
+                            example: '507f1f77bcf86cd799439012',
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'Nome do chat',
+                            example: 'Grupo Campo Viana',
+                        },
+                        chatId: {
+                            type: 'string',
+                            description: 'ID do chat na plataforma',
+                            example: '120363123456789012@g.us',
+                        },
+                        label: {
+                            type: 'string',
+                            description: 'Label do chat',
+                            example: 'Viana Segunda',
+                        },
+                        type: {
+                            type: 'string',
+                            enum: ['group', 'private'],
+                            description: 'Tipo do chat',
+                            example: 'group',
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive', 'archived'],
+                            description: 'Status do chat',
+                            example: 'active',
+                        },
+                        memberCount: {
+                            type: 'integer',
+                            description: 'Número de membros',
+                            example: 15,
+                        },
+                        schedule: {
+                            $ref: '#/components/schemas/ChatScheduleDto',
+                        },
+                        lastMessage: {
+                            type: 'string',
+                            description: 'Última mensagem',
+                        },
+                        lastMessageAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data/hora da última mensagem',
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data de criação',
+                            example: '2024-01-15T10:00:00.000Z',
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Data da última atualização',
+                            example: '2024-12-20T15:30:00.000Z',
+                        },
+                    },
+                },
+                DashboardStatsDto: {
+                    type: 'object',
+                    properties: {
+                        totalPlayers: {
+                            type: 'integer',
+                            description: 'Total de jogadores',
+                            example: 45,
+                        },
+                        activePlayers: {
+                            type: 'integer',
+                            description: 'Jogadores ativos',
+                            example: 38,
+                        },
+                        inactivePlayers: {
+                            type: 'integer',
+                            description: 'Jogadores inativos',
+                            example: 7,
+                        },
+                        totalGames: {
+                            type: 'integer',
+                            description: 'Total de jogos',
+                            example: 24,
+                        },
+                        upcomingGames: {
+                            type: 'integer',
+                            description: 'Jogos próximos',
+                            example: 5,
+                        },
+                        completedGames: {
+                            type: 'integer',
+                            description: 'Jogos concluídos',
+                            example: 18,
+                        },
+                        totalDebt: {
+                            type: 'number',
+                            description: 'Débito total em reais',
+                            example: 1250.0,
+                        },
+                        totalPending: {
+                            type: 'integer',
+                            description: 'Total de débitos pendentes',
+                            example: 8,
+                        },
+                        totalOverdue: {
+                            type: 'integer',
+                            description: 'Total de débitos vencidos',
+                            example: 3,
+                        },
+                        paidThisMonth: {
+                            type: 'number',
+                            description: 'Pago no mês atual em reais',
+                            example: 3840.0,
+                        },
+                        revenue: {
+                            type: 'number',
+                            description: 'Receita total em reais',
+                            example: 15680.0,
+                        },
+                        revenueGrowth: {
+                            type: 'number',
+                            description: 'Crescimento de receita em %',
+                            example: 12.5,
+                        },
+                        totalWorkspaces: {
+                            type: 'integer',
+                            description: 'Total de workspaces',
+                            example: 3,
+                        },
+                        activeWorkspaces: {
+                            type: 'integer',
+                            description: 'Workspaces ativos',
+                            example: 2,
+                        },
+                        totalChats: {
+                            type: 'integer',
+                            description: 'Total de chats',
+                            example: 12,
+                        },
+                    },
+                },
                 Error: {
                     type: 'object',
                     properties: {

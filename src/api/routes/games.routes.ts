@@ -69,6 +69,45 @@ router.get('/', controller.listGames);
 
 /**
  * @swagger
+ * /api/games/stats:
+ *   get:
+ *     summary: Obtém estatísticas de jogos
+ *     description: Retorna estatísticas agregadas sobre jogos
+ *     tags: [Games]
+ *     responses:
+ *       200:
+ *         description: Estatísticas retornadas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   description: Total de jogos
+ *                 scheduled:
+ *                   type: integer
+ *                   description: Jogos agendados
+ *                 open:
+ *                   type: integer
+ *                   description: Jogos abertos
+ *                 closed:
+ *                   type: integer
+ *                   description: Jogos fechados
+ *                 finished:
+ *                   type: integer
+ *                   description: Jogos finalizados
+ *                 cancelled:
+ *                   type: integer
+ *                   description: Jogos cancelados
+ *                 upcoming:
+ *                   type: integer
+ *                   description: Jogos próximos (próximos 7 dias)
+ */
+router.get('/stats', controller.getStats);
+
+/**
+ * @swagger
  * /api/games/{gameId}:
  *   get:
  *     summary: Obtém detalhes de um jogo
@@ -193,12 +232,51 @@ router.put('/:gameId', requireAdmin, controller.updateGame);
  *         description: Jogo cancelado com sucesso
  *       404:
  *         description: Jogo não encontrado
+ * /api/games/{gameId}/status:
+ *   put:
+ *     summary: Atualiza status do jogo
+ *     description: Atualiza apenas o status de um jogo (requer autenticação de admin)
+ *     tags: [Games]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: gameId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do jogo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [scheduled, open, closed, finished, cancelled]
+ *                 description: Novo status do jogo
+ *                 example: "open"
+ *     responses:
+ *       200:
+ *         description: Status atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GameResponseDto'
+ *       400:
+ *         description: Status inválido
+ *       404:
+ *         description: Jogo não encontrado
  *       401:
  *         description: Não autenticado
  *       403:
  *         description: Sem permissão de admin
  */
-router.delete('/:gameId', requireAdmin, controller.cancelGame);
+router.put('/:gameId/status', requireAdmin, controller.updateStatus);
 
 /**
  * @swagger

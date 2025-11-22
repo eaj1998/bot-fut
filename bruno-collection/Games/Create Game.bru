@@ -1,0 +1,23 @@
+meta {
+  name: Create Game
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/games
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Pelada Sábado",
+    "type": "futebol",
+    "date": "2024-12-07",
+    "time": "09:00",
+    "location": "Campo do Parque",
+    "maxPlayers": 20,
+    "pricePerPlayer": 50
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get Workspace by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{workspaceId}}
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  workspaceId: 6913c948ca7eed38f9a1d402
+}

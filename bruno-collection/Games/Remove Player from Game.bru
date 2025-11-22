@@ -1,0 +1,16 @@
+meta {
+  name: Remove Player from Game
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/games/{{gameId}}/players/{{playerId}}
+  body: none
+  auth: bearer
+}
+
+vars:pre-request {
+  gameId: 69209460fb02d0d1a5cf6086
+  playerId: 6913c8e1ca7eed38f9a1d3f9
+}

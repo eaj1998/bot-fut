@@ -1,0 +1,23 @@
+meta {
+  name: Add Player to Game
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/games/{{gameId}}/players
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "phone": "+5511999999999",
+    "name": "João Silva",
+    "isGoalkeeper": false
+  }
+}
+
+vars:pre-request {
+  gameId: 69209460fb02d0d1a5cf6086
+}

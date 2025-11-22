@@ -1,0 +1,15 @@
+meta {
+  name: Get Player by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/players/{{playerId}}
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  playerId: 6913c8e1ca7eed38f9a1d3f9
+}

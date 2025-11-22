@@ -3,7 +3,7 @@ import { Command, IRole } from "../type";
 import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
 import { GameRepository } from "../../core/repositories/game.respository";
-import { LedgerRepository } from "../../core/repositories/ledger.repository";
+import { DebtsService, DEBTS_SERVICE_TOKEN } from "../../services/debts.service";
 import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { buildUtcCalendarDay } from "../../utils/date";
@@ -16,7 +16,7 @@ export class AddDebitCommand implements Command {
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(GameRepository) private readonly gameRepo: GameRepository,
-        @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
         @inject(LoggerService) private readonly logService: LoggerService,
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
     ) { }
@@ -107,13 +107,13 @@ export class AddDebitCommand implements Command {
         }
 
         try {
-            await this.ledgerRepo.addDebit({
+            await this.debtsService.createDebt({
+                playerId: "", // Débito do campo, sem jogador específico
                 workspaceId: ws._id.toString(),
-                userId: "",
-                amountCents: cents,
                 gameId: game._id.toString(),
-                note: `${note} do jogo ${rawDate} (${game.title ?? "Jogo"})`,
-                category: "general",
+                amount: cents / 100,
+                notes: `${note} do jogo ${rawDate} (${game.title ?? "Jogo"})`,
+                category: "field-payment",
             });
 
             await this.server.sendMessage(

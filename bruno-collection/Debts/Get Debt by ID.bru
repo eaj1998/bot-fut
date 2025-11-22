@@ -1,0 +1,15 @@
+meta {
+  name: Get Debt by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/debts/{{debtId}}
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  debtId: 6920b593553bead6996e03ad
+}

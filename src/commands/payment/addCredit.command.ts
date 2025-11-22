@@ -4,7 +4,7 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
 import { Message } from "whatsapp-web.js";
 import { UserRepository } from "../../core/repositories/user.repository";
-import { LedgerRepository } from "../../core/repositories/ledger.repository";
+import { DebtsService, DEBTS_SERVICE_TOKEN } from "../../services/debts.service";
 import { LoggerService } from "../../logger/logger.service";
 import Utils from "../../utils/utils";
 
@@ -17,15 +17,11 @@ export class AddCreditCommand implements Command {
         @inject(LoggerService) private readonly loggerService: LoggerService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
-        @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
     ) { }
 
 
     async handle(message: Message): Promise<void> {
-        // if (!message.from.endsWith("@c.us")) {
-        //     return;
-        // }
-
         const parts = message.body.trim().split(/\s+/);
         const [, slug, amount] = parts;
 
@@ -46,21 +42,21 @@ export class AddCreditCommand implements Command {
             const amountCents = Utils.parsePriceToCents(amount);
 
             if (amountCents != null && amountCents > 0) {
-                console.log(`amount`, amountCents);
                 try {
-                    await this.ledgerRepo.addCredit({
+                    // Cria um débito negativo (crédito) usando o DebtsService
+                    await this.debtsService.createDebt({
+                        playerId: user._id.toString(),
                         workspaceId: workspace._id.toString(),
-                        userId: user._id.toString(),
-                        amountCents: amountCents ?? 0,
-                        note: "Credito adicionado via grupo",
-                        method: "pix",
+                        amount: -(amountCents / 100), // Negativo para crédito
+                        notes: "Crédito adicionado via grupo",
                         category: "general"
                     });
 
-                    message.reply(`Credito adicionado com sucesso!`);
+                    message.reply(`Crédito adicionado com sucesso!`);
 
                 } catch (e: any) {
-                    this.loggerService.log(`[GUEST-PAID] Falha ao creditar convidador: ${e}`);
+                    this.loggerService.log(`[ADD-CREDIT] Falha ao adicionar crédito: ${e}`);
+                    message.reply(`Erro ao adicionar crédito: ${e.message}`);
                 }
             }
 

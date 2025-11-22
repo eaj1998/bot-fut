@@ -1,0 +1,24 @@
+meta {
+  name: Create Workspace
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/workspaces
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Novo Workspace",
+    "slug": "novo-workspace",
+    "timezone": "America/Sao_Paulo",
+    "settings": {
+      "maxPlayers": 20,
+      "pricePerGameCents": 5000,
+      "commandsEnabled": true
+    }
+  }
+}

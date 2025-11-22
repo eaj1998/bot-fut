@@ -15,8 +15,7 @@ export interface AuthRequest extends Request {
 export const authenticate = asyncHandler(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    console.log('TOKENNNN', token);
-    
+
     if (!token) {
       throw new ApiError(401, 'Authentication required');
     }

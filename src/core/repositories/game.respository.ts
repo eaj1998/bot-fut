@@ -15,8 +15,9 @@ export class GameRepository {
 
 
 
-    async findById(id: Types.ObjectId) {
-        return this.model.findOne(id)
+    async findById(id: Types.ObjectId | string) {
+        const objectId = typeof id === 'string' ? new Types.ObjectId(id) : id;
+        return this.model.findById(objectId);
     }
 
     async findActiveForChat(workspaceId: Types.ObjectId, chatId: string) {
@@ -184,3 +185,5 @@ export class GameRepository {
         });
     }
 }
+
+export const GAME_REPOSITORY_TOKEN = 'GAME_REPOSITORY_TOKEN';

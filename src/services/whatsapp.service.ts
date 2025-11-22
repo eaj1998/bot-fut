@@ -37,9 +37,6 @@ Se você não solicitou este código, ignore esta mensagem.`;
 
     async sendMessage(to: string, message: string): Promise<void> {
         try {
-            // If 'to' doesn't have @c.us or @g.us, we might need to handle it.
-            // Assuming 'to' comes correctly formatted or we use formatPhoneNumber for individual chats.
-            // For groups, it usually ends in @g.us.
             let target = to;
             if (!to.includes('@')) {
                 target = `${this.formatPhoneNumber(to)}@c.us`;
@@ -97,6 +94,6 @@ Bom jogo! ⚽`;
             cleaned = '55' + cleaned;
         }
 
-        return cleaned; // ✅ Retorna SEM @c.us
+        return cleaned;
     }
 }

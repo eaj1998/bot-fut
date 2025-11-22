@@ -158,4 +158,26 @@ export class GamesController {
 
     return rows.map((row) => row.join(',')).join('\n');
   }
+
+  getStats = asyncHandler(async (req: Request, res: Response) => {
+    const stats = await this.gameService.getStats();
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  });
+
+  updateStatus = asyncHandler(async (req: Request, res: Response) => {
+    const { gameId } = req.params;
+    const { status } = req.body;
+
+    const game = await this.gameService.updateStatus(gameId, status);
+
+    res.json({
+      success: true,
+      data: game,
+      message: 'Game status updated successfully',
+    });
+  });
 }

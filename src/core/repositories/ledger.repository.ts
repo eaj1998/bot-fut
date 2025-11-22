@@ -107,7 +107,7 @@ export class LedgerRepository {
                 {
                   $and: [
                     { $eq: ["$type", "credit"] },
-                    { $ne: ["$category", "general"] }   
+                    { $ne: ["$category", "general"] }
                   ]
                 },
                 "$amountCents",
@@ -216,4 +216,24 @@ export class LedgerRepository {
     return agg?.cashCents ?? 0;
   }
 
+  /**
+   * Obtém o saldo de um usuário (soma de todos os workspaces)
+   */
+  async getBalance(userId: Types.ObjectId): Promise<number> {
+    const balances = await BalanceModel.find({ userId }).lean();
+    return balances.reduce((sum, b) => sum + (b.balanceCents || 0), 0);
+  }
+
+  /**
+   * Busca entradas do ledger por usuário
+   */
+  async findByUserId(userId: Types.ObjectId) {
+    return this.model
+      .find({ userId, status: 'confirmado' })
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
 }
+
+export const LEDGER_REPOSITORY_TOKEN = 'LEDGER_REPOSITORY_TOKEN';

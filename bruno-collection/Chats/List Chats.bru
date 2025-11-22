@@ -1,0 +1,19 @@
+meta {
+  name: List Chats
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/chats
+  body: none
+  auth: none
+}
+
+query {
+  ~page: 1
+  ~limit: 20
+  ~workspaceId: 
+  ~search: 
+  ~status: 
+}

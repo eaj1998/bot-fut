@@ -7,6 +7,9 @@ import { requireAdmin } from '../middleware/role.middleware';
 const router = Router();
 const controller = container.resolve(PlayersController);
 
+// Rotas protegidas (requerem autenticação)
+router.use(authenticate);
+
 /**
  * @swagger
  * /api/players:
@@ -217,9 +220,6 @@ router.get('/:id/debts', controller.getPlayerDebts);
  *         description: Jogador não encontrado
  */
 router.get('/:id/games', controller.getPlayerGames);
-
-// Rotas protegidas (requerem autenticação)
-router.use(authenticate);
 
 /**
  * @swagger

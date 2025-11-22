@@ -6,6 +6,8 @@ import { requireAdmin } from '../middleware/role.middleware';
 
 const router = Router();
 const controller = container.resolve(ChatsController);
+// Rotas protegidas (requerem autenticação)
+router.use(authenticate);
 
 /**
  * @swagger
@@ -76,7 +78,7 @@ const controller = container.resolve(ChatsController);
  *                 limit:
  *                   type: integer
  */
-router.get('/', controller.listChats);
+router.get('/', authenticate, controller.listChats);
 
 /**
  * @swagger
@@ -104,7 +106,7 @@ router.get('/', controller.listChats);
  *                 chatsWithSchedule:
  *                   type: integer
  */
-router.get('/stats', controller.getStats);
+router.get('/stats', authenticate, controller.getStats);
 
 /**
  * @swagger
@@ -158,8 +160,6 @@ router.get('/:id', controller.getChatById);
  */
 router.get('/:id/schedule', controller.getSchedule);
 
-// Rotas protegidas (requerem autenticação)
-router.use(authenticate);
 
 /**
  * @swagger

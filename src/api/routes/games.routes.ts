@@ -7,6 +7,8 @@ import { requireAdmin } from '../middleware/role.middleware';
 const router = Router();
 const controller = container.resolve(GamesController);
 
+router.use(authenticate);
+
 /**
  * @swagger
  * /api/games:
@@ -135,8 +137,6 @@ router.get('/stats', controller.getStats);
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/:gameId', controller.getGameDetail);
-
-router.use(authenticate);
 
 /**
  * @swagger

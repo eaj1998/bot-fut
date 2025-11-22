@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { container } from 'tsyringe';
 import { DashboardController } from '../controllers/dashboard.controller';
+import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 const controller = container.resolve(DashboardController);
+
+// Rotas protegidas
+router.use(authenticate);
 
 /**
  * @swagger

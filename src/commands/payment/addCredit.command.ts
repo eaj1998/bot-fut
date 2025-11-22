@@ -22,6 +22,10 @@ export class AddCreditCommand implements Command {
 
 
     async handle(message: Message): Promise<void> {
+        // if (!message.from.endsWith("@c.us")) {
+        //     return;
+        // }
+
         const parts = message.body.trim().split(/\s+/);
         const [, slug, amount] = parts;
 

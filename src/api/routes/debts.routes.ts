@@ -7,6 +7,9 @@ import { requireAdmin } from '../middleware/role.middleware';
 const router = Router();
 const controller = container.resolve(DebtsController);
 
+// Rotas protegidas
+router.use(authenticate);
+
 /**
  * @swagger
  * /api/debts:
@@ -91,9 +94,6 @@ router.get('/stats', controller.getStats);
  *         description: Débito não encontrado
  */
 router.get('/:id', controller.getDebtById);
-
-// Rotas protegidas
-router.use(authenticate);
 
 /**
  * @swagger

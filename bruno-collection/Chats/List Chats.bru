@@ -7,13 +7,17 @@ meta {
 get {
   url: {{baseUrl}}/chats
   body: none
-  auth: none
+  auth: bearer
 }
 
-query {
+params:query {
   ~page: 1
   ~limit: 20
   ~workspaceId: 
   ~search: 
   ~status: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }

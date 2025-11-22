@@ -5,14 +5,14 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/games
+  url: {{baseUrl}}/games?page=1&limit=2
   body: none
   auth: none
 }
 
-query {
-  ~page: 1
-  ~limit: 20
+params:query {
+  page: 1
+  limit: 2
   ~status: 
   ~type: 
   ~search: 

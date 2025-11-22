@@ -5,7 +5,11 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/chats/stats
+  url: 123456{{baseUrl}}/chats/stats
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }

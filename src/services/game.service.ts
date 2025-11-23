@@ -1023,11 +1023,15 @@ export class GameService {
   }
 
   async addPlayerToGame(game: IGame, phone: string, name: string): Promise<{ added: boolean; message?: string; suplentePos?: number }> {
-    const user = await this.userModel.findOneAndUpdate(
-      { phoneE164: phone },
-      { $set: { name, phoneE164: phone } },
-      { upsert: true, new: true }
-    ).exec();
+    let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+
+    if (!user) {
+      user = await this.userModel.create({ name, phoneE164: phone });
+    } else if (user.name === user.phoneE164) {
+      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
+      user.name = name;
+      await user.save();
+    }
 
     if (!user) throw new Error("Failed to create/update user");
 
@@ -1046,11 +1050,15 @@ export class GameService {
   }
 
   async addOffLineupPlayer(game: IGame, phone: string, name: string): Promise<{ added: boolean; message?: string }> {
-    const user = await this.userModel.findOneAndUpdate(
-      { phoneE164: phone },
-      { $set: { name, phoneE164: phone } },
-      { upsert: true, new: true }
-    ).exec();
+    let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+
+    if (!user) {
+      user = await this.userModel.create({ name, phoneE164: phone });
+    } else if (user.name === user.phoneE164) {
+      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
+      user.name = name;
+      await user.save();
+    }
 
     if (!user) throw new Error("Failed to create/update user");
 
@@ -1069,11 +1077,15 @@ export class GameService {
   }
 
   async removePlayerFromGame(game: IGame, phone: string, name: string, authorName?: string): Promise<{ removed: boolean; message: string; mentions?: string[] }> {
-    const user = await this.userModel.findOneAndUpdate(
-      { phoneE164: phone },
-      { $set: { name, phoneE164: phone } },
-      { upsert: true, new: true }
-    ).exec();
+    let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+
+    if (!user) {
+      user = await this.userModel.create({ name, phoneE164: phone });
+    } else if (user.name === user.phoneE164) {
+      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
+      user.name = name;
+      await user.save();
+    }
 
     if (!user) throw new Error("Failed to create/update user");
 
@@ -1081,11 +1093,15 @@ export class GameService {
   }
 
   async addGuestPlayer(game: IGame, inviterPhone: string, inviterName: string, guestName: string, options: { asGoalie: boolean }): Promise<{ placed: boolean; role?: string; finalName?: string; slot?: number; message?: string }> {
-    const user = await this.userModel.findOneAndUpdate(
-      { phoneE164: inviterPhone },
-      { $set: { name: inviterName, phoneE164: inviterPhone } },
-      { upsert: true, new: true }
-    ).exec();
+    let user = await this.userModel.findOne({ phoneE164: inviterPhone }).exec();
+
+    if (!user) {
+      user = await this.userModel.create({ name: inviterName, phoneE164: inviterPhone });
+    } else if (user.name === user.phoneE164) {
+      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
+      user.name = inviterName;
+      await user.save();
+    }
 
     if (!user) throw new Error("Failed to create/update user");
 
@@ -1098,11 +1114,15 @@ export class GameService {
   }
 
   async addGoalkeeperToGame(game: IGame, phone: string, name: string): Promise<{ placed: boolean; pos?: number; message?: string }> {
-    const user = await this.userModel.findOneAndUpdate(
-      { phoneE164: phone },
-      { $set: { name, phoneE164: phone } },
-      { upsert: true, new: true }
-    ).exec();
+    let user = await this.userModel.findOne({ phoneE164: phone }).exec();
+
+    if (!user) {
+      user = await this.userModel.create({ name, phoneE164: phone });
+    } else if (user.name === user.phoneE164) {
+      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
+      user.name = name;
+      await user.save();
+    }
 
     if (!user) throw new Error("Failed to create/update user");
 

@@ -67,6 +67,7 @@ export class UserRepository {
     }
 
     async update(id: string, data: Partial<IUser>) {
+        console.log(`Updating user ${id} with data: ${JSON.stringify(data)}`);
         return this.model.findByIdAndUpdate(id, data, { new: true });
     }
 

@@ -236,13 +236,35 @@ export class LedgerRepository {
   }
 
   /**
-   * Busca entradas do ledger por usuário (pendentes)
+   * Busca entradas do ledger por usuário (pendentes) com informações do workspace e chat
    */
   async findDebtsByUserId(userId: Types.ObjectId) {
-    return this.model
+    const ledgers = await this.model
       .find({ userId, status: { $in: ['pendente'] }, type: 'debit' })
+      .populate('workspaceId', 'name slug')
+      .populate('gameId', 'chatId')
       .sort({ createdAt: -1 })
       .lean();
+
+    const chatIds = ledgers
+      .map(l => (l.gameId as any)?.chatId)
+      .filter(Boolean);
+
+    if (chatIds.length > 0) {
+      const { ChatModel } = await import('../models/chat.model');
+      const chats = await ChatModel.find({ chatId: { $in: chatIds } })
+        .select('chatId schedule.pix')
+        .lean();
+
+      const chatMap = new Map(chats.map(c => [c.chatId, c.schedule?.pix]));
+
+      return ledgers.map(ledger => ({
+        ...ledger,
+        pix: chatMap.get((ledger.gameId as any)?.chatId)
+      }));
+    }
+
+    return ledgers;
   }
 
   /**

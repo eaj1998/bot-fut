@@ -180,4 +180,15 @@ export class GamesController {
       message: 'Game status updated successfully',
     });
   });
+
+  deleteGame = asyncHandler(async (req: Request, res: Response) => {
+    const { gameId } = req.params;
+
+    await this.gameService.cancelGame(gameId);
+
+    res.json({
+      success: true,
+      message: 'Game cancelled successfully',
+    });
+  });
 }

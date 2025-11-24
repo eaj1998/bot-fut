@@ -5,15 +5,17 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/games?page=1&limit=2
+  url: {{baseUrl}}/games
   body: none
-  auth: none
+  auth: bearer
 }
 
 params:query {
-  page: 1
-  limit: 2
   ~status: 
   ~type: 
   ~search: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }

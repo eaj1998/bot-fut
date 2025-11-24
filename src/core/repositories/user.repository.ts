@@ -31,7 +31,6 @@ export class UserRepository {
         return this.model.create(data);
     }
 
-    // Player management methods
     async findAll(filters: {
         status?: string;
         search?: string;
@@ -41,10 +40,13 @@ export class UserRepository {
         sortOrder?: 'asc' | 'desc';
     }) {
         const { status, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = filters;
-
+        console.log('filtros', filters);
         const query: any = {};
 
-        // Busca por texto
+        if (status) {
+            query.status = status;
+        }
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },

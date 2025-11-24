@@ -5,14 +5,21 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/players
+  url: {{baseUrl}}/players?search=mikelon&status=active&sortBy=name
   body: none
-  auth: none
+  auth: bearer
 }
 
-query {
+params:query {
+  search: mikelon
+  status: active
+  sortBy: name
   ~page: 1
   ~limit: 20
   ~search: 
   ~status: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }

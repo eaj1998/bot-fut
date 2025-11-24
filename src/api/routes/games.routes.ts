@@ -87,9 +87,6 @@ router.get('/', controller.listGames);
  *                 total:
  *                   type: integer
  *                   description: Total de jogos
- *                 scheduled:
- *                   type: integer
- *                   description: Jogos agendados
  *                 open:
  *                   type: integer
  *                   description: Jogos abertos
@@ -105,6 +102,9 @@ router.get('/', controller.listGames);
  *                 upcoming:
  *                   type: integer
  *                   description: Jogos próximos (próximos 7 dias)
+ *                 activePlayers:
+ *                   type: integer
+ *                   description: Total de jogadores ativos
  */
 router.get('/stats', controller.getStats);
 
@@ -228,10 +228,15 @@ router.put('/:gameId', requireAdmin, controller.updateGame);
  *           type: string
  *         description: ID do jogo
  *     responses:
- *       204:
+ *       200:
  *         description: Jogo cancelado com sucesso
  *       404:
  *         description: Jogo não encontrado
+ */
+router.delete('/:gameId', requireAdmin, controller.deleteGame);
+
+/**
+ * @swagger
  * /api/games/{gameId}/status:
  *   put:
  *     summary: Atualiza status do jogo
@@ -374,8 +379,16 @@ router.get('/:gameId/export', requireAdmin, controller.exportCSV);
  * @swagger
  * /api/games/{gameId}/players:
  *   post:
- *     summary: Adiciona um jogador ao jogo
- *     description: Adiciona um novo jogador à lista do jogo (requer autenticação)
+ *     summary: Adiciona um jogador ou convidado ao jogo
+ *     description: |
+ *       Adiciona um novo jogador à lista do jogo (requer autenticação).
+ *       
+ *       **Para adicionar jogador normal:**
+ *       - Envie `phone` e `name`
+ *       
+ *       **Para adicionar convidado:**
+ *       - Envie `phone` (de quem convida), `name` (de quem convida), e `guestName` (nome do convidado)
+ *       - O convidado será adicionado com formato: "NomeConvidado (conv. NomeQuemConvida)"
  *     tags: [Games]
  *     security:
  *       - bearerAuth: []
@@ -441,7 +454,19 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
  * /api/games/{gameId}/players/{playerId}/payment:
  *   patch:
  *     summary: Marca/desmarca pagamento de jogador
- *     description: Atualiza o status de pagamento de um jogador (requer autenticação)
+ *     description: |
+ *       Atualiza o status de pagamento de um jogador (requer autenticação).
+ *       
+ *       **Diferenciação automática:**
+ *       - Se for **vaga própria**: débito/crédito vai para o próprio jogador
+ *       - Se for **convidado**: débito/crédito vai para quem convidou (invitedByUserId)
+ *       - **Goleiros**: não geram débito/crédito (não pagam)
+ *       
+ *       **Fluxo:**
+ *       1. Busca débito pendente no ledger
+ *       2. Confirma o débito pendente
+ *       3. Cria crédito confirmado
+ *       4. Atualiza saldo do usuário
  *     tags: [Games]
  *     security:
  *       - bearerAuth: []
@@ -457,7 +482,7 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
  *         required: true
  *         schema:
  *           type: string
- *         description: ID do jogador
+ *         description: ID do jogador (userId)
  *     requestBody:
  *       required: true
  *       content:
@@ -469,11 +494,22 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
  *             properties:
  *               isPaid:
  *                 type: boolean
- *                 description: Status de pagamento
+ *                 description: Status de pagamento (true = marcar como pago, false = desmarcar)
  *                 example: true
  *     responses:
- *       204:
+ *       200:
  *         description: Status de pagamento atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Payment marked"
  *       404:
  *         description: Jogo ou jogador não encontrado
  *       401:

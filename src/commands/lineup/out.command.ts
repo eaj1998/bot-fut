@@ -31,6 +31,33 @@ export class OutCommand implements Command {
         const author = await message.getContact();
         const phone = this.util.normalizePhone(author.id._serialized);
 
+        const isInMainRoster = game.roster.players.some(p => p.phoneE164 === phone);
+        const isInWaitlist = game.roster.waitlist?.some(w => w.phoneE164 === phone);
+        const isInOutlist = game.roster.outlist?.some(o => o.phoneE164 === phone);
+
+        if (isInMainRoster) {
+            await message.reply(
+                `Você está escalado pro jogo! 💪\n` +
+                `Se não puder ir, use /desistir pra liberar a vaga — mas se puder, ajuda a fechar o time! ⚽`
+            );
+            return;
+        }
+
+        if (isInWaitlist) {
+            await message.reply(
+                `Você está na lista de espera! 🔄\n` +
+                `Se não puder ir, use /desistir pra sair da lista.`
+            );
+            return;
+        }
+
+        if (isInOutlist) {
+            await message.reply(
+                `✅ ${author.pushname || author.name}, você já está marcado como "fora" para esta semana.`
+            );
+            return;
+        }
+
         const res = await this.gameService.addOffLineupPlayer(game, phone, author.pushname || author.name || "Jogador");
 
         if (res.added) {

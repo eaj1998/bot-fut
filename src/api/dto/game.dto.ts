@@ -16,29 +16,31 @@ export enum GameStatus {
 
 export class CreateGameDto {
   @IsString()
-  name!: string; 
+  name!: string;
 
   @IsEnum(GameType)
-  type!: GameType; 
+  type!: GameType;
 
   @IsString()
-  date!: string; 
+  date!: string;
 
   @IsString()
-  time!: string; 
+  time!: string;
 
   @IsString()
-  location!: string; 
+  location!: string;
 
   @IsNumber()
-  maxPlayers!: number; 
+  maxPlayers!: number;
 
   @IsNumber()
-  pricePerPlayer!: number; 
+  pricePerPlayer!: number;
 
   @IsString()
-  @IsOptional()
-  chatId?: string;
+  chatId!: string;
+
+  @IsString()
+  workspaceId!: string;
 }
 
 export class UpdateGameDto {
@@ -76,6 +78,7 @@ export class GameResponseDto {
   name!: string;
   date!: string;
   time!: string;
+  location?: string;
   maxPlayers!: number;
   currentPlayers!: number;
   pricePerPlayer!: number;
@@ -87,12 +90,13 @@ export class PlayerInGameDto {
   id!: string;
   name!: string;
   phone?: string;
+  slot?: number;
+  isGoalkeeper!: boolean;
   isPaid!: boolean;
 }
 
 export class GameDetailResponseDto extends GameResponseDto {
   players!: PlayerInGameDto[];
-  substitutes!: PlayerInGameDto[];
   waitlist!: WaitlistPlayerDto[];
   outlist!: OutlistPlayerDto[];
   financialSummary!: {
@@ -125,6 +129,10 @@ export class AddPlayerToGameDto {
   @IsOptional()
   name?: string;
 
+  @IsString()
+  @IsOptional()
+  guestName?: string;
+
   @IsBoolean()
   @IsOptional()
   isGoalkeeper?: boolean;
@@ -142,7 +150,7 @@ export class MarkPaymentDto {
 export class GameFilterDto {
   @IsEnum(GameStatus)
   @IsOptional()
-  status?: GameStatus;  
+  status?: GameStatus;
 
   @IsString()
   @IsOptional()

@@ -36,10 +36,6 @@ type CloseGameResult = {
   results: ClosePlayerResult[];
 };
 
-type CancelGameResult = {
-  added: boolean;
-};
-
 type OwnDebts = { type: "your place"; slot?: number | null };
 type GuestDebts = { type: "guest"; name?: string; slot?: number | null };
 
@@ -137,15 +133,19 @@ export class GameService {
     }
 
     const players: PlayerInGameDto[] = [];
-    const substitutes: PlayerInGameDto[] = [];
     const waitlist: WaitlistPlayerDto[] = [];
     const outlist: OutlistPlayerDto[] = [];
 
     for (const player of game.roster.players) {
+      const goalieSlots = game.roster.goalieSlots ?? 2;
+      const isGoalkeeper = (player.slot ?? 0) <= goalieSlots && (player.slot ?? 0) > 0;
+
       const playerDto: PlayerInGameDto = {
         id: (player.invitedByUserId ?? player.userId)?.toString() ?? '',
         name: player.name,
         phone: player.phoneE164,
+        slot: player.slot,
+        isGoalkeeper,
         isPaid: player.paid || false,
       };
 
@@ -169,15 +169,14 @@ export class GameService {
       });
     });
 
-    const totalPlayers = players.length;
-    const paidPlayers = players.filter((p) => p.isPaid);
-    const totalToReceive = totalPlayers * game.priceCents / 100;
-    const totalPaid = paidPlayers.length * game.priceCents / 100;
+    const outfieldPlayers = players.filter((p) => !p.isGoalkeeper);
+    const paidPlayers = outfieldPlayers.filter((p) => p.isPaid);
+    const totalToReceive = outfieldPlayers.length * game.priceCents;
+    const totalPaid = paidPlayers.length * game.priceCents;
 
     return {
       ...this.mapToGameResponse(game),
       players,
-      substitutes,
       waitlist,
       outlist,
       financialSummary: {
@@ -185,7 +184,7 @@ export class GameService {
         totalPaid,
         totalPending: totalToReceive - totalPaid,
         paidCount: paidPlayers.length,
-        unpaidCount: totalPlayers - paidPlayers.length,
+        unpaidCount: outfieldPlayers.length - paidPlayers.length,
       },
     };
   }
@@ -202,10 +201,10 @@ export class GameService {
       date: new Date(data.date + 'T' + data.time),
       location: data.location,
       maxPlayers: data.maxPlayers,
-      price: data.pricePerPlayer,
+      priceCents: data.pricePerPlayer,
       chatId: data.chatId,
-      status: 'scheduled',
-      createdBy: creator._id,
+      workspaceId: data.workspaceId,
+      status: 'open',
       players: [],
       waitlist: [],
       outlist: [],
@@ -341,18 +340,50 @@ export class GameService {
   async addPlayer(gameId: string, data: AddPlayerToGameDto): Promise<void> {
     const game = await this.gameModel.findById(gameId).exec();
     if (!game) {
-      throw new ApiError(404, 'Game not found');
+      throw new ApiError(404, 'Jogo não encontrado');
+    }
+
+    if (data.guestName) {
+      if (!data.name) {
+        throw new ApiError(400, 'Nome de quem convida é obrigatório ao adicionar convidado');
+      }
+
+      await this.addGuestPlayer(
+        game,
+        data.phone,
+        data.name,
+        data.guestName,
+        { asGoalie: data.isGoalkeeper || false }
+      );
+
+      await game.save();
+      return;
     }
 
     let user = await this.userModel.findOne({ phoneE164: data.phone }).exec();
     if (!user) {
       if (!data.name) {
-        throw new ApiError(400, 'User not found and name not provided to create one');
+        throw new ApiError(400, 'Usuário não encontrado e nome não fornecido para criar um novo');
       }
       user = await this.userModel.create({
         phoneE164: data.phone,
         name: data.name,
       });
+    }
+
+    const isInMainRoster = game.roster.players.some(p =>
+      p.userId?.toString() === user!._id.toString() || p.phoneE164 === data.phone
+    );
+    const isInWaitlist = game.roster.waitlist?.some(w =>
+      w.userId?.toString() === user!._id.toString() || w.phoneE164 === data.phone
+    );
+
+    if (isInMainRoster) {
+      throw new ApiError(400, 'Jogador já está na lista do jogo');
+    }
+
+    if (isInWaitlist) {
+      throw new ApiError(400, 'Jogador já está na lista de espera');
     }
 
     if (data.isGoalkeeper) {
@@ -417,6 +448,7 @@ export class GameService {
           slot,
           userId: user._id,
           name: user.name,
+          phoneE164: user.phoneE164,
           paid: false,
         });
         placed = true;
@@ -424,18 +456,12 @@ export class GameService {
       }
     }
 
-    if (!placed) {
-      game.roster.waitlist.push({
-        userId: user._id,
-        name: user.name,
-        createdAt: new Date(),
-      });
-
-      if (await game.save()) {
-        return { added: true, suplentePos: game.roster.waitlist.length };
-      }
+    if (placed) {
+      await game.save();
+      return { added: true };
     }
-    return { added: false, suplentePos: game.roster.waitlist.length };
+
+    throw new ApiError(400, 'Não há vagas de goleiro disponíveis');
   }
 
   async giveUpFromList(
@@ -475,6 +501,7 @@ export class GameService {
           slot: removedSlot,
           userId: promovido.userId,
           name: promovido.name ?? "Jogador",
+          phoneE164: promovido.phoneE164,
           paid: false,
         };
 
@@ -510,9 +537,17 @@ export class GameService {
       }
     }
 
-    const idxWait = waitlist.findIndex(w => (w.name ?? "").toLowerCase().includes(nomeTarget));
+    const idxWait = waitlist.findIndex(w => {
+      const nameMatch = (w.name ?? "").toLowerCase().includes(nomeTarget);
+      const userIdMatch = (w.userId?._id?.toString() ?? w.userId?.toString() ?? "")
+        .toLowerCase()
+        .includes(user._id.toString());
+      return nameMatch || userIdMatch;
+    });
+
     if (idxWait > -1) {
       waitlist.splice(idxWait, 1);
+      game.markModified("roster.waitlist");
       if (await game.save()) {
         mensagemPromocao = `Ok, ${nomeAutor}, você foi removido da suplência.`;
         return { removed: true, message: mensagemPromocao }
@@ -561,6 +596,7 @@ export class GameService {
           slot,
           userId: user._id,
           name: name ?? user.name,
+          phoneE164: user.phoneE164,
           paid: false,
         });
         return { placed: true };
@@ -635,7 +671,6 @@ export class GameService {
       throw new ApiError(404, 'Game not found');
     }
 
-    // Find the player in the roster to get the slot
     const player = game.roster.players.find(p => p.userId?.toString() === playerId || p.userId?._id?.toString() === playerId);
 
     if (!player) {
@@ -684,6 +719,7 @@ export class GameService {
       const updatedPlayer = {
         name: player.name,
         userId: player.userId,
+        phoneE164: player.phoneE164,
         guest: player.guest,
         slot: player.slot,
         invitedByUserId: player.invitedByUserId,
@@ -750,7 +786,6 @@ export class GameService {
     const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
     const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
 
-    // NOVO FLUXO: Buscar débito pendente
     const pendingDebit = await this.ledgerRepo.findPendingDebitByUserAndGame(
       game.workspaceId.toString(),
       inviterId,
@@ -760,6 +795,7 @@ export class GameService {
     const updatedPlayer = {
       name: player.name,
       userId: player.userId,
+      phoneE164: player.phoneE164,
       guest: player.guest,
       slot: player.slot,
       invitedByUserId: player.invitedByUserId,
@@ -775,13 +811,8 @@ export class GameService {
 
     try {
       if (pendingDebit) {
-        // FLUXO NOVO: Confirmar débito pendente + criar crédito
-        this.loggerService.log(`[MARK-AS-PAID] Débito pendente encontrado, confirmando...`);
-
-        // 1. Confirmar o débito pendente
         await this.ledgerRepo.confirmDebit(pendingDebit._id.toString());
 
-        // 2. Criar crédito confirmado
         const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
 
         await this.ledgerRepo.addCredit({
@@ -794,10 +825,6 @@ export class GameService {
           category: "player-payment",
         });
       } else {
-        // FALLBACK: Jogo antigo sem débito pendente - criar débito confirmado + crédito
-        this.loggerService.log(`[MARK-AS-PAID] Débito pendente NÃO encontrado, usando fluxo de fallback (criar débito+crédito)`);
-
-        // 1. Criar débito confirmado
         await this.ledgerRepo.addDebit({
           workspaceId: game.workspaceId.toString(),
           userId: inviterId,
@@ -811,7 +838,6 @@ export class GameService {
           confirmedAt: now
         });
 
-        // 2. Criar crédito confirmado
         const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
 
         await this.ledgerRepo.addCredit({
@@ -825,14 +851,11 @@ export class GameService {
         });
       }
 
-      // 3. Atualizar Organizze
       const res = await this.updateMovimentacaoOrganizze(game, slot);
       if (!res.added) {
         this.loggerService.log(`[ORGANIZZE] Falha ao atualizar movimentação para slot ${slot}`);
-        // Não retorna erro, apenas loga
       }
 
-      // 4. Verificar se todos pagaram para marcar jogo como finished
       const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
       const allPaidAfter = game.roster.players
         .filter(p => (p.slot ?? 0) > goalieSlots)
@@ -850,7 +873,6 @@ export class GameService {
       creditError = e?.message ?? String(e);
       this.loggerService.log(`[MARK-AS-PAID] Falha ao processar pagamento: ${creditError}`);
 
-      // Reverter o status de paid do jogador
       game.roster.players[idx].paid = false;
       game.roster.players[idx].paidAt = undefined;
       await game.save();
@@ -1028,7 +1050,6 @@ export class GameService {
     if (!user) {
       user = await this.userModel.create({ name, phoneE164: phone });
     } else if (user.name === user.phoneE164) {
-      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
       user.name = name;
       await user.save();
     }
@@ -1055,7 +1076,6 @@ export class GameService {
     if (!user) {
       user = await this.userModel.create({ name, phoneE164: phone });
     } else if (user.name === user.phoneE164) {
-      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
       user.name = name;
       await user.save();
     }
@@ -1082,7 +1102,6 @@ export class GameService {
     if (!user) {
       user = await this.userModel.create({ name, phoneE164: phone });
     } else if (user.name === user.phoneE164) {
-      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
       user.name = name;
       await user.save();
     }
@@ -1098,7 +1117,6 @@ export class GameService {
     if (!user) {
       user = await this.userModel.create({ name: inviterName, phoneE164: inviterPhone });
     } else if (user.name === user.phoneE164) {
-      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
       user.name = inviterName;
       await user.save();
     }
@@ -1119,7 +1137,6 @@ export class GameService {
     if (!user) {
       user = await this.userModel.create({ name, phoneE164: phone });
     } else if (user.name === user.phoneE164) {
-      // Só atualiza o nome se ainda estiver com o padrão (igual ao telefone)
       user.name = name;
       await user.save();
     }
@@ -1646,9 +1663,10 @@ export class GameService {
       name: game.title ?? '',
       date: game.date.toISOString().split('T')[0],
       time: game.date.toTimeString().slice(0, 5),
+      location: game.location,
       maxPlayers: game.maxPlayers ?? 16,
       currentPlayers: game.roster.players.length,
-      pricePerPlayer: game.priceCents / 100,
+      pricePerPlayer: game.priceCents,
       status: game.status as any,
       createdAt: game.createdAt?.toISOString() || new Date().toISOString(),
     };
@@ -1659,30 +1677,30 @@ export class GameService {
    */
   async getStats(): Promise<any> {
     const total = await this.gameModel.countDocuments();
-    const scheduled = await this.gameModel.countDocuments({ status: 'scheduled' });
     const open = await this.gameModel.countDocuments({ status: 'open' });
     const closed = await this.gameModel.countDocuments({ status: 'closed' });
     const finished = await this.gameModel.countDocuments({ status: 'finished' });
     const cancelled = await this.gameModel.countDocuments({ status: 'cancelled' });
 
-    // Jogos próximos (próximos 7 dias)
     const now = new Date();
     const next7Days = new Date();
     next7Days.setDate(now.getDate() + 7);
 
     const upcoming = await this.gameModel.countDocuments({
       date: { $gte: now, $lte: next7Days },
-      status: { $in: ['scheduled', 'open'] }
+      status: { $in: ['open'] }
     });
+
+    const activePlayers = await this.userModel.countDocuments({ status: 'active' });
 
     return {
       total,
-      scheduled,
       open,
       closed,
       finished,
       cancelled,
       upcoming,
+      activePlayers,
     };
   }
 
@@ -1695,7 +1713,7 @@ export class GameService {
       throw new ApiError(404, 'Game not found');
     }
 
-    const validStatuses = ['scheduled', 'open', 'closed', 'finished', 'cancelled'];
+    const validStatuses = ['open', 'closed', 'finished', 'cancelled'];
     if (!validStatuses.includes(status)) {
       throw new ApiError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
     }

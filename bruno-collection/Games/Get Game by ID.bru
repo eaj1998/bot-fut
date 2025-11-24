@@ -7,9 +7,13 @@ meta {
 get {
   url: {{baseUrl}}/games/{{gameId}}
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }
 
 vars:pre-request {
-  gameId: 69209460fb02d0d1a5cf6086
+  gameId: 69231976ede70806c949bf11
 }

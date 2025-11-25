@@ -13,7 +13,7 @@ export class DashboardController {
      */
     getDashboard = async (req: Request, res: Response) => {
         try {
-            const workspaceId = req.query.workspaceId as string;
+            const workspaceId = req.params.workspaceId;
             const dashboard = await this.dashboardService.getDashboardStats(workspaceId);
             res.json(dashboard);
         } catch (error: any) {
@@ -30,7 +30,7 @@ export class DashboardController {
      */
     getStats = async (req: Request, res: Response) => {
         try {
-            const workspaceId = req.query.workspaceId as string;
+            const workspaceId = req.params.workspaceId;
             const stats = await this.dashboardService.getStats(workspaceId);
             res.json(stats);
         } catch (error: any) {

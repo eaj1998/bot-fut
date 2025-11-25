@@ -7,14 +7,18 @@ meta {
 get {
   url: {{baseUrl}}/debts
   body: none
-  auth: none
+  auth: bearer
 }
 
-query {
+params:query {
   ~page: 1
   ~limit: 20
   ~status: 
   ~playerId: 
   ~gameId: 
   ~workspaceId: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }

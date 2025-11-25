@@ -1,4 +1,4 @@
-const groupId = '1203634207204328422@g.us';
+const groupId = '120363146006960373@g.us';
 const groupId2 = '999999999999999999@g.us';
 const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', groupId: groupId },
 { id: 2, name: 'Edipão', phone: '5549992007299@c.us', groupId: groupId },
@@ -20,25 +20,26 @@ const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', group
 { id: 18, name: 'Andrei', phone: '+5541992877665', groupId: groupId },]
 
 const USERS = [
-  { id: 1, name: 'Luquinhas', phone: '+55499213861239@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 2, name: 'Edipão', phone: '+5549992007299@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 3, name: 'Mikelongelo', phone: '+554187770278@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 4, name: 'Sabrina', phone: '+5547998542231@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 5, name: 'Vitinho', phone: '+5547997334122@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 6, name: 'Carlinhos', phone: '+5548998893012@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 7, name: 'Joãozinho', phone: '+5547988776655@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 8, name: 'Pedrão', phone: '+5547999123456@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 9, name: 'Tainá', phone: '+5548998456723@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 10, name: 'Aninha', phone: '+5547998012345@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 11, name: 'Felipão', phone: '+5541999123456@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 12, name: 'Gui', phone: '+5547999456123@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 13, name: 'Léo', phone: '+5548999654321@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 14, name: 'Biel', phone: '+5541999988776@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 15, name: 'Thay', phone: '+5547999332211@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 16, name: 'Rafa', phone: '+5541998877665@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 17, name: 'Val', phone: '+5541998877265@c.us', groupId: groupId, participants: PARTICIPANTS },
-  { id: 18, name: 'Andrei', phone: '+5541992877665@c.us', groupId: groupId, participants: PARTICIPANTS },
+  { id: 2, name: 'Edipão', phone: '554992007299', groupId: groupId },
+  { id: 1, name: 'Luquinhas', phone: '554588258516', groupId: groupId },
+  { id: 3, name: 'Mikelongelo', phone: '554992007299', groupId: groupId },
+  { id: 4, name: 'Sabrina', phone: '554998126478', groupId: groupId },
+  { id: 5, name: 'Vitinho', phone: '554988334847', groupId: groupId },
+  { id: 6, name: 'Carlinhos', phone: '555184240591', groupId: groupId },
+  { id: 7, name: 'Joãozinho', phone: '554999656215', groupId: groupId },
+  { id: 8, name: 'Pedrão', phone: '554988944669', groupId: groupId },
+  { id: 9, name: 'Tainá', phone: '554998218945', groupId: groupId },
+  { id: 10, name: 'Aninha', phone: '554999110988', groupId: groupId },
+  { id: 11, name: 'Felipão', phone: '554988416153', groupId: groupId },
+  { id: 12, name: 'Gui', phone: '554999431216', groupId: groupId },
+  { id: 13, name: 'Léo', phone: '554988575147', groupId: groupId },
+  { id: 14, name: 'Biel', phone: '554991877406', groupId: groupId },
+  { id: 15, name: 'Thay', phone: '555596179905', groupId: groupId },
+  { id: 16, name: 'Rafa', phone: '554989137227', groupId: groupId },
+  { id: 17, name: 'Val', phone: '554991072330', groupId: groupId },
+  { id: 18, name: 'Andrei', phone: '554988166996', groupId: groupId },
 ];
+
 
 
 const STATE = {

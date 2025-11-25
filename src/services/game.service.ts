@@ -665,26 +665,22 @@ export class GameService {
     return { placed: false, finalName: label, role: "outfield" };
   }
 
-  async markPayment(gameId: string, playerId: string, isPaid: boolean): Promise<void> {
+  async markPayment(gameId: string, slot: number, isPaid: boolean): Promise<void> {
     const game = await this.gameModel.findById(gameId).exec();
     if (!game) {
-      throw new ApiError(404, 'Game not found');
+      throw new ApiError(404, 'Jogo não encontrado');
     }
 
-    const player = game.roster.players.find(p => p.userId?.toString() === playerId || p.userId?._id?.toString() === playerId);
+    const player = game.roster.players.find(p => p.slot === slot);
 
     if (!player) {
-      throw new ApiError(404, 'Player not found in game');
-    }
-
-    if (typeof player.slot !== 'number') {
-      throw new ApiError(400, 'Player has no valid slot');
+      throw new ApiError(404, 'Jogador não encontrado no slot especificado');
     }
 
     if (isPaid) {
-      await this.markAsPaid(game._id, player.slot);
+      await this.markAsPaid(game._id, slot);
     } else {
-      await this.unmarkAsPaid(game, player.slot);
+      await this.unmarkAsPaid(game, slot);
     }
   }
 

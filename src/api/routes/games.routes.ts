@@ -451,7 +451,7 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
 
 /**
  * @swagger
- * /api/games/{gameId}/players/{playerId}/payment:
+ * /api/games/{gameId}/players/{slot}/payment:
  *   patch:
  *     summary: Marca/desmarca pagamento de jogador
  *     description: |
@@ -467,6 +467,9 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
  *       2. Confirma o débito pendente
  *       3. Cria crédito confirmado
  *       4. Atualiza saldo do usuário
+ *       
+ *       **Importante:** Use o **slot** do jogador, não o userId. O slot identifica
+ *       inequivocamente o jogador na lista, mesmo quando há convidados.
  *     tags: [Games]
  *     security:
  *       - bearerAuth: []
@@ -478,11 +481,11 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
  *           type: string
  *         description: ID do jogo
  *       - in: path
- *         name: playerId
+ *         name: slot
  *         required: true
  *         schema:
- *           type: string
- *         description: ID do jogador (userId)
+ *           type: integer
+ *         description: Número do slot do jogador na lista (1, 2, 3, etc.)
  *     requestBody:
  *       required: true
  *       content:
@@ -509,12 +512,12 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Payment marked"
+ *                   example: "Pagamento marcado com sucesso"
  *       404:
  *         description: Jogo ou jogador não encontrado
  *       401:
  *         description: Não autenticado
  */
-router.patch('/:gameId/players/:playerId/payment', controller.markPayment);
+router.patch('/:gameId/players/:slot/payment', controller.markPayment);
 
 export default router;

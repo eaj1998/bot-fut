@@ -12,12 +12,14 @@ export interface DashboardStatsDto {
     totalGames: number;
     upcomingGames: number;
     completedGames: number;
-    totalDebt: number;
+    totalDebt: number;           // Em centavos
     totalPending: number;
     totalOverdue: number;
-    paidThisMonth: number;
-    revenue: number;
-    revenueGrowth: number;
+    paidThisMonth: number;       // Em centavos
+    revenue: number;             // Em centavos
+    balance: number;             // Em centavos (créditos - débitos)
+    receivables: number;         // Em centavos (débitos pendentes)
+    revenueGrowth: number;       // Percentual
     totalWorkspaces: number;
     activeWorkspaces: number;
     totalChats: number;
@@ -42,7 +44,7 @@ export interface RecentGame {
 export interface RecentDebt {
     id: string;
     playerName: string;
-    amount: number;
+    amount: number;              // Em centavos
     status: string;
     createdAt: string;
 }
@@ -52,7 +54,7 @@ export interface RecentDebt {
  */
 export interface MonthlyRevenue {
     month: string;
-    value: number;
+    value: number;               // Em centavos
 }
 
 /**

@@ -91,6 +91,7 @@ export interface DebtsStatsDto {
     totalOverdueAmount: number;
     thisMonth: number;
     thisMonthAmount: number;
+    totalDebitsAmount: number;  // Total de débitos (pendentes + confirmados)
 }
 
 /**

@@ -16,9 +16,9 @@ const UserSchema = new Schema({
     name: { type: String, required: true },
     phoneE164: { type: String, required: true, unique: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
-    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     nick: String,
     isGoalie: { type: Boolean, default: false },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
 }, { timestamps: true });
 
 export const UserModel: Model<IUser> = model<IUser>("User", UserSchema);

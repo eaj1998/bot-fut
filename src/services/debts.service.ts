@@ -206,44 +206,48 @@ export class DebtsService {
         });
     }
 
-    /**
-     * Obtém estatísticas de débitos
-     */
     async getStats(workspaceId?: string): Promise<DebtsStatsDto> {
-        const query: any = { type: 'debit' };
+        const query: any = {};
         if (workspaceId) {
             query.workspaceId = new Types.ObjectId(workspaceId);
         }
 
-        const allDebts = await this.ledgerRepository['model'].find(query).lean();
-        const debtsDto = await Promise.all(allDebts.map(d => this.toResponseDto(d)));
+        const allLedgers = await this.ledgerRepository['model'].find(query).lean();
 
-        const pending = debtsDto.filter(d => d.status === 'pendente');
-        const paid = debtsDto.filter(d => d.status === 'confirmado');
+        const debits = allLedgers.filter(l => l.type === 'debit');
+        const credits = allLedgers.filter(l => l.type === 'credit' && l.status === 'confirmado');
+        const debitsDto = await Promise.all(debits.map(d => this.toResponseDto(d)));
+
+        const pending = debitsDto.filter(d => d.status === 'pendente');
+        const paid = debitsDto.filter(d => d.status === 'confirmado');
 
         const fiveDaysAgo = new Date();
         fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-        const overdue = debtsDto.filter(d => {
+        const overdue = debitsDto.filter(d => {
             if (d.status !== 'pendente') return false;
             const createdDate = new Date(d.createdAt);
             return createdDate < fiveDaysAgo;
         });
 
-        const thisMonth = debtsDto.filter(d => {
+        const thisMonth = debitsDto.filter(d => {
             const date = new Date(d.createdAt);
             const now = new Date();
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         });
 
+        const totalDebitsAmount = debits.reduce((sum, d) => sum + d.amountCents, 0);
+        const totalCreditsAmount = credits.reduce((sum, c) => sum + c.amountCents, 0);
+
         return {
             totalPending: pending.length,
-            totalPendingAmount: pending.reduce((sum, d) => sum + d.amount, 0),
+            totalPendingAmount: pending.reduce((sum, d) => sum + d.amountCents, 0),
             totalPaid: paid.length,
-            totalPaidAmount: paid.reduce((sum, d) => sum + d.amount, 0),
+            totalPaidAmount: totalCreditsAmount,
             totalOverdue: overdue.length,
-            totalOverdueAmount: overdue.reduce((sum, d) => sum + d.amount, 0),
+            totalOverdueAmount: overdue.reduce((sum, d) => sum + d.amountCents, 0),
             thisMonth: thisMonth.length,
-            thisMonthAmount: thisMonth.reduce((sum, d) => sum + d.amount, 0),
+            thisMonthAmount: thisMonth.reduce((sum, d) => sum + d.amountCents, 0),
+            totalDebitsAmount,
         };
     }
 

@@ -67,6 +67,15 @@ export default class Utils {
       normalized = '55' + normalized;
     }
 
+    if (normalized.length === 14 && normalized.startsWith('55')) {
+      const ddd = normalized.substring(2, 4);
+      const number = normalized.substring(4);
+
+      if (number.length === 10 && number.startsWith('9')) {
+        normalized = '55' + ddd + number.substring(1);
+      }
+    }
+
     return normalized;
   }
 }

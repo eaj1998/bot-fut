@@ -11,17 +11,18 @@ router.use(authenticate);
 
 /**
  * @swagger
- * /api/dashboard:
+ * /api/dashboard/{workspaceId}:
  *   get:
  *     summary: Obtém dados completos do dashboard
- *     description: Retorna estatísticas agregadas e dados recentes de todos os módulos
+ *     description: Retorna estatísticas agregadas e dados recentes de todos os módulos para um workspace específico
  *     tags: [Dashboard]
  *     parameters:
- *       - in: query
+ *       - in: path
  *         name: workspaceId
+ *         required: true
  *         schema:
  *           type: string
- *         description: Filtrar por workspace específico
+ *         description: ID do workspace
  *     responses:
  *       200:
  *         description: Dados do dashboard retornados com sucesso
@@ -76,21 +77,22 @@ router.use(authenticate);
  *                       value:
  *                         type: number
  */
-router.get('/', controller.getDashboard);
+router.get('/:workspaceId', controller.getDashboard);
 
 /**
  * @swagger
- * /api/dashboard/stats:
+ * /api/dashboard/{workspaceId}/stats:
  *   get:
  *     summary: Obtém apenas estatísticas do dashboard
- *     description: Retorna estatísticas agregadas sem dados adicionais
+ *     description: Retorna estatísticas agregadas sem dados adicionais para um workspace específico
  *     tags: [Dashboard]
  *     parameters:
- *       - in: query
+ *       - in: path
  *         name: workspaceId
+ *         required: true
  *         schema:
  *           type: string
- *         description: Filtrar por workspace específico
+ *         description: ID do workspace
  *     responses:
  *       200:
  *         description: Estatísticas retornadas com sucesso
@@ -99,6 +101,6 @@ router.get('/', controller.getDashboard);
  *             schema:
  *               $ref: '#/components/schemas/DashboardStatsDto'
  */
-router.get('/stats', controller.getStats);
+router.get('/:workspaceId/stats', controller.getStats);
 
 export default router;

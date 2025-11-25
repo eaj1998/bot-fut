@@ -4,6 +4,7 @@ import { GameService } from './game.service';
 import { DebtsService, DEBTS_SERVICE_TOKEN } from './debts.service';
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from './workspace.service';
 import { ChatService, CHATS_SERVICE_TOKEN } from './chat.service';
+import { LedgerRepository, LEDGER_REPOSITORY_TOKEN } from '../core/repositories/ledger.repository';
 import {
     DashboardResponseDto,
     DashboardStatsDto,
@@ -19,7 +20,8 @@ export class DashboardService {
         @inject(GameService) private readonly gameService: GameService,
         @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
         @inject(WORKSPACES_SERVICE_TOKEN) private readonly workspaceService: WorkspaceService,
-        @inject(CHATS_SERVICE_TOKEN) private readonly chatService: ChatService
+        @inject(CHATS_SERVICE_TOKEN) private readonly chatService: ChatService,
+        @inject(LEDGER_REPOSITORY_TOKEN) private readonly ledgerRepository: LedgerRepository
     ) { }
 
     /**
@@ -40,6 +42,16 @@ export class DashboardService {
             this.chatService.getStats(),
         ]);
 
+
+        let balance = 0;
+        let receivables = 0;
+
+        if (workspaceId) {
+            balance = await this.ledgerRepository.sumWorkspaceCashbox(workspaceId);
+
+            receivables = debtsStats.totalPendingAmount;
+        }
+
         const stats: DashboardStatsDto = {
             totalPlayers: playersStats.total,
             activePlayers: playersStats.active,
@@ -52,6 +64,8 @@ export class DashboardService {
             totalOverdue: debtsStats.totalOverdue,
             paidThisMonth: debtsStats.thisMonthAmount,
             revenue: debtsStats.totalPaidAmount,
+            balance,
+            receivables,
             revenueGrowth: await this.calculateRevenueGrowth(workspaceId),
             totalWorkspaces: workspacesStats.totalWorkspaces,
             activeWorkspaces: workspacesStats.activeWorkspaces,
@@ -112,7 +126,9 @@ export class DashboardService {
         return result.debts.map(debt => ({
             id: debt.id,
             playerName: debt.playerName,
-            amount: debt.amount,
+            notes: debt.notes,
+            category: debt.category,
+            amount: debt.amountCents,
             status: debt.status,
             createdAt: debt.createdAt,
         }));
@@ -132,12 +148,13 @@ export class DashboardService {
             const month = monthNames[date.getMonth()];
 
             // TODO: Implementar cálculo real de receita por mês
-            // Por enquanto, retorna dados mockados
-            const value = 12000 + Math.random() * 4000;
+            // Por enquanto, retorna dados mockados em centavos
+            const valueInReais = 12000 + Math.random() * 4000;
+            const valueInCents = Math.round(valueInReais * 100);
 
             monthlyData.push({
                 month,
-                value: Math.round(value),
+                value: valueInCents,  // Valor em centavos
             });
         }
 

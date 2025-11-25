@@ -94,8 +94,6 @@ export class AuthService {
             })
             .exec();
 
-        console.log(`otp`, otp);
-
         if (!otp) {
             await this.otpModel.updateOne(
                 { phone: normalizedPhone, verified: false },

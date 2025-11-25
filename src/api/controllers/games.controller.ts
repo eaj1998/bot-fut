@@ -112,14 +112,14 @@ export class GamesController {
   });
 
   markPayment = asyncHandler(async (req: Request, res: Response) => {
-    const { gameId, playerId } = req.params;
+    const { gameId, slot } = req.params;
     const { isPaid }: MarkPaymentDto = req.body;
 
-    await this.gameService.markPayment(gameId, playerId, isPaid);
+    await this.gameService.markPayment(gameId, parseInt(slot), isPaid);
 
     res.json({
       success: true,
-      message: `Payment ${isPaid ? 'marked' : 'unmarked'}`,
+      message: `Pagamento ${isPaid ? 'marcado' : 'desmarcado'} com sucesso`,
     });
   });
 

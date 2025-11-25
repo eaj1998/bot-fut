@@ -6,13 +6,13 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Script de migração para adicionar campo 'status' aos usuários existentes
- * Execução: npx ts-node scripts/migrate-user-status.ts
+ * Script de migração para adicionar campo 'role' aos usuários existentes
+ * Execução: npx ts-node scripts/migrate-user-role.ts
  */
-async function migrateUserStatus() {
+async function migrateUserRole() {
     try {
-        const mongoUri = process.env.MONGO_URI;
-        const mongoDb = process.env.MONGO_DB;
+        const mongoUri = '';
+        const mongoDb = '';
 
         if (!mongoUri || !mongoDb) {
             console.error('❌ Erro: MONGO_URI ou MONGO_DB não definidos no .env');
@@ -24,25 +24,31 @@ async function migrateUserStatus() {
         await mongoose.connect(mongoUri, {
             dbName: mongoDb
         } as any);
+
         console.log('✅ Conectado ao MongoDB');
 
         const result = await UserModel.updateMany(
+            { role: { $exists: false } },
+            { $set: { role: 'user' } }
+        );
+
+        const result2 = await UserModel.updateMany(
             { status: { $exists: false } },
             { $set: { status: 'active' } }
         );
 
-        console.log(`✅ Migração concluída!`);
+        console.log(`\n✅ Migração concluída!`);
         console.log(`   - Usuários atualizados: ${result.modifiedCount}`);
         console.log(`   - Usuários encontrados: ${result.matchedCount}`);
 
         const totalUsers = await UserModel.countDocuments();
-        const activeUsers = await UserModel.countDocuments({ status: 'active' });
-        const inactiveUsers = await UserModel.countDocuments({ status: 'inactive' });
+        const roleUser = await UserModel.countDocuments({ role: 'user' });
+        const roleAdmin = await UserModel.countDocuments({ role: 'admin' });
 
         console.log(`\n📊 Estatísticas após migração:`);
         console.log(`   - Total de usuários: ${totalUsers}`);
-        console.log(`   - Usuários ativos: ${activeUsers}`);
-        console.log(`   - Usuários inativos: ${inactiveUsers}`);
+        console.log(`   - Usuários com role 'user': ${roleUser}`);
+        console.log(`   - Usuários com role 'admin': ${roleAdmin}`);
 
     } catch (error) {
         console.error('❌ Erro na migração:', error);
@@ -54,5 +60,4 @@ async function migrateUserStatus() {
     }
 }
 
-// Executar migração
-migrateUserStatus();
+migrateUserRole();

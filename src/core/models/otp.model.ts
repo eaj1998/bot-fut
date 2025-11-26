@@ -11,30 +11,29 @@ export interface IOtp extends Document {
 
 const otpSchema = new Schema<IOtp>(
   {
-    phone: { 
-      type: String, 
+    phone: {
+      type: String,
       required: true,
       index: true,
     },
-    code: { 
-      type: String, 
+    code: {
+      type: String,
       required: true,
     },
-    expiresAt: { 
-      type: Date, 
+    expiresAt: {
+      type: Date,
       required: true,
-      index: true,
     },
-    verified: { 
-      type: Boolean, 
+    verified: {
+      type: Boolean,
       default: false,
     },
-    attempts: { 
-      type: Number, 
+    attempts: {
+      type: Number,
       default: 0,
     },
   },
-  { 
+  {
     timestamps: true,
   },
 );

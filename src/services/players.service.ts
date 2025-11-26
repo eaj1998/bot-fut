@@ -24,7 +24,7 @@ export class PlayersService {
      */
     private async toResponseDto(user: any): Promise<PlayerResponseDto> {
         const balance = await this.ledgerRepository.getBalance(user._id);
-        const debts = await this.ledgerRepository.findByUserId(user._id);
+        const debts = await this.ledgerRepository.findDebtsByUserId(user._id);
         const totalDebt = debts
             .filter(d => d.type === 'debit' && d.status === 'pendente')
             .reduce((sum, d) => sum + d.amountCents, 0);
@@ -37,7 +37,7 @@ export class PlayersService {
             cpf: '',
             nick: user.nick || '',
             isGoalie: user.isGoalie || false,
-            status: 'active',
+            status: user.status || 'active',
             balance: balance / 100,
             totalDebt: totalDebt / 100,
             role: user.role || 'user',
@@ -58,12 +58,19 @@ export class PlayersService {
             users.map((user) => this.toResponseDto(user))
         );
 
+        const activeCount = players.filter(p => p.status === 'active').length;
+        const inactiveCount = players.filter(p => p.status === 'inactive').length;
+        const withDebtsCount = players.filter(p => p.totalDebt > 0).length;
+
         return {
             players,
             total,
             page: filters.page || 1,
             totalPages: Math.ceil(total / (filters.limit || 20)),
             limit: filters.limit || 20,
+            activeCount,
+            withDebtsCount,
+            inactiveCount,
         };
     }
 

@@ -40,7 +40,6 @@ export class UserRepository {
         sortOrder?: 'asc' | 'desc';
     }) {
         const { status, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = filters;
-        console.log('filtros', filters);
         const query: any = {};
 
         if (status) {

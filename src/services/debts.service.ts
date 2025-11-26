@@ -3,6 +3,7 @@ import { LedgerRepository, LEDGER_REPOSITORY_TOKEN } from '../core/repositories/
 import { USER_REPOSITORY_TOKEN, UserRepository } from '../core/repositories/user.repository';
 import { GameRepository, GAME_REPOSITORY_TOKEN } from '../core/repositories/game.respository';
 import { WhatsAppService } from './whatsapp.service';
+import { GameService } from './game.service';
 import {
     CreateDebtDto,
     UpdateDebtDto,
@@ -22,7 +23,8 @@ export class DebtsService {
         @inject(LEDGER_REPOSITORY_TOKEN) private readonly ledgerRepository: LedgerRepository,
         @inject(USER_REPOSITORY_TOKEN) private readonly userRepository: UserRepository,
         @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository,
-        @inject(WhatsAppService) private readonly whatsappService: WhatsAppService
+        @inject(WhatsAppService) private readonly whatsappService: WhatsAppService,
+        @inject(GameService) private readonly gameService: GameService
     ) { }
 
     /**
@@ -92,6 +94,9 @@ export class DebtsService {
             category: data.category || 'player-debt',
             method: 'pix',
         });
+
+        // Recalcula o saldo do jogador
+        await this.ledgerRepository.recomputeUserBalance(data.workspaceId, data.playerId);
 
         const ledgers = await this.ledgerRepository.findByUserId(new Types.ObjectId(data.playerId));
         const lastDebit = ledgers.find(l => l.type === 'debit');
@@ -189,6 +194,8 @@ export class DebtsService {
             status: 'confirmado',
             confirmedAt: new Date(),
         });
+
+        await this.ledgerRepository.recomputeUserBalance(ledger.workspaceId.toString(), ledger.userId!.toString());
 
         return this.getDebtById(id);
     }

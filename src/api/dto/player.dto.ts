@@ -69,6 +69,9 @@ export interface PaginatedPlayersResponseDto {
     page: number;
     totalPages: number;
     limit: number;
+    activeCount: number;
+    withDebtsCount: number;
+    inactiveCount: number;
 }
 
 /**

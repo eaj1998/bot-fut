@@ -67,12 +67,25 @@ router.use(authenticate);
  *                     $ref: '#/components/schemas/PlayerResponseDto'
  *                 total:
  *                   type: integer
+ *                   description: Total de jogadores (considerando filtros)
  *                 page:
  *                   type: integer
+ *                   description: Página atual
  *                 totalPages:
  *                   type: integer
+ *                   description: Total de páginas
  *                 limit:
  *                   type: integer
+ *                   description: Itens por página
+ *                 activeCount:
+ *                   type: integer
+ *                   description: Quantidade de jogadores ativos na página atual
+ *                 withDebtsCount:
+ *                   type: integer
+ *                   description: Quantidade de jogadores com débitos na página atual
+ *                 inactiveCount:
+ *                   type: integer
+ *                   description: Quantidade de jogadores inativos na página atual
  */
 router.get('/', controller.listPlayers);
 

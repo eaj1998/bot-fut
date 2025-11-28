@@ -4,7 +4,7 @@ import { ConfigService } from "../config/config.service";
 
 @singleton()
 export class AuthService {
-  constructor(@inject(ConfigService) private readonly config: ConfigService) {}
+  constructor(@inject(ConfigService) private readonly config: ConfigService) { }
 
   async isAdmin(message: Message): Promise<boolean> {
     const adminNumbers = this.config.whatsApp.adminNumbers ?? [];
@@ -12,9 +12,21 @@ export class AuthService {
       return false;
     }
 
-    const contact = await message.getContact();
-    const contactId = contact.id?._serialized ?? message.author ?? message.from;
+    const id = await this.resolveContactId(message);
+    return !!id && adminNumbers.includes(id);
+  }
 
-    return !!contactId && adminNumbers.includes(contactId);
+  private async resolveContactId(message: Message): Promise<string | null> {
+    try {
+      const contact = await message.getContact();
+      const serialized = contact.id?._serialized;
+      if (serialized) {
+        return serialized;
+      }
+    } catch {
+      // ignora falha do WhatsApp Business
+    }
+
+    return message.author ?? message.from ?? null;
   }
 }

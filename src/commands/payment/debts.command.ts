@@ -27,8 +27,7 @@ export class DebtsCommand implements Command {
         const [, ...args] = message.body.trim().split(/\s+/);
         const slug = (args[0] || "");
 
-        const contact = await message.getContact();
-        const user = await this.userRepo.findByPhoneE164(contact.id._serialized);
+        const user = await this.userRepo.findByPhoneE164(message.from);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;

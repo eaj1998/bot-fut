@@ -7,6 +7,7 @@ import { LoggerService } from './logger/logger.service';
 import { CommandFactory } from './commands/command.factory';
 import qrcode from 'qrcode-terminal';
 import { IRole } from './commands/type';
+import { AuthService } from './services/auth.service';
 
 @singleton()
 @registry([
@@ -26,7 +27,8 @@ export class App {
   constructor(
     @inject(BOT_SERVER_TOKEN) private readonly server: IBotServerPort,
     @inject(LoggerService) private readonly loggerService: LoggerService,
-    @inject(CommandFactory) private readonly commandFactory: CommandFactory
+    @inject(CommandFactory) private readonly commandFactory: CommandFactory,
+     @inject(AuthService) private readonly authService: AuthService
   ) {
     loggerService.setName('App');
   }
@@ -68,7 +70,8 @@ export class App {
         return;
       }
 
-      const isAdmin = true;
+      const isAdmin = await this.authService.isAdmin(message);
+      
       if (handler.role === IRole.ADMIN && !isAdmin) {
         return;
       }

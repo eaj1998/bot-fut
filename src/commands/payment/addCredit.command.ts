@@ -31,8 +31,7 @@ export class AddCreditCommand implements Command {
         const parts = message.body.trim().split(/\s+/);
         const [, slug, amount] = parts;
 
-        const contact = await message.getContact();
-        const user = await this.userRepo.findByPhoneE164(contact.id._serialized);
+        const user = await this.userRepo.findByPhoneE164(message.from);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;
@@ -47,7 +46,7 @@ export class AddCreditCommand implements Command {
 
             const amountCents = Utils.parsePriceToCents(amount);
 
-            if (amountCents!= null && amountCents > 0) {
+            if (amountCents != null && amountCents > 0) {
                 console.log(`amount`, amountCents);
                 try {
                     await this.ledgerRepo.addCredit({

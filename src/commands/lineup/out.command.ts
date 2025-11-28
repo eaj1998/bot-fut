@@ -38,8 +38,7 @@ export class OutCommand implements Command {
         if (!game.roster) (game as any).roster = { goalieSlots: 2, players: [], waitlist: [], outlist: [] };
         const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
         const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
-        const author = await message.getContact();
-        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
+        const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
 
         const userIdStr = user._id.toString();
         const inMain = players.some(p => p.userId?._id.toString() === userIdStr);

@@ -22,11 +22,10 @@ export class GiveUpCommand implements Command {
 
     async handle(message: Message): Promise<void> {
         let nomeAutor = ""
-        const author = await message.getContact();
         const nomeConvidado = this.lineupSvc.argsFromMessage(message).join(" ").trim();
         if (nomeConvidado) nomeAutor = nomeConvidado;
 
-        const groupId = message.from;        
+        const groupId = message.from;
 
         const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
         if (!workspace) {
@@ -41,8 +40,8 @@ export class GiveUpCommand implements Command {
         ) as GameDoc | null;
         if (!game) return;
 
-        const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");        
-        
+        const user = await this.userRepo.upsertByPhone(message.from, nomeConvidado || "Jogador");
+
         const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor);
         if (!res.removed) {
             await this.server.sendMessage(message.from, res.message);

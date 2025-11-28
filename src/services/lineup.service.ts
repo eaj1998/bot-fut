@@ -87,10 +87,7 @@ export class LineUpService {
   ) { }
 
   async getAuthorName(message: Message): Promise<string> {
-    const contato = await message.getContact();
     return (
-      contato.pushname ??
-      contato.name ??
       message.author?.split("@")[0] ??
       "Desconhecido"
     );
@@ -118,7 +115,7 @@ export class LineUpService {
             const targetUserId =
               player.guest
                 ? player.invitedByUserId?.toString()
-                : player.userId?.toString();            
+                : player.userId?.toString();
 
             if (!targetUserId) {
               // Pagamento sem dono, tratado como erro de lancamento

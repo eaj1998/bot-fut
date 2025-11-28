@@ -17,16 +17,6 @@ export class AuthService {
   }
 
   private async resolveContactId(message: Message): Promise<string | null> {
-    try {
-      const contact = await message.getContact();
-      const serialized = contact.id?._serialized;
-      if (serialized) {
-        return serialized;
-      }
-    } catch {
-      // ignora falha do WhatsApp Business
-    }
-
     return message.author ?? message.from ?? null;
   }
 }

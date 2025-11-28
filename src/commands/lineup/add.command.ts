@@ -23,8 +23,6 @@ export class LineUpAddCommand implements Command {
     const groupId = message.from;
     const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
-    const author = await message.getContact();
-
     if (!workspace) {
       await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
       return;
@@ -37,7 +35,7 @@ export class LineUpAddCommand implements Command {
       return;
     }
 
-    const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
+    const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
 
     this.lineupSvc.pullFromOutlist(game, user);
 

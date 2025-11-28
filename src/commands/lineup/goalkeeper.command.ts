@@ -23,8 +23,6 @@ export class GoalKeeperAddCommand implements Command {
     const groupId = message.from;
     const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
-    const author = await message.getContact();
-
     if (!workspace) {
       await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
       return;
@@ -36,8 +34,8 @@ export class GoalKeeperAddCommand implements Command {
       await message.reply("Nenhum jogo agendado encontrado para este grupo.");
       return;
     }
-    
-    const user = await this.userRepo.upsertByPhone(author.id._serialized, author.pushname || author.name || "Jogador");
+
+    const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
 
     if (this.lineupSvc.alreadyInList(game.roster, user)) {
       await message.reply("Você já está na lista!");

@@ -138,6 +138,13 @@ export class DebtsService {
             allDebts.map((debt) => this.toResponseDto(debt))
         );
 
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const overdue = debtsDto.filter(d => d.status === 'pendente' && new Date(d.createdAt) < sevenDaysAgo).length;
+        const debtsMonth = debtsDto.filter(d => d.createdAt >= new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString()).length;
+        const pendingAmount = debtsDto.filter(d => d.status === 'pendente').reduce((acc, debt) => acc + debt.amount, 0);
+        const paidAmount = debtsDto.filter(d => d.status === 'confirmado').reduce((acc, debt) => acc + debt.amount, 0);
+
         let filteredDebts = debtsDto;
         if (filters.status && filters.status !== 'all') {
             filteredDebts = debtsDto.filter(d => d.status === filters.status);
@@ -149,6 +156,10 @@ export class DebtsService {
 
         return {
             debts: paginatedDebts,
+            overdue,
+            debtsMonth,
+            pendingAmount,
+            paidAmount,
             total,
             page,
             totalPages: Math.ceil(total / limit),

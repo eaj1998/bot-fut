@@ -73,6 +73,10 @@ export interface ListDebtsDto {
  */
 export interface PaginatedDebtsResponseDto {
     debts: DebtResponseDto[];
+    overdue: number;
+    debtsMonth: number;
+    pendingAmount: number;
+    paidAmount: number;
     total: number;
     page: number;
     totalPages: number;

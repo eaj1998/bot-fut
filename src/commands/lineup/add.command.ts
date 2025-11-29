@@ -6,6 +6,7 @@ import { LineUpService } from '../../services/lineup.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { GameRepository } from '../../core/repositories/game.respository';
 import { UserRepository } from '../../core/repositories/user.repository';
+import { getUserNameFromMessage } from '../../utils/message';
 
 @injectable()
 export class LineUpAddCommand implements Command {
@@ -21,6 +22,7 @@ export class LineUpAddCommand implements Command {
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
+    console.log('groupId', groupId);
     const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
     if (!workspace) {
@@ -35,7 +37,8 @@ export class LineUpAddCommand implements Command {
       return;
     }
 
-    const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
+    const userName = await getUserNameFromMessage(message);
+    const user = await this.userRepo.upsertByPhone(message.author ?? message.from, userName);
 
     this.lineupSvc.pullFromOutlist(game, user);
 

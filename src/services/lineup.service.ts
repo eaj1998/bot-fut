@@ -422,7 +422,7 @@ export class LineUpService {
     }
 
     const payload = {
-      description: `${player.name} - Jogo ${formatDateBR(dataDoJogo)}`,
+      description: `${player.name} - Jogo ${formatDateBR(dataDoJogo)} - Slot: ${player.slot}`,
       amount_cents: amountCents,
       date: todayISOyyyy_mm_dd(),
       account_id: accountId,

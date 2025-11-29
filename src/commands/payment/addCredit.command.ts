@@ -8,6 +8,7 @@ import { UserRepository } from "../../core/repositories/user.repository";
 import { LedgerRepository } from "../../core/repositories/ledger.repository";
 import { LoggerService } from "../../logger/logger.service";
 import Utils from "../../utils/utils";
+import { OrganizzeService } from "../../services/organizze.service";
 
 @injectable()
 export class AddCreditCommand implements Command {
@@ -20,6 +21,7 @@ export class AddCreditCommand implements Command {
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
         @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
 
@@ -31,7 +33,7 @@ export class AddCreditCommand implements Command {
         const parts = message.body.trim().split(/\s+/);
         const [, slug, amount] = parts;
 
-        const user = await this.userRepo.findByPhoneE164(message.from);
+        const user = await this.userRepo.findByPhoneE164(message.author ?? message.from);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;
@@ -58,10 +60,23 @@ export class AddCreditCommand implements Command {
                         category: "general"
                     });
 
-                    message.reply(`Credito adicionado com sucesso!`);
+                    // Create Organizze transaction
+                    const organizzeResult = await this.organizzeService.createTransaction({
+                        description: `Crédito adicionado - ${user.name} - ${workspace.name}`,
+                        amountCents: amountCents,
+                        categoryId: 155929474,
+                        paid: true
+                    });
+
+                    if (organizzeResult.added) {
+                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado com sucesso no ledger e Organizze!`);
+                    } else {
+                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
+                    }
 
                 } catch (e: any) {
-                    this.loggerService.log(`[GUEST-PAID] Falha ao creditar convidador: ${e}`);
+                    this.loggerService.log(`[ADD-CREDIT] Falha ao creditar: ${e}`);
+                    message.reply(`Erro ao adicionar crédito, tente novamente mais tarde.`);
                 }
             }
 

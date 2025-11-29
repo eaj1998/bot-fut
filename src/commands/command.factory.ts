@@ -21,13 +21,14 @@ import { WorkspaceBalanceCommand } from './payment/workspaceBalance.command';
 import { PayFieldCommand } from './payment/payField.command';
 import { AddCreditCommand } from './payment/addCredit.command';
 import { AddDebitCommand } from './payment/addDebit.command';
+import { RandomizeTeamsCommand } from './lineup/randomizeTeams.command';
 
 @injectable()
 export class CommandFactory {
   public create(command: string): Command | undefined {
     console.log('command', command);
 
-    switch(command) { 
+    switch (command) {
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);
@@ -49,6 +50,7 @@ export class CommandFactory {
       case '/bind': return container.resolve(BindCommand);
       case '/fechar': return container.resolve(CloseCommand);
       case '/cancelar': return container.resolve(CancelCommand);
+      case '/times': return container.resolve(RandomizeTeamsCommand);
 
       default: return undefined;
     }

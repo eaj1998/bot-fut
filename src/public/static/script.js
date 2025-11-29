@@ -1,5 +1,5 @@
-const groupId = '120363420720432842@g.us';
-const groupId2 = '999999999999999999@g.us';
+const groupId = '120363374853351602@g.us';
+const groupId2 = '120363420720432842@g.us';
 const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', groupId: groupId },
 { id: 2, name: 'Edipão', phone: '554992007299@c.us', groupId: groupId },
 { id: 3, name: 'Mikelongelo', phone: '+554187770278', groupId: groupId },
@@ -20,7 +20,7 @@ const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', group
 { id: 18, name: 'Andrei', phone: '+5541992877665', groupId: groupId },]
 
 const USERS = [
-  { id: 1, name: 'Luquinhas', phone: '554992007299@c.us', groupId: groupId, participants: PARTICIPANTS },
+  { id: 1, name: 'Luquinhas', phone: '554992007299@c.us', groupId: '120363374853351602@g.us', participants: PARTICIPANTS },
   { id: 2, name: 'Edipão', phone: '+554992007299@c.us', groupId: groupId, participants: PARTICIPANTS },
   { id: 3, name: 'Mikelongelo', phone: '+554187770278@c.us', groupId: groupId, participants: PARTICIPANTS },
   { id: 4, name: 'Sabrina', phone: '+5547998542231@c.us', groupId: groupId, participants: PARTICIPANTS },

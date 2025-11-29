@@ -7,6 +7,7 @@ import { WorkspaceService } from '../../services/workspace.service';
 import { GameRepository } from '../../core/repositories/game.respository';
 import { parseGuestArg } from '../../utils/lineup';
 import { UserRepository } from '../../core/repositories/user.repository';
+import { getUserNameFromMessage } from '../../utils/message';
 
 @injectable()
 export class GuestCommand implements Command {
@@ -45,7 +46,8 @@ export class GuestCommand implements Command {
 
         const { name: guestName, asGoalie } = parseGuestArg(nomeConvidado);
 
-        const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
+        const userName = await getUserNameFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(message.author ?? message.from, userName);
 
         const res = this.lineupSvc.addGuestWithInviter(
             game,

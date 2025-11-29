@@ -42,8 +42,6 @@ export class CloseCommand implements Command {
                 const failedPlayers: string[] = [];
 
                 result.results.forEach((r) => {
-                    console.log('Resultado da promises2', r);
-                    
                     if (r.success) {
                         console.log(`✔ ${r.playerName} processado com sucesso`);
                     } else {

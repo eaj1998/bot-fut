@@ -7,6 +7,8 @@ import { GameDoc } from '../../core/models/game.model';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
 import { LoggerService } from '../../logger/logger.service';
+import { GameRepository } from '../../core/repositories/game.respository';
+import { getUserNameFromMessage } from '../../utils/message';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -40,7 +42,8 @@ export class GiveUpCommand implements Command {
         ) as GameDoc | null;
         if (!game) return;
 
-        const user = await this.userRepo.upsertByPhone(message.from, nomeConvidado || "Jogador");
+        const userName = await getUserNameFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(message.author ?? message.from, nomeConvidado || userName);
 
         const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor);
         if (!res.removed) {

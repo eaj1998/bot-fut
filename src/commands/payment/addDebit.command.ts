@@ -8,6 +8,7 @@ import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { buildUtcCalendarDay } from "../../utils/date";
 import { LoggerService } from "../../logger/logger.service";
+import { OrganizzeService } from "../../services/organizze.service";
 
 function parseDDMM(s: string): { day: number; month: number } | null {
     const m = /^(\d{1,2})\/(\d{1,2})$/.exec((s ?? "").trim());
@@ -52,6 +53,7 @@ export class AddDebitCommand implements Command {
         @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
         @inject(LoggerService) private readonly logService: LoggerService,
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
+        @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
     // Formatos aceitos:
@@ -146,17 +148,32 @@ export class AddDebitCommand implements Command {
         try {
             await this.ledgerRepo.addDebit({
                 workspaceId: ws._id.toString(),
-                userId: "", 
+                userId: "",
                 amountCents: cents,
                 gameId: game._id.toString(),
                 note: `${note} do jogo ${rawDate} (${game.title ?? "Jogo"})`,
                 category: "general",
             });
 
-            await this.server.sendMessage(
-                groupId,
-                `✅ Registrado débito de ${Utils.formatCentsToReal(cents)} (${rawDate}) - ${note}.`
-            );
+            // Create Organizze transaction
+            const organizzeResult = await this.organizzeService.createTransaction({
+                description: `${note} - ${rawDate}`,
+                amountCents: -cents,
+                categoryId: 155927947,
+                paid: true
+            });
+
+            if (organizzeResult.added) {
+                await this.server.sendMessage(
+                    groupId,
+                    `✅ Registrado débito de ${Utils.formatCentsToReal(cents)} (${rawDate}) - ${note} no ledger e Organizze.`
+                );
+            } else {
+                await this.server.sendMessage(
+                    groupId,
+                    `✅ Registrado débito de ${Utils.formatCentsToReal(cents)} (${rawDate}) - ${note} no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`
+                );
+            }
         } catch (e) {
             this.logService.log(`Erro ao registrar débito do jogo: `, e);
             await this.server.sendMessage(groupId, `❌ Não foi possível registrar o débito, tente novamente mais tarde.`);

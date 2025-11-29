@@ -7,6 +7,7 @@ import { UserModel, UserDoc } from "../../core/models/user.model";
 import { WorkspaceService } from "../../services/workspace.service";
 import { GameRepository } from "../../core/repositories/game.respository";
 import { UserRepository } from "../../core/repositories/user.repository";
+import { getUserNameFromMessage } from '../../utils/message';
 
 @injectable()
 export class OutCommand implements Command {
@@ -38,7 +39,8 @@ export class OutCommand implements Command {
         if (!game.roster) (game as any).roster = { goalieSlots: 2, players: [], waitlist: [], outlist: [] };
         const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
         const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
-        const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
+        const userName = await getUserNameFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(message.author ?? message.from, userName);
 
         const userIdStr = user._id.toString();
         const inMain = players.some(p => p.userId?._id.toString() === userIdStr);

@@ -6,6 +6,7 @@ import { LineUpService } from '../../services/lineup.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { GameRepository } from '../../core/repositories/game.respository';
 import { UserRepository } from '../../core/repositories/user.repository';
+import { getUserNameFromMessage } from '../../utils/message';
 
 @injectable()
 export class GoalKeeperAddCommand implements Command {
@@ -35,7 +36,8 @@ export class GoalKeeperAddCommand implements Command {
       return;
     }
 
-    const user = await this.userRepo.upsertByPhone(message.from, "Jogador");
+    const userName = await getUserNameFromMessage(message);
+    const user = await this.userRepo.upsertByPhone(message.author ?? message.from, userName);
 
     if (this.lineupSvc.alreadyInList(game.roster, user)) {
       await message.reply("Você já está na lista!");

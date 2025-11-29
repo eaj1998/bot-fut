@@ -41,7 +41,7 @@ Exemplo: /convidado Carlos
 Exemplo: /convidado 🧤 Pedro
 
 /fora 🚫
-Marca você como “fora” desta semana.
+Marca você como "fora" desta semana.
 Você não será marcado no /marcar.
 Exemplo: /fora
 
@@ -77,6 +77,11 @@ Exemplo: /fechar
 Cancela o jogo agendado e notifica o grupo.
 Exemplo: /cancelar
 
+/times 🔀
+Sorteia dois times balanceados com os jogadores da lista.
+Goleiros são distribuídos separadamente (um por time).
+Exemplo: /times
+
 /bind <slug> 🔗
 Vincula o grupo a um workspace (identificador).
 Exemplo: /bind meu-workspace
@@ -104,12 +109,16 @@ Remove a marcação de pagamento de um jogador.
 Exemplo: /desmarcar 3
 
 /adicionar-credito [slug] [valor] 💵
-Adiciona crédito manualmente a um usuário ou workspace.
+Adiciona crédito manualmente a um usuário.
 Exemplo: /adicionar-credito viana 20,00
+
+/adicionar-debito <dd/mm> slug=<workspace> amount=<valor> [note=<descrição>] 📝
+Adiciona um débito manual ao workspace (ex: despesas extras).
+Exemplo: /adicionar-debito 28/11 slug=viana amount=50,00 note=água
 
 /pagar-campo [workspace] [data] [<valor>] 🏟️
 Registra o pagamento do campo na data especificada.
-Exemplo: /pagar-campo slug 15/12 150
+Exemplo: /pagar-campo viana 15/12 150
 
 /saldo 📊
 Mostra o saldo do workspace (valores a receber).
@@ -124,12 +133,13 @@ Exemplo: /saldo
 ✅ Suplentes são promovidos automaticamente quando alguém desiste
 ✅ Use /fora se não quiser ser marcado na chamada da semana
 ✅ Apenas administradores podem criar, fechar ou cancelar listas
-✅ Comandos podem ser enviados no grupo ou no privado (onde indicado)`;
+✅ Comandos podem ser enviados no grupo ou no privado (onde indicado)
+✅ O comando /times sorteia times balanceados automaticamente`;
 
     const isGroup = message.from.includes('@g.us');
 
     if (isGroup) {
-      const userId = message.author; 
+      const userId = message.author;
       if (userId) {
         await this.server.sendMessage(userId, helpText);
         await this.server.sendMessage(

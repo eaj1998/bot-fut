@@ -13,6 +13,8 @@ export class AuthService {
     }
 
     const id = await this.resolveContactId(message);
+    console.log('id', id);
+
     return !!id && adminNumbers.includes(id);
   }
 

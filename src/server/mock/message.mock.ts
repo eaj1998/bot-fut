@@ -13,8 +13,8 @@ export type SyntheticUser = {
 type MockParticipantInput = {
     id: number;
     name: string;
-    phone: string;      
-    groupId: string;    
+    phone: string;
+    groupId: string;
 };
 
 function digitsFromPhone(phone: string): string {
@@ -95,7 +95,11 @@ export function makeMockMessage(
     const chatId = String(user.groupId ?? 'unknown@g.us');
     const isGroup = chatId.endsWith('@g.us');
     const from = isGroup ? chatId : (user.id ?? `${user.phone}@c.us`);
-    const author = `${user.phone ?? user.id ?? '0000000000'}@c.us`;
+
+    const phoneOrId = user.phone ?? user.id ?? '0000000000';
+    const cleanPhoneOrId = phoneOrId.replace(/@c\.us$/, '');
+    const author = `${cleanPhoneOrId}@c.us`;
+
     const label = isGroup ? (user.groupName ?? 'Grupo') : (user.name ?? 'Contato');
 
     return {

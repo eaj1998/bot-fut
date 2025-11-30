@@ -92,16 +92,10 @@ async function migrateUsers(client: Client) {
             process.exit(0);
         }
 
-        // Batch processing to avoid rate limits
         const BATCH_SIZE = 20;
         for (let i = 0; i < users.length; i += BATCH_SIZE) {
             const batch = users.slice(i, i + BATCH_SIZE);
             console.log(`\n🔄 Processando lote ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(users.length / BATCH_SIZE)}...`);
-
-            // Extract phone numbers (remove non-digits, ensure 55 prefix if BR)
-            // Note: getContactLidAndPhone expects user IDs (e.g. '554899999999@c.us') or just numbers?
-            // User said: getContactLidAndPhone(userIds)
-            // Usually userIds in wwebjs are 'number@c.us'
 
             const userIds = batch.map(u => {
                 let phone = u.phoneE164.replace(/\D/g, '');
@@ -112,21 +106,14 @@ async function migrateUsers(client: Client) {
             });
 
             try {
-                // @ts-ignore - getContactLidAndPhone might not be in types yet if they are outdated
                 const results = await client.getContactLidAndPhone(userIds);
-
-                // results: Array of { lid: string, pn: string }? Or object?
-                // User said: Promise containing Array of {lid: string, pn: string}
 
                 if (results && Array.isArray(results)) {
                     for (const result of results) {
                         if (result.lid) {
-                            // Find user by phone (pn usually doesn't have @c.us)
-                            // We need to match result.pn with user.phoneE164
                             const user = batch.find(u => u.phoneE164.includes(result.pn) || result.pn.includes(u.phoneE164.replace(/\D/g, '')));
 
                             if (user) {
-                                // Save only numbers from LID
                                 user.lid = typeof result.lid === 'object' ? (result.lid as any)._serialized.replace(/\D/g, '') : result.lid.replace(/\D/g, '');
                                 await user.save();
                                 console.log(`   ✅ LID salvo para ${user.name}: ${user.lid}`);
@@ -141,7 +128,6 @@ async function migrateUsers(client: Client) {
                 console.error(`   ❌ Erro ao buscar LIDs do lote: ${err.message}`);
             }
 
-            // Delay between batches
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
 

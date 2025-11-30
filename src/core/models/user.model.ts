@@ -4,6 +4,7 @@ export interface IUser extends Document {
     _id: Types.ObjectId;
     name: string;
     phoneE164: string;
+    lid?: string;
     nick?: string;
     isGoalie: boolean;
     role?: 'admin' | 'user';
@@ -15,6 +16,7 @@ export interface IUser extends Document {
 const UserSchema = new Schema({
     name: { type: String, required: true },
     phoneE164: { type: String, required: true, unique: true },
+    lid: { type: String, unique: true, sparse: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
     nick: String,
     isGoalie: { type: Boolean, default: false },

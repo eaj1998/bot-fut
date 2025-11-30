@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import mongoose from 'mongoose';
 import { UserModel } from '../src/core/models/user.model';
-import dotenv from 'dotenv';
+import { config } from 'dotenv';
 
-dotenv.config();
+config();
 
 /**
  * Script de migração para adicionar campo 'role' aos usuários existentes
@@ -12,10 +12,8 @@ dotenv.config();
 async function migrateUserRole() {
     try {
 
-        const mongoUri = "";
-
-        // Nome do banco
-        const mongoDb = "botFutHml";
+        const mongoUri = process.env.MONGO_URI || "";
+        const mongoDb = process.env.MONGO_DB || "";
 
         if (!mongoUri || !mongoDb) {
             console.error('❌ Erro: MONGO_URI ou MONGO_DB não definidos no .env');

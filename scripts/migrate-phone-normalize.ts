@@ -1,11 +1,12 @@
 import { MongoClient } from "mongodb";
 
+import { config } from 'dotenv';
+
+config();
+
 async function run() {
-
-    const uri = "   ";
-
-    // Nome do banco
-    const dbName = "";
+    const uri = process.env.MONGO_URI || "";
+    const dbName = process.env.MONGO_DB || "";
 
     const client = new MongoClient(uri);
 

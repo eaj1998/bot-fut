@@ -206,4 +206,23 @@ export class WorkspacesController {
             });
         }
     };
+
+
+    /**
+     * Remove configurações do Organizze de um workspace
+     */
+    deleteOrganizzeSettings = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const workspace = await this.workspaceService.deleteOrganizzeSettings(id);
+            res.json(workspace);
+        } catch (error: any) {
+            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            res.status(statusCode).json({
+                success: false,
+                message: error.message || 'Erro ao remover configurações do Organizze',
+                statusCode,
+            });
+        }
+    };
 }

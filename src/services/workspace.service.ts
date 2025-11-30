@@ -322,6 +322,21 @@ export class WorkspaceService {
             organizzeConfig,
         };
     }
+
+    /**
+     * Remove configurações do Organizze de um workspace
+     */
+    async deleteOrganizzeSettings(workspaceId: string): Promise<WorkspaceResponseDto> {
+        const workspace = await this.repo.findById(workspaceId);
+        if (!workspace) {
+            throw new Error("Workspace não encontrado");
+        }
+
+        await this.repo.clearOrganizzeConfig(workspaceId);
+
+        const updatedWorkspace = await this.repo.findById(workspaceId);
+        return this.toResponseDto(updatedWorkspace);
+    }
 }
 
 export const WORKSPACES_SERVICE_TOKEN = "WORKSPACES_SERVICE_TOKEN";

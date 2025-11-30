@@ -257,4 +257,33 @@ export class PlayersController {
             next(error);
         }
     };
+
+    /**
+     * Adiciona crédito ao jogador
+     */
+    addCredit = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            const { workspaceId, amountCents, note, method, category } = req.body;
+
+            if (!workspaceId || !amountCents) {
+                throw new Error('workspaceId e amountCents são obrigatórios');
+            }
+
+            const player = await this.playersService.addCredit(id, {
+                workspaceId,
+                amountCents,
+                note,
+                method,
+                category
+            });
+            res.json(player);
+        } catch (error) {
+            if (error instanceof Error && error.message === 'Jogador não encontrado') {
+                next(new ApiError(404, error.message));
+            } else {
+                next(error);
+            }
+        }
+    };
 }

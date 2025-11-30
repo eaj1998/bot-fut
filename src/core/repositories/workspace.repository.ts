@@ -88,6 +88,17 @@ export class WorkspaceRepository {
   }
 
   /**
+   * Clears Organizze configuration for a workspace
+   */
+  public async clearOrganizzeConfig(workspaceId: string) {
+    return this.model.findByIdAndUpdate(
+      workspaceId,
+      { $unset: { organizzeConfig: "" } },
+      { new: true }
+    );
+  }
+
+  /**
    * Gets decrypted Organizze configuration for a workspace
    * Returns null if workspace doesn't have Organizze configured
    */

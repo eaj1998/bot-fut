@@ -266,6 +266,33 @@ export class PlayersService {
 
         return this.ledgerRepository.findByUserIdPaginated(user._id, page, limit);
     }
+
+    /**
+     * Adiciona crédito ao jogador
+     */
+    async addCredit(id: string, data: {
+        workspaceId: string;
+        amountCents: number;
+        note?: string;
+        method?: string;
+        category?: string;
+    }) {
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+            throw new Error('Jogador não encontrado');
+        }
+
+        await this.ledgerRepository.addCredit({
+            workspaceId: data.workspaceId,
+            userId: user._id.toString(),
+            amountCents: data.amountCents,
+            note: data.note,
+            method: data.method,
+            category: data.category || 'player-payment'
+        });
+
+        return this.toResponseDto(user);
+    }
 }
 
 export const PLAYERS_SERVICE_TOKEN = 'PLAYERS_SERVICE_TOKEN';

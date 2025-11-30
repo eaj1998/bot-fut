@@ -413,4 +413,28 @@ router.delete('/:id', requireAdmin, controller.deleteWorkspace);
  */
 router.patch('/:id/organizze', requireAdmin, controller.updateOrganizzeSettings);
 
+/**
+ * @swagger
+ * /api/workspaces/{id}/organizze:
+ *   delete:
+ *     summary: Remove configurações do Organizze
+ *     description: Remove todas as configurações do Organizze de um workspace (requer autenticação de admin)
+ *     tags: [Workspaces]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do workspace
+ *     responses:
+ *       200:
+ *         description: Configurações removidas com sucesso
+ *       404:
+ *         description: Workspace não encontrado
+ */
+router.delete('/:id/organizze', requireAdmin, controller.deleteOrganizzeSettings);
+
 export default router;

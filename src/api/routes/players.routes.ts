@@ -513,4 +513,59 @@ router.post('/:id/suspend', requireAdmin, controller.suspendPlayer);
  */
 router.post('/:id/activate', requireAdmin, controller.activatePlayer);
 
+/**
+ * @swagger
+ * /api/players/{id}/credit:
+ *   post:
+ *     summary: Adiciona crédito ao jogador
+ *     description: Adiciona um valor de crédito ao saldo do jogador em um workspace específico
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do jogador
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - workspaceId
+ *               - amountCents
+ *             properties:
+ *               workspaceId:
+ *                 type: string
+ *                 description: ID do workspace
+ *               amountCents:
+ *                 type: integer
+ *                 description: Valor do crédito em centavos
+ *               note:
+ *                 type: string
+ *                 description: Observação sobre o crédito
+ *               method:
+ *                 type: string
+ *                 description: Método de pagamento (pix, dinheiro, etc)
+ *                 default: pix
+ *     responses:
+ *       200:
+ *         description: Crédito adicionado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlayerResponseDto'
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Jogador não encontrado
+ *       401:
+ *         description: Não autenticado
+ */
+router.post('/:id/credit', authenticate, controller.addCredit);
+
 export default router;

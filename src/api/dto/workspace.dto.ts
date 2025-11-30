@@ -46,6 +46,17 @@ export interface WorkspaceResponseDto {
         pix?: string;
         title?: string;
     };
+    organizzeConfig?: {
+        email: string;
+        hasApiKey: boolean;
+        accountId: number;
+        categories: {
+            fieldPayment: number;
+            playerPayment: number;
+            playerDebt: number;
+            general: number;
+        };
+    };
     createdAt: string;
     lastSync: string;
     updatedAt: string;

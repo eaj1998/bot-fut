@@ -7,7 +7,7 @@ export class WhatsAppService {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly botClient: IBotServerPort,
-        @inject(LoggerService) private readonly loggerService: LoggerService,
+        @inject(LoggerService) private readonly loggerService: LoggerService
     ) {
         this.loggerService.setName('WhatsAppService');
     }
@@ -35,14 +35,14 @@ Se você não solicitou este código, ignore esta mensagem.`;
         }
     }
 
-    async sendMessage(to: string, message: string): Promise<void> {
+    async sendMessage(to: string, message: string): Promise<any> {
         try {
             let target = to;
             if (!to.includes('@')) {
                 target = `${this.formatPhoneNumber(to)}@c.us`;
             }
 
-            await this.botClient.sendMessage(target, message);
+            return await this.botClient.sendMessage(target, message);
         } catch (error) {
             this.loggerService.error(`Failed to send message to ${to}`, error);
             throw error;

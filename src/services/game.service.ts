@@ -78,8 +78,7 @@ export class GameService {
   constructor(
     @inject(GAME_MODEL_TOKEN) private gameModel: Model<IGame>,
     @inject(USER_MODEL_TOKEN) private userModel: Model<IUser>,
-    private whatsappService: WhatsAppService,
-    @inject(WorkspaceService) private workspaceService: WorkspaceService,
+    @inject(WhatsAppService) private whatsappService: WhatsAppService,
     @inject(GameRepository) private readonly gameRepo: GameRepository,
     @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
     @inject(ConfigService) private readonly configService: ConfigService,
@@ -210,6 +209,14 @@ export class GameService {
       outlist: [],
     });
 
+    // Enviar lista para o grupo
+    try {
+      const message = await this.formatGameList(game);
+      await this.whatsappService.sendMessage(game.chatId, message);
+    } catch (error) {
+      this.loggerService.error(`Failed to send game list to group ${game.chatId}`, error);
+    }
+
     return this.mapToGameResponse(game);
   }
 
@@ -221,6 +228,16 @@ export class GameService {
 
     game.status = "cancelled";
     await this.gameRepo.save(game);
+
+    // Enviar mensagem de cancelamento e fixar
+    try {
+      const sent = await this.whatsappService.sendMessage(game.chatId, "Jogo Cancelado!");
+      if (sent && sent.pin) {
+        await sent.pin(86400); // 24 horas
+      }
+    } catch (error) {
+      this.loggerService.error(`Failed to send/pin cancellation message to group ${game.chatId}`, error);
+    }
   }
 
   async closeGame(gameId: string): Promise<GameResponseDto> {
@@ -293,7 +310,7 @@ export class GameService {
 
           let organizzeOk = false;
           try {
-            const org = await this.criarMovimentacaoOrganizze(player, game.date, amountCents);
+            const org = await this.criarMovimentacaoOrganizze(player, game.date, amountCents, game.workspaceId.toString());
             organizzeOk = !!org.added;
           } catch (err: any) {
             return {
@@ -698,6 +715,7 @@ export class GameService {
     }
 
     const player = game.roster.players[idx];
+    console.log(player);
     if (!player.paid) {
       return { updated: false, reason: "Jogador já está desmarcado", playerName: player.name };
     }
@@ -708,6 +726,12 @@ export class GameService {
       this.loggerService.log(`[LEDGER] Nenhum userId encontrado para ${player.name}`);
       return { updated: false, reason: 'User nao encontrado' };
     }
+
+    await this.ledgerRepo.unconfirmDebit(
+      game.workspaceId._id.toString(),
+      userId.toString(),
+      game._id.toString()
+    );
 
     const isDeleted = await this.ledgerRepo.deleteCredit(game.workspaceId._id, userId, game._id);
 
@@ -732,7 +756,7 @@ export class GameService {
 
 
       game.markModified("roster.players");
-      const res = await this.updateMovimentacaoOrganizze(game, slot)
+      const res = await this.updateMovimentacaoOrganizze(game, slot, false)
       if (!res.added) {
         return { updated: false, reason: 'Movimento nao foi atualizado no organizze' };
       }
@@ -888,27 +912,37 @@ export class GameService {
 
   private async updateMovimentacaoOrganizze(
     game: IGame,
-    slot: Number
+    slot: Number,
+    markAsPaid: boolean = true
   ): Promise<{ added: boolean; }> {
-    const { email, apiKey } = this.configService.organizze ?? {};
+    const organizzeConfig = await this.workspaceRepo.getDecryptedOrganizzeConfig(
+      game.workspaceId.toString()
+    );
 
-    if (!email || !apiKey) {
-      this.loggerService.log('Organizze credentials are not set');
+    if (!organizzeConfig?.email || !organizzeConfig?.apiKey) {
+      this.loggerService.log('[ORGANIZZE] Workspace Organizze config not set, skipping');
       return { added: true };
     }
 
-    const idx = game.roster.players.findIndex(p => p.slot === slot && p.paid == true);
+    const { email, apiKey } = organizzeConfig;
+
+    const idx = game.roster.players.findIndex(p => p.slot === slot);
 
     if (idx === -1) return { added: false };
 
     const player = game.roster.players[idx];
+
+    if (!player.organizzeId) {
+      this.loggerService.log(`[ORGANIZZE] Player ${player.name} não tem organizzeId, pulando atualização`);
+      return { added: true };
+    }
 
     const payload = {
       description: `Pagamento ${player.guest ? "de convidado" : ""} — ${player.name} — jogo ${formatDateBR(game.date)}`,
       amount_cents: game.priceCents,
       date: todayISOyyyy_mm_dd(),
       update_future: false,
-      paid: true
+      paid: markAsPaid
     };
 
     const headers = {
@@ -923,6 +957,7 @@ export class GameService {
         payload,
         { auth: { username: email, password: apiKey }, headers }
       );
+
       if (res.status === 201 && res.data?.id != null) {
         return { added: true };
       }
@@ -941,14 +976,20 @@ export class GameService {
   private async criarMovimentacaoOrganizze(
     player: GamePlayer,
     dataDoJogo: Date,
-    amountCents: number
+    amountCents: number,
+    workspaceId: string
   ): Promise<{ added: boolean }> {
-    const { email, apiKey, accountId, categoryId } = this.configService.organizze ?? {};
+    // Get workspace-specific Organizze config
+    const organizzeConfig = await this.workspaceRepo.getDecryptedOrganizzeConfig(workspaceId);
 
-    if (!email || !apiKey) {
-      this.loggerService.log('Organizze credentials are not set');
+    if (!organizzeConfig?.email || !organizzeConfig?.apiKey) {
+      this.loggerService.log('[ORGANIZZE] Workspace Organizze config not set, skipping');
       return { added: true };
     }
+
+    const { email, apiKey, accountId, categories } = organizzeConfig;
+    // Use playerPayment category for game payments
+    const categoryId = categories.playerPayment;
 
     const payload = {
       description: `${player.name} - Jogo ${formatDateBR(dataDoJogo)}`,
@@ -1658,13 +1699,14 @@ export class GameService {
       id: game._id.toString(),
       name: game.title ?? '',
       date: game.date.toISOString().split('T')[0],
-      time: game.date.toTimeString().slice(0, 5),
+      time: game.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
       location: game.location,
       maxPlayers: game.maxPlayers ?? 16,
       currentPlayers: game.roster.players.length,
       pricePerPlayer: game.priceCents,
       status: game.status as any,
       createdAt: game.createdAt?.toISOString() || new Date().toISOString(),
+      workspaceId: game.workspaceId?.toString(),
     };
   }
 

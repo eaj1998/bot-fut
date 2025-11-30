@@ -14,6 +14,7 @@ import {
 import { Model, Types } from "mongoose";
 import { CHAT_MODEL_TOKEN, ChatDoc } from "../core/models/chat.model";
 import { GAME_MODEL_TOKEN, IGame } from "../core/models/game.model";
+import { EncryptionUtil } from "../utils/encryption.util";
 
 @injectable()
 export class WorkspaceService {
@@ -67,6 +68,14 @@ export class WorkspaceService {
                 pix: workspace.settings?.pix,
                 title: workspace.settings?.title,
             },
+            organizzeConfig: workspace.organizzeConfig ? {
+                email: workspace.organizzeConfig.email ?
+                    EncryptionUtil.decrypt(workspace.organizzeConfig.email) :
+                    '',
+                hasApiKey: !!workspace.organizzeConfig.apiKey,
+                accountId: workspace.organizzeConfig.accountId,
+                categories: workspace.organizzeConfig.categories,
+            } : undefined,
             createdAt:
                 workspace.createdAt?.toISOString() || new Date().toISOString(),
             lastSync:
@@ -267,6 +276,50 @@ export class WorkspaceService {
             totalChats,
             totalGames,
             totalRevenue: 0, // Poderia calcular via Ledger
+        };
+    }
+
+    /**
+     * Atualiza configurações do Organizze para um workspace
+     */
+    async updateOrganizzeSettings(
+        workspaceId: string,
+        settings: {
+            email: string;
+            apiKey?: string;
+            accountId: number;
+            categories: {
+                fieldPayment: number;
+                playerPayment: number;
+                playerDebt: number;
+                general: number;
+            };
+        }
+    ): Promise<any> {
+        const workspace = await this.repo.findById(workspaceId);
+        if (!workspace) {
+            throw new Error("Workspace não encontrado");
+        }
+
+        // Only update apiKey if provided, otherwise keep existing
+        const updatedSettings = {
+            email: settings.email,
+            apiKey: settings.apiKey || workspace.organizzeConfig?.apiKey,
+            accountId: settings.accountId,
+            categories: settings.categories,
+        };
+
+        // Update Organizze config (encryption happens in repository)
+        await this.repo.updateOrganizzeConfig(workspaceId, updatedSettings);
+
+        // Return workspace with sanitized Organizze config (no API key exposed)
+        const organizzeConfig = await this.repo.getOrganizzeConfigForResponse(workspaceId);
+
+        const responseDto = await this.toResponseDto(workspace);
+
+        return {
+            ...responseDto,
+            organizzeConfig,
         };
     }
 }

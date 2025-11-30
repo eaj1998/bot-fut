@@ -161,4 +161,49 @@ export class WorkspacesController {
             });
         }
     };
+
+    /**
+     * Atualiza configurações do Organizze para um workspace
+     */
+    updateOrganizzeSettings = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const { email, apiKey, accountId, categories } = req.body;
+
+            // Validate required fields (apiKey is optional - only update if provided)
+            if (!email || !accountId || !categories) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email, accountId e categories são obrigatórios',
+                    statusCode: 400,
+                });
+            }
+
+            // Validate categories structure
+            if (!categories.fieldPayment || !categories.playerPayment ||
+                !categories.playerDebt || !categories.general) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Todas as categorias devem ser fornecidas (fieldPayment, playerPayment, playerDebt, general)',
+                    statusCode: 400,
+                });
+            }
+
+            const workspace = await this.workspaceService.updateOrganizzeSettings(id, {
+                email,
+                apiKey,
+                accountId,
+                categories,
+            });
+
+            res.json(workspace);
+        } catch (error: any) {
+            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            res.status(statusCode).json({
+                success: false,
+                message: error.message || 'Erro ao atualizar configurações do Organizze',
+                statusCode,
+            });
+        }
+    };
 }

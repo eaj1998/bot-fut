@@ -351,4 +351,66 @@ router.put('/:id', requireAdmin, controller.updateWorkspace);
  */
 router.delete('/:id', requireAdmin, controller.deleteWorkspace);
 
+/**
+ * @swagger
+ * /api/workspaces/{id}/organizze:
+ *   patch:
+ *     summary: Atualiza configurações do Organizze
+ *     description: Atualiza credenciais e categorias do Organizze para um workspace (requer autenticação de admin)
+ *     tags: [Workspaces]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do workspace
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - apiKey
+ *               - accountId
+ *               - categories
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "user@example.com"
+ *               apiKey:
+ *                 type: string
+ *                 example: "abc123xyz"
+ *               accountId:
+ *                 type: integer
+ *                 example: 9099386
+ *               categories:
+ *                 type: object
+ *                 properties:
+ *                   fieldPayment:
+ *                     type: integer
+ *                     example: 152977750
+ *                   playerPayment:
+ *                     type: integer
+ *                     example: 152977751
+ *                   playerDebt:
+ *                     type: integer
+ *                     example: 152977752
+ *                   general:
+ *                     type: integer
+ *                     example: 152977753
+ *     responses:
+ *       200:
+ *         description: Configurações atualizadas com sucesso
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Workspace não encontrado
+ */
+router.patch('/:id/organizze', requireAdmin, controller.updateOrganizzeSettings);
+
 export default router;

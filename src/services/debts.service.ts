@@ -6,7 +6,6 @@ import { WhatsAppService } from './whatsapp.service';
 import { GameService } from './game.service';
 import {
     CreateDebtDto,
-    UpdateDebtDto,
     PayDebtDto,
     DebtResponseDto,
     ListDebtsDto,
@@ -16,6 +15,9 @@ import {
 } from '../api/dto/debt.dto';
 import { Types, FlattenMaps } from 'mongoose';
 import { LedgerDoc } from '../core/models/ledger.model';
+import axios from 'axios';
+import { EncryptionUtil } from '../utils/encryption.util';
+import { WorkspaceRepository } from '../core/repositories/workspace.repository';
 
 @injectable()
 export class DebtsService {
@@ -24,7 +26,8 @@ export class DebtsService {
         @inject(USER_REPOSITORY_TOKEN) private readonly userRepository: UserRepository,
         @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository,
         @inject(WhatsAppService) private readonly whatsappService: WhatsAppService,
-        @inject(GameService) private readonly gameService: GameService
+        @inject(GameService) private readonly gameService: GameService,
+        @inject(WorkspaceRepository) private readonly workspaceRepository: WorkspaceRepository
     ) { }
 
     /**
@@ -33,6 +36,7 @@ export class DebtsService {
     private async toResponseDto(ledger: LedgerDoc | FlattenMaps<LedgerDoc>): Promise<DebtResponseDto> {
         let playerName = 'Desconhecido';
         let gameName: string | undefined;
+        let slot: number | undefined;
 
         if (ledger.userId) {
             const player = await this.userRepository.findById(ledger.userId.toString());
@@ -45,6 +49,13 @@ export class DebtsService {
             const game = await this.gameRepository.findById(ledger.gameId.toString());
             if (game) {
                 gameName = game.title || `Jogo ${new Date(game.date).toLocaleDateString('pt-BR')}`;
+
+                if (ledger.userId && game.roster?.players) {
+                    const playerInGame = game.roster.players.find(p => p.userId?.toString() === ledger.userId?.toString());
+                    if (playerInGame) {
+                        slot = playerInGame.slot;
+                    }
+                }
             }
         }
 
@@ -54,6 +65,7 @@ export class DebtsService {
             playerName,
             gameId: ledger.gameId?.toString(),
             gameName,
+            slot,
             workspaceId: ledger.workspaceId.toString(),
             amount: ledger.amountCents / 100,
             amountCents: ledger.amountCents,
@@ -71,41 +83,103 @@ export class DebtsService {
      * Cria um novo débito
      */
     async createDebt(data: CreateDebtDto): Promise<DebtResponseDto> {
-        if (!data.playerId || !data.workspaceId || !data.amount) {
-            throw new Error('Jogador, workspace e valor são obrigatórios');
+        if (!data.workspaceId || !data.amount) {
+            throw new Error('Workspace e valor são obrigatórios');
         }
 
         if (data.amount <= 0) {
             throw new Error('Valor deve ser maior que zero');
         }
 
-        const player = await this.userRepository.findById(data.playerId);
-        if (!player) {
-            throw new Error('Jogador não encontrado');
+        if (data.playerId) {
+            const player = await this.userRepository.findById(data.playerId);
+            if (!player) {
+                throw new Error('Jogador não encontrado');
+            }
+        }
+
+        let organizzeId: number | undefined;
+
+        // Integração com Organizze
+        try {
+            const workspace = await this.workspaceRepository.findById(data.workspaceId);
+            if (workspace?.organizzeConfig?.email && workspace.organizzeConfig.apiKey && workspace.organizzeConfig.accountId) {
+                const config = workspace.organizzeConfig;
+                const email = EncryptionUtil.decrypt(config.email);
+                const apiKey = EncryptionUtil.decrypt(config.apiKey);
+
+                let categoryId = config.categories.general;
+                if (data.category === 'field-payment') categoryId = config.categories.fieldPayment;
+                if (data.category === 'player-payment') categoryId = config.categories.playerPayment;
+                if (data.category === 'player-debt') categoryId = config.categories.playerDebt;
+
+                const payload = {
+                    description: data.notes || (data.playerId ? `Débito Jogador` : `Débito Geral`),
+                    amount_cents: -Math.round(data.amount * 100), // Negativo para despesas
+                    date: new Date().toISOString().split('T')[0],
+                    account_id: config.accountId,
+                    category_id: categoryId,
+                    paid: data.status === 'confirmado',
+                    observation: data.playerId ? `PlayerID: ${data.playerId}` : undefined
+                };
+
+                const res = await axios.post(
+                    "https://api.organizze.com.br/rest/v2/transactions",
+                    payload,
+                    {
+                        auth: { username: email, password: apiKey },
+                        headers: {
+                            "Content-Type": "application/json",
+                            "User-Agent": "BotFutebol"
+                        }
+                    }
+                );
+
+                if (res.status === 201 && res.data?.id) {
+                    organizzeId = res.data.id;
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao criar transação no Organizze:', error);
         }
 
         await this.ledgerRepository.addDebit({
             workspaceId: data.workspaceId,
-            userId: data.playerId,
+            userId: data.playerId || undefined,
             gameId: data.gameId,
             amountCents: Math.round(data.amount * 100),
             note: data.notes,
-            status: 'pendente',
+            status: data.status || 'pendente',
             category: data.category || 'player-debt',
             method: 'pix',
+            organizzeId,
         });
 
-        // Recalcula o saldo do jogador
-        await this.ledgerRepository.recomputeUserBalance(data.workspaceId, data.playerId);
-
-        const ledgers = await this.ledgerRepository.findByUserId(new Types.ObjectId(data.playerId));
-        const lastDebit = ledgers.find(l => l.type === 'debit');
-
-        if (!lastDebit) {
-            throw new Error('Erro ao criar débito');
+        if (data.playerId) {
+            await this.ledgerRepository.recomputeUserBalance(data.workspaceId, data.playerId);
         }
 
-        return this.toResponseDto(lastDebit);
+        if (data.playerId) {
+            const ledgers = await this.ledgerRepository.findByUserId(new Types.ObjectId(data.playerId));
+            const lastDebit = ledgers.find(l => l.type === 'debit');
+            if (lastDebit) {
+                return this.toResponseDto(lastDebit);
+            }
+        }
+
+        return {
+            id: 'new',
+            playerId: data.playerId || '',
+            playerName: 'N/A',
+            workspaceId: data.workspaceId,
+            amount: data.amount,
+            amountCents: Math.round(data.amount * 100),
+            status: 'pendente',
+            notes: data.notes,
+            category: data.category || 'player-debt',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
     }
 
     /**
@@ -179,7 +253,8 @@ export class DebtsService {
     }
 
     /**
-     * Registra pagamento de débito
+     * Registra pagamento de débito (CENTRALIZADO)
+     * Detecta automaticamente se é débito de jogo ou geral e executa a lógica apropriada
      */
     async payDebt(id: string, data: PayDebtDto): Promise<DebtResponseDto> {
         const ledger = await this.ledgerRepository['model'].findById(id);
@@ -191,22 +266,89 @@ export class DebtsService {
             throw new Error('Este registro não é um débito');
         }
 
-        await this.ledgerRepository.addCredit({
-            workspaceId: ledger.workspaceId.toString(),
-            userId: ledger.userId!.toString(),
-            gameId: ledger.gameId?.toString(),
-            amountCents: data.amount ? Math.round(data.amount * 100) : ledger.amountCents,
-            method: data.method || 'pix',
-            note: data.notes || `Pagamento de débito ${id}`,
-            category: 'player-payment',
-        });
+        // DETECÇÃO: Débito de jogo vs débito geral
+        const isGameDebt = !!ledger.gameId;
 
-        await this.ledgerRepository['model'].findByIdAndUpdate(id, {
-            status: 'confirmado',
-            confirmedAt: new Date(),
-        });
+        if (isGameDebt) {
+            // FLUXO DE JOGO: Usa GameService para marcar pagamento
+            // Isso atualiza o roster do jogo, cria crédito, e atualiza Organizze
+            const game = await this.gameRepository.findById(ledger.gameId!);
+            if (!game) {
+                throw new Error('Jogo não encontrado');
+            }
 
-        await this.ledgerRepository.recomputeUserBalance(ledger.workspaceId.toString(), ledger.userId!.toString());
+            // Encontra o slot do jogador no jogo
+            const player = game.roster.players.find(p =>
+                p.userId?.toString() === ledger.userId?.toString()
+            );
+
+            if (!player || typeof player.slot !== 'number') {
+                throw new Error('Jogador não encontrado no jogo');
+            }
+
+            // Marca como pago no jogo (isso já cria crédito e atualiza Organizze)
+            await this.gameService.markAsPaid(
+                game._id,
+                player.slot,
+                { method: data.method || 'pix' }
+            );
+
+            // Marca o débito como confirmado
+            await this.ledgerRepository['model'].findByIdAndUpdate(id, {
+                status: 'confirmado',
+                confirmedAt: new Date(),
+            });
+
+        } else {
+            // FLUXO GERAL: Cria crédito diretamente
+            // Ajusta categoria se necessário
+            let creditCategory = data.category || 'player-payment';
+            if (data.category === 'player-debt') {
+                creditCategory = 'player-payment';
+            }
+
+            await this.ledgerRepository.addCredit({
+                workspaceId: ledger.workspaceId.toString(),
+                userId: ledger.userId!.toString(),
+                gameId: ledger.gameId?.toString(),
+                amountCents: data.amount ? Math.round(data.amount * 100) : ledger.amountCents,
+                method: data.method || 'pix',
+                note: data.notes || `Pagamento de débito ${id}`,
+                category: creditCategory,
+            });
+
+            await this.ledgerRepository['model'].findByIdAndUpdate(id, {
+                status: 'confirmado',
+                confirmedAt: new Date(),
+            });
+
+            // Atualiza Organizze se existir ID
+            if (ledger.organizzeId) {
+                try {
+                    const workspace = await this.workspaceRepository.findById(ledger.workspaceId.toString());
+                    if (workspace?.organizzeConfig?.email && workspace.organizzeConfig.apiKey) {
+                        const email = EncryptionUtil.decrypt(workspace.organizzeConfig.email);
+                        const apiKey = EncryptionUtil.decrypt(workspace.organizzeConfig.apiKey);
+
+                        await axios.put(
+                            `https://api.organizze.com.br/rest/v2/transactions/${ledger.organizzeId}`,
+                            { paid: true },
+                            {
+                                auth: { username: email, password: apiKey },
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "User-Agent": "BotFutebol"
+                                }
+                            }
+                        );
+                    }
+                } catch (error) {
+                    console.error('Erro ao atualizar transação no Organizze:', error);
+                }
+            }
+
+            await this.ledgerRepository.recomputeUserBalance(ledger.workspaceId.toString(), ledger.userId!.toString());
+        }
 
         return this.getDebtById(id);
     }

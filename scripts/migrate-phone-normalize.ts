@@ -1,7 +1,8 @@
 import { MongoClient } from "mongodb";
 
 async function run() {
-    const uri = "";
+
+    const uri = "   ";
 
     // Nome do banco
     const dbName = "";

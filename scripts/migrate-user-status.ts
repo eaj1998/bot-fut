@@ -11,8 +11,11 @@ dotenv.config();
  */
 async function migrateUserRole() {
     try {
-        const mongoUri = '';
-        const mongoDb = '';
+
+        const mongoUri = "";
+
+        // Nome do banco
+        const mongoDb = "botFutHml";
 
         if (!mongoUri || !mongoDb) {
             console.error('❌ Erro: MONGO_URI ou MONGO_DB não definidos no .env');

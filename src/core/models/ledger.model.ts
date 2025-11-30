@@ -7,13 +7,14 @@ export interface LedgerDoc extends Document {
     userId?: Types.ObjectId;
     type: "debit" | "credit";
     method: "pix" | "dinheiro" | "transf" | "ajuste";
-    category: "field-payment" | "player-payment" | "player-debt" | "general";
+    category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper";
     amountCents: number;
     note?: string;
     status: "pendente" | "confirmado" | "estornado";
     confirmedAt?: Date;
     createdAt: Date;
     updatedAt: Date;
+    organizzeId?: number;
 }
 
 const LedgerSchema = new Schema({
@@ -22,11 +23,12 @@ const LedgerSchema = new Schema({
     userId: { type: Types.ObjectId, ref: "User" },
     type: { type: String, enum: ["debit", "credit"], required: true },
     method: { type: String, enum: ["pix", "dinheiro", "transf", "ajuste"], default: "pix" },
-    category: { type: String, enum: ["field-payment", "player-payment", "player-debt", "general"], default: "general" },
+    category: { type: String, enum: ["field-payment", "player-payment", "player-debt", "general", "equipment", "rental-goalkeeper"], default: "general" },
     amountCents: { type: Number, required: true },
     note: String,
     status: { type: String, enum: ["pendente", "confirmado", "estornado"], default: "confirmado" },
-    confirmedAt: Date
+    confirmedAt: Date,
+    organizzeId: Number
 }, { timestamps: true });
 
 export const LedgerModel = model<LedgerDoc>("Ledger", LedgerSchema);

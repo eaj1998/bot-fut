@@ -10,7 +10,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint",
     "lint:fix": "prettier --write './**/*.ts' & eslint --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "migrate:organizze": "ts-node scripts/migrate-organizze-config.ts",
+    "migrate:sync-organizze": "ts-node scripts/sync-organizze-status.ts"
   },
   "keywords": [],
   "author": "",

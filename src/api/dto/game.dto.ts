@@ -84,6 +84,7 @@ export class GameResponseDto {
   pricePerPlayer!: number;
   status!: GameStatus;
   createdAt!: string;
+  workspaceId?: string;
 }
 
 export class PlayerInGameDto {

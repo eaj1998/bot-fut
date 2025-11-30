@@ -36,12 +36,12 @@ export class ConfigService {
   };
 
   database = {
-    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
-    mongoDb: process.env.MONGO_DB || 'bot_futebol',
+    mongoUri: process.env.MONGO_URI || 'mongodb+srv://edipo1998_db_user:l6p6nhOOQToXD6DD@botfuthml.6gsjmrq.mongodb.net/?appName=botFutHml',
+    mongoDb: process.env.MONGO_DB || 'botFutHml',
   }
 
   weatherDefaultPlace = process.env.WEATHER_DEFAULT_PLACE || 'São Paulo, BR';
-  
+
   jwt: {
     secret: string;
     expiresIn: string;

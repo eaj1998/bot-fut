@@ -10,10 +10,11 @@ type AddDebitInput = {
   amountCents: number;
   gameId?: string;
   note?: string;
-  category: "field-payment" | "player-payment" | "player-debt" | "general";
+  category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper";
   method?: string;
   status?: "pendente" | "confirmado";
   confirmedAt?: Date;
+  organizzeId?: number;
 };
 
 
@@ -52,6 +53,7 @@ export class LedgerRepository {
       category = "general",
       status = "confirmado",
       confirmedAt = new Date(),
+      organizzeId,
     } = input;
 
     const doc: any = {
@@ -63,6 +65,7 @@ export class LedgerRepository {
       confirmedAt,
       note,
       category,
+      organizzeId,
     };
 
     if (userId && Types.ObjectId.isValid(userId)) {
@@ -165,7 +168,7 @@ export class LedgerRepository {
 
   async sumWorkspaceNet(workspaceId: string): Promise<number> {
     const [agg] = await this.model.aggregate([
-      { $match: { workspaceId: new Types.ObjectId(workspaceId), status: "confirmado" } },
+      { $match: { workspaceId: new Types.ObjectId(workspaceId), status: { $in: ["confirmado", "pendente"] } } },
       {
         $group: {
           _id: "$workspaceId",
@@ -197,13 +200,17 @@ export class LedgerRepository {
           _id: null,
           playerCredits: {
             $sum: {
-              $cond: [{ $eq: ["$type", "credit"] }, "$amountCents", 0]
+              $cond: [
+                { $and: [{ $eq: ["$type", "credit"] }, { $in: ["$category", ["player-payment", "player-credit", "general"]] }] },
+                "$amountCents",
+                0
+              ]
             }
           },
           fieldDebits: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ["$type", "debit"] }, { $in: ["$category", ["field-payment", "general"]] }] },
+                { $and: [{ $eq: ["$type", "debit"] }, { $in: ["$category", ["field-payment", "equipment", "rental-goalkeeper", "general"]] }] },
                 "$amountCents",
                 0
               ]
@@ -351,6 +358,38 @@ export class LedgerRepository {
     })
       .sort({ createdAt: -1 })
       .exec() as Promise<LedgerDoc[]>;
+  }
+
+  /**
+   * Reverte um débito confirmado para pendente
+   */
+  async unconfirmDebit(workspaceId: string, userId: string, gameId: string): Promise<LedgerDoc | null> {
+    const debit = await this.model.findOneAndUpdate(
+      {
+        workspaceId: new Types.ObjectId(workspaceId),
+        userId: new Types.ObjectId(userId),
+        gameId: new Types.ObjectId(gameId),
+        type: "debit",
+        status: "confirmado",
+        category: "player-debt"
+      },
+      {
+        $set: {
+          status: "pendente",
+          confirmedAt: undefined
+        }
+      },
+      { new: true }
+    ).exec();
+
+    if (debit && debit.userId) {
+      await this.recomputeUserBalance(
+        debit.workspaceId.toString(),
+        debit.userId.toString()
+      );
+    }
+
+    return debit;
   }
 
 

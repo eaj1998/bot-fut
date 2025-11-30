@@ -10,7 +10,8 @@ export interface CreateDebtDto {
     amount: number; // Em reais
     dueDate?: string;
     notes?: string;
-    category?: 'field-payment' | 'player-payment' | 'player-debt' | 'general';
+    category?: 'field-payment' | 'player-payment' | 'player-debt' | 'general' | 'equipment' | 'rental-goalkeeper';
+    status?: "pendente" | "confirmado";
 }
 
 /**
@@ -30,6 +31,7 @@ export interface PayDebtDto {
     amount?: number; // Valor pago (se parcial)
     method?: 'pix' | 'dinheiro' | 'transf';
     notes?: string;
+    category?: 'field-payment' | 'player-payment' | 'player-debt' | 'general' | 'equipment' | 'rental-goalkeeper';
 }
 
 /**
@@ -41,6 +43,7 @@ export interface DebtResponseDto {
     playerName: string;
     gameId?: string;
     gameName?: string;
+    slot?: number;
     workspaceId: string;
     amount: number;
     amountCents: number;

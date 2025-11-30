@@ -1,0 +1,19 @@
+meta {
+  name: Get Workspace Chats
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{workspaceId}}/stats
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+vars:pre-request {
+  workspaceId: 69110020d83a35d7991e90e4
+}

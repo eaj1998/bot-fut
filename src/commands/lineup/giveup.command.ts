@@ -8,7 +8,7 @@ import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
 import { LoggerService } from '../../logger/logger.service';
 import { GameRepository } from '../../core/repositories/game.respository';
-import { getUserNameFromMessage, getLidFromMessage } from '../../utils/message';
+import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -44,7 +44,8 @@ export class GiveUpCommand implements Command {
 
         const userName = await getUserNameFromMessage(message);
         const lid = await getLidFromMessage(message);
-        const user = await this.userRepo.upsertByPhone(workspace._id, message.author ?? message.from, nomeConvidado || userName, lid);
+        const phone = await getPhoneFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(workspace._id, phone, nomeConvidado || userName, lid);
 
         const res = await this.lineupSvc.giveUpFromList(game, user, nomeAutor);
         if (!res.removed) {

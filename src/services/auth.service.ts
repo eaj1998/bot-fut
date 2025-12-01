@@ -14,6 +14,7 @@ export class AuthService {
 
     const id = await this.resolveContactId(message);
     console.log('id', id);
+    console.log('adminNumbers', adminNumbers);
 
     return !!id && adminNumbers.includes(id);
   }

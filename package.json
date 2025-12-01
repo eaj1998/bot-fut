@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint",
     "lint:fix": "prettier --write './**/*.ts' & eslint --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "migrate:lid": "ts-node scripts/migrate-lid.ts"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +27,7 @@
     "qrcode-terminal": "^0.12.0",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
-    "whatsapp-web.js": "^1.34.1"
+    "whatsapp-web.js": "^1.34.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

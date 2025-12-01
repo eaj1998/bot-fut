@@ -30,3 +30,20 @@ export async function getUserNameFromMessage(message: Message): Promise<string> 
         return "Jogador";
     }
 }
+
+export async function getLidFromMessage(message: Message): Promise<string | undefined> {
+    try {
+        const contact = await message.getContact();
+        if (contact) {
+            // @ts-ignore
+            const lid = (contact as any).lid;
+            if (lid) {
+                const lidStr = typeof lid === 'object' ? lid._serialized : lid;
+                return lidStr.replace(/\D/g, '');
+            }
+        }
+    } catch (e) {
+        return undefined;
+    }
+    return undefined;
+}

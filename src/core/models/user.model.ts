@@ -2,9 +2,10 @@ import { Schema, model, Types, Model } from "mongoose";
 
 export interface UserDoc extends Document {
     _id: Types.ObjectId;
-    workspaceId: Types.ObjectId; 
+    workspaceId: Types.ObjectId;
     name: string;
-    phoneE164: string;           
+    phoneE164: string;
+    lid?: string;
     nick?: string;
     isGoalie: boolean;
     createdAt: Date;
@@ -14,7 +15,8 @@ export interface UserDoc extends Document {
 const UserSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", index: true, required: true },
     name: { type: String, required: true },
-    phoneE164: { type: String, required: true }, 
+    phoneE164: { type: String, required: true },
+    lid: { type: String },
     nick: String,
     isGoalie: { type: Boolean, default: false },
 }, { timestamps: true });

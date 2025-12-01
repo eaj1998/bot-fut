@@ -11,20 +11,30 @@ export class UserRepository {
         return this.model.findOne({ workspaceId, phoneE164 });
     }
 
-    async upsertByPhone(phoneE164: string, name: string) {
-        return this.model.findOneAndUpdate(
-            { phoneE164 },
-            { $setOnInsert: { name } },
-            { new: true, upsert: true }
-        );
+    async upsertByPhone(workspaceId: Types.ObjectId, phoneE164: string, name: string, lid?: string) {
+        if (lid) lid = lid.replace(/\D/g, '');
+        let user = await this.model.findOne({ workspaceId, phoneE164 });
+        if (!user && lid) {
+            user = await this.model.findOne({ workspaceId, lid });
+        }
+
+        if (user) {
+            if (lid && !user.lid) {
+                user.lid = lid;
+                await user.save();
+            }
+            return user;
+        }
+
+        return this.model.create({ workspaceId, phoneE164, name, lid });
     }
 
     async findByPhoneE164(phone: string) {
         return this.model.findOne({ phoneE164: phone });
     }
 
-    async findById(userId: string){
-        return await this.model.findOne({_id: userId});
+    async findById(userId: string) {
+        return await this.model.findOne({ _id: userId });
     }
 
     async create(data: Partial<UserDoc>) {

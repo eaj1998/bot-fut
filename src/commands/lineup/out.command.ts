@@ -7,7 +7,7 @@ import { UserModel, UserDoc } from "../../core/models/user.model";
 import { WorkspaceService } from "../../services/workspace.service";
 import { GameRepository } from "../../core/repositories/game.respository";
 import { UserRepository } from "../../core/repositories/user.repository";
-import { getUserNameFromMessage } from '../../utils/message';
+import { getUserNameFromMessage, getLidFromMessage } from '../../utils/message';
 
 @injectable()
 export class OutCommand implements Command {
@@ -40,7 +40,8 @@ export class OutCommand implements Command {
         const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
         const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
         const userName = await getUserNameFromMessage(message);
-        const user = await this.userRepo.upsertByPhone(message.author ?? message.from, userName);
+        const lid = await getLidFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(workspace._id, message.author ?? message.from, userName, lid);
 
         const userIdStr = user._id.toString();
         const inMain = players.some(p => p.userId?._id.toString() === userIdStr);

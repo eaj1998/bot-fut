@@ -1,9 +1,5 @@
 import { Message } from "whatsapp-web.js";
 
-/**
- * Attempts to get the user's display name from a WhatsApp message.
- * Falls back to phone number or "Jogador" if name is not available.
- */
 export async function getUserNameFromMessage(message: Message): Promise<string> {
     try {
         const notifyName = (message as any)._data?.notifyName;
@@ -39,30 +35,32 @@ export async function getLidFromMessage(message: Message): Promise<string | unde
             const lid = (contact as any).lid;
             if (lid) {
                 const lidStr = typeof lid === 'object' ? lid._serialized : lid;
-                return lidStr.replace(/\D/g, '');
+                const cleanLid = lidStr.replace(/\D/g, '');
+                console.log('[getLidFromMessage] Found LID in contact:', cleanLid);
+                return cleanLid;
             }
         }
     } catch (e) {
-        // ignore
     }
 
-    // Fallback: check if author or from is a LID
     const source = message.author || message.from;
     if (source && source.endsWith('@lid')) {
-        return source.replace(/\D/g, '');
+        const cleanLid = source.replace(/\D/g, '');
+        console.log('[getLidFromMessage] Found LID in author/from:', cleanLid);
+        return cleanLid;
     }
 
+    console.log('[getLidFromMessage] No LID found');
     return undefined;
 }
 
-export async function getPhoneFromMessage(message: Message): Promise<string> {
+export async function getPhoneFromMessage(message: Message): Promise<string | undefined> {
     const author = message.author || message.from;
 
-    // If it's already a c.us number, return it (stripped of non-digits if needed, but usually we keep @c.us or just digits)
-    // The existing code often uses the full string or just digits. Let's stick to what the existing code did: message.author ?? message.from
-    // But we want to avoid @lid.
+    console.log('[getPhoneFromMessage] author/from:', author);
 
     if (author && !author.endsWith('@lid')) {
+        console.log('[getPhoneFromMessage] Using author/from as phone:', author);
         return author;
     }
 
@@ -70,22 +68,19 @@ export async function getPhoneFromMessage(message: Message): Promise<string> {
         const contact = await message.getContact();
         if (contact) {
             if (contact.number) {
-                return `${contact.number}@c.us`;
+                const phone = `${contact.number}@c.us`;
+                console.log('[getPhoneFromMessage] Found phone in contact.number:', phone);
+                return phone;
             }
             if (contact.id && contact.id.user) {
-                return `${contact.id.user}@c.us`;
+                const phone = `${contact.id.user}@c.us`;
+                console.log('[getPhoneFromMessage] Found phone in contact.id.user:', phone);
+                return phone;
             }
         }
     } catch (e) {
-        // ignore
     }
 
-    // Fallback: if we really can't find a phone, return the author even if it is a LID? 
-    // The user explicitly said they don't want LID in phoneE164. 
-    // But if we can't find anything else, we might have to throw or return something.
-    // For now, let's return the author but log a warning if it's a LID?
-    // Or maybe just return it and let the repository handle it (though we want to avoid it there too).
-    // Let's assume getContact() works for LIDs to get the real number.
-
-    return author || '';
+    console.log('[getPhoneFromMessage] No phone found, returning undefined');
+    return undefined;
 }

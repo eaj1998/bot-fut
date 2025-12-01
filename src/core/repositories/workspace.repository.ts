@@ -1,8 +1,7 @@
 import { Model, Types } from "mongoose";
-import { CHAT_MODEL_TOKEN, ChatDoc, ChatModel } from "../models/chat.model";
+import { CHAT_MODEL_TOKEN, ChatDoc } from "../models/chat.model";
 import { inject, singleton } from "tsyringe";
 import { WORKSPACE_MODEL_TOKEN, WorkspaceDoc } from "../models/workspace.model";
-import { UserRepository } from "./user.repository";
 
 @singleton()
 export class WorkspaceRepository {
@@ -24,7 +23,7 @@ export class WorkspaceRepository {
     return this.model.findById(workspaceId);
   }
 
-  public async findBySlug(slug: string) {  
+  public async findBySlug(slug: string) {
     return this.model.findOne({ slug: slug });
   }
 

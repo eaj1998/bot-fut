@@ -21,6 +21,9 @@ import { DebtsService, DEBTS_SERVICE_TOKEN } from './services/debts.service';
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from './services/workspace.service';
 import { ChatService, CHATS_SERVICE_TOKEN } from './services/chat.service';
 import { DashboardService, DASHBOARD_SERVICE_TOKEN } from './services/dashboard.service';
+import { BBQ_MODEL_TOKEN, BBQModel } from './core/models/bbq.model';
+import { BBQ_SERVICE_TOKEN, BBQService } from './services/bbq.service';
+import { BBQ_REPOSITORY_TOKEN, BBQRepository } from './core/repositories/bbq.repository';
 
 dotenv.config();
 
@@ -38,11 +41,13 @@ const main = async () => {
   container.register(WORKSPACE_MODEL_TOKEN, { useValue: WorkspaceModel });
   container.register(CHAT_MODEL_TOKEN, { useValue: ChatModel });
   container.register(OTP_MODEL_TOKEN, { useValue: OtpModel });
+  container.register(BBQ_MODEL_TOKEN, { useValue: BBQModel });
 
   // Register repositories
   container.register('USER_REPOSITORY_TOKEN', { useClass: UserRepository });
   container.register(LEDGER_REPOSITORY_TOKEN, { useClass: LedgerRepository });
   container.register(GAME_REPOSITORY_TOKEN, { useClass: GameRepository });
+  container.register(BBQ_REPOSITORY_TOKEN, { useClass: BBQRepository });
 
   // Register services
   container.register(PLAYERS_SERVICE_TOKEN, { useClass: PlayersService });
@@ -50,7 +55,7 @@ const main = async () => {
   container.register(WORKSPACES_SERVICE_TOKEN, { useClass: WorkspaceService });
   container.register(CHATS_SERVICE_TOKEN, { useClass: ChatService });
   container.register(DASHBOARD_SERVICE_TOKEN, { useClass: DashboardService });
-
+  container.register(BBQ_SERVICE_TOKEN, { useClass: BBQService });
   try {
     config.validate();
     logger.log('✅ Configuration validated');

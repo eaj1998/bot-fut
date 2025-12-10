@@ -21,6 +21,8 @@ import { WorkspaceBalanceCommand } from './payment/workspaceBalance.command';
 import { PayFieldCommand } from './payment/payField.command';
 import { AddCreditCommand } from './payment/addCredit.command';
 import { AddDebitCommand } from './payment/addDebit.command';
+import { CreateBBQCommand } from './bbq/createBBQ.command';
+import { JoinBBQCommand } from './bbq/joinBBQ.command';
 
 @injectable()
 export class CommandFactory {
@@ -49,6 +51,9 @@ export class CommandFactory {
       case '/bind': return container.resolve(BindCommand);
       case '/fechar': return container.resolve(CloseCommand);
       case '/cancelar': return container.resolve(CancelCommand);
+      //churras
+      case '/lista-churras': return container.resolve(CreateBBQCommand);
+      case '/churras': return container.resolve(JoinBBQCommand);
 
       default: return undefined;
     }

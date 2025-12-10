@@ -4,13 +4,13 @@ import { Model, Types } from "mongoose";
 import { inject, injectable, singleton } from "tsyringe";
 
 
-type AddDebitInput = {
+export type AddDebitInput = {
   workspaceId: string;
   userId?: string;
   amountCents: number;
   gameId?: string;
   note?: string;
-  category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper";
+  category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper" | "churrasco";
   method?: string;
   status?: "pendente" | "confirmado";
   confirmedAt?: Date;

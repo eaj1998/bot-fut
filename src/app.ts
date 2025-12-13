@@ -28,7 +28,7 @@ export class App {
     @inject(BOT_SERVER_TOKEN) private readonly server: IBotServerPort,
     @inject(LoggerService) private readonly loggerService: LoggerService,
     @inject(CommandFactory) private readonly commandFactory: CommandFactory,
-     @inject(AuthService) private readonly authService: AuthService
+    @inject(AuthService) private readonly authService: AuthService
   ) {
     loggerService.setName('App');
   }
@@ -43,7 +43,6 @@ export class App {
 
     this.server.onReady(() => {
       this.loggerService.log('The APP is up and ready');
-      // Start cron job
     });
 
     this.server.onQRCode((qr: string) => {
@@ -71,7 +70,7 @@ export class App {
       }
 
       const isAdmin = await this.authService.isAdmin(message);
-      
+
       if (handler.role === IRole.ADMIN && !isAdmin) {
         return;
       }

@@ -30,7 +30,7 @@ export class OrganizzeService {
 
         if (!email || !apiKey) {
             this.loggerService.log('[ORGANIZZE] Credentials are not set');
-            return { added: true }; // Don't fail the operation if Organizze is not configured
+            return { added: true };
         }
 
         const payload = {

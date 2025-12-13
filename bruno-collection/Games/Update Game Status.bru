@@ -1,0 +1,21 @@
+meta {
+  name: Update Game Status
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/games/{{gameId}}/status
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "status": "open"
+  }
+}
+
+vars:pre-request {
+  gameId: 69209460fb02d0d1a5cf6086
+}

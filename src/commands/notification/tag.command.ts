@@ -2,7 +2,7 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { GroupChat, Message } from 'whatsapp-web.js';
-import { LineUpService } from '../../services/lineup.service';
+import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
 
@@ -12,7 +12,7 @@ export class TagCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(GameService) private readonly gameSvc: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
     ) { }
@@ -32,7 +32,7 @@ export class TagCommand implements Command {
             return;
         }
 
-        const game = await this.lineupSvc.getActiveGame(workspace._id, groupId);
+        const game = await this.gameSvc.getActiveGame(workspace._id.toString(), groupId);
 
         const group = chat as GroupChat
         let text = 'Chamada geral! 📢\n\n';

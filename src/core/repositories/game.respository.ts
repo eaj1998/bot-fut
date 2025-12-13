@@ -1,6 +1,6 @@
-import { GAME_MODEL_TOKEN, GameDoc, GameModel, GamePlayer } from "../models/game.model";
+import { GAME_MODEL_TOKEN, IGame, GameModel, GamePlayer } from "../models/game.model";
 import { Model, Types } from "mongoose";
-import { UserDoc } from "../models/user.model";
+import { IUser } from "../models/user.model";
 import { inject, injectable } from "tsyringe";
 import { ConfigService } from "../../config/config.service";
 import axios from 'axios';
@@ -10,13 +10,14 @@ import { isOutfield } from "../../utils/lineup";
 export class GameRepository {
     constructor(
         @inject(ConfigService) private readonly configService: ConfigService,
-        @inject(GAME_MODEL_TOKEN) private readonly model: Model<GameDoc> = GameModel
+        @inject(GAME_MODEL_TOKEN) private readonly model: Model<IGame> = GameModel
     ) { }
 
 
 
-    async findById(id: Types.ObjectId) {
-        return this.model.findOne(id)
+    async findById(id: Types.ObjectId | string) {
+        const objectId = typeof id === 'string' ? new Types.ObjectId(id) : id;
+        return this.model.findById(objectId);
     }
 
     async findActiveForChat(workspaceId: Types.ObjectId, chatId: string) {
@@ -64,13 +65,12 @@ export class GameRepository {
         });
     }
 
-    async save(game: GameDoc) {
+    async save(game: IGame) {
         return game.save();
     }
 
     async criarMovimentacaoOrganizze(player: GamePlayer, dataDoJogo: Date): Promise<{ added: boolean }> {
         if (!this.configService.organizze.email || !this.configService.organizze.apiKey) {
-            console.log('[ORGANIZZE] Credenciais não configuradas. Pulando integração.');
             return { added: false };
         }
 
@@ -113,7 +113,7 @@ export class GameRepository {
         return { added: false };
     }
 
-    async setPlayerPaid(game: GameDoc, playerNumber: number, paid: boolean) {
+    async setPlayerPaid(game: IGame, playerNumber: number, paid: boolean) {
         if (!game) return { updated: false, PlayerName: "" };
         if (!game.roster?.players) return { updated: false, PlayerName: "" };
 
@@ -127,8 +127,8 @@ export class GameRepository {
 
 
     async addOutfieldPlayer(
-        game: GameDoc,
-        user: UserDoc,
+        game: IGame,
+        user: IUser,
         maxPlayers = 16
     ): Promise<{ added: boolean; suplentePos?: number }> {
         game.roster.players = game.roster.players ?? [];
@@ -183,4 +183,20 @@ export class GameRepository {
             return ownUnpaid || guestUnpaid;
         });
     }
+
+    async findOpenGamesForUser(userId: Types.ObjectId) {
+        return this.model.find({
+            'roster.players': {
+                $elemMatch: {
+                    $or: [
+                        { userId: userId },
+                        { invitedByUserId: userId }
+                    ]
+                }
+            },
+            status: 'open'
+        }).lean();
+    }
 }
+
+export const GAME_REPOSITORY_TOKEN = 'GAME_REPOSITORY_TOKEN';

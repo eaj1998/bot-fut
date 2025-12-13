@@ -1,0 +1,23 @@
+meta {
+  name: Get Full Dashboard
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/dashboard
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~workspaceId: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Obtém dashboard completo com estatísticas, jogos recentes, débitos recentes e receita mensal.
+}

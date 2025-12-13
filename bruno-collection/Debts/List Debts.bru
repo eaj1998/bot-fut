@@ -1,0 +1,24 @@
+meta {
+  name: List Debts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/debts
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~page: 1
+  ~limit: 20
+  ~status: 
+  ~playerId: 
+  ~gameId: 
+  ~workspaceId: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

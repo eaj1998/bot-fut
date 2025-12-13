@@ -1,0 +1,21 @@
+meta {
+  name: Create Debt
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "playerId": "6913c8e1ca7eed38f9a1d3f9",
+    "workspaceId": "6913c948ca7eed38f9a1d402",
+    "amount": 50.00,
+    "notes": "Débito manual criado",
+    "category": "player-debt"
+  }
+}

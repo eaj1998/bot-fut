@@ -2,7 +2,6 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message, MessageMedia } from 'whatsapp-web.js';
-import { LineUpService } from '../../services/lineup.service';
 
 @injectable()
 export class HelpCommand implements Command {

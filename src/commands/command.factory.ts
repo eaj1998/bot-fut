@@ -21,14 +21,21 @@ import { WorkspaceBalanceCommand } from './payment/workspaceBalance.command';
 import { PayFieldCommand } from './payment/payField.command';
 import { AddCreditCommand } from './payment/addCredit.command';
 import { AddDebitCommand } from './payment/addDebit.command';
+import { CreateBBQCommand } from './bbq/createBBQ.command';
+import { JoinBBQCommand } from './bbq/joinBBQ.command';
+import { GiveupBBQCommand } from './bbq/giveupBBQ.command';
+import { GuestBBQCommand } from './bbq/guestBBQ.command';
+import { PriceBBQCommand } from './bbq/priceBBQ.command';
+import { CloseBBQCommand } from './bbq/closeBBQ.command';
+import { PayBBQCommand } from './bbq/payBBQ.command';
+import { CancelBBQCommand } from './bbq/cancelBBQ.command';
 import { RandomizeTeamsCommand } from './lineup/randomizeTeams.command';
 
 @injectable()
 export class CommandFactory {
   public create(command: string): Command | undefined {
-    console.log('command', command);
-
     switch (command) {
+
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);
@@ -50,6 +57,15 @@ export class CommandFactory {
       case '/bind': return container.resolve(BindCommand);
       case '/fechar': return container.resolve(CloseCommand);
       case '/cancelar': return container.resolve(CancelCommand);
+      //churras
+      case '/lista-churras': return container.resolve(CreateBBQCommand);
+      case '/churras': return container.resolve(JoinBBQCommand);
+      case '/desistir-churras': return container.resolve(GiveupBBQCommand);
+      case '/convidado-churras': return container.resolve(GuestBBQCommand);
+      case '/valor-churras': return container.resolve(PriceBBQCommand);
+      case '/fechar-churras': return container.resolve(CloseBBQCommand);
+      case '/pagar-churras': return container.resolve(PayBBQCommand);
+      case '/cancelar-churras': return container.resolve(CancelBBQCommand);
       case '/times': return container.resolve(RandomizeTeamsCommand);
 
       default: return undefined;

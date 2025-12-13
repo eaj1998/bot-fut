@@ -2,10 +2,8 @@ import { inject, injectable } from 'tsyringe';
 import { Command, IRole } from '../type';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
-import { LineUpService } from '../../services/lineup.service';
+import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
-import { UserRepository } from '../../core/repositories/user.repository';
-import { GameRepository } from '../../core/repositories/game.respository';
 import { LoggerService } from '../../logger/logger.service';
 
 @injectable()
@@ -14,9 +12,8 @@ export class CloseCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-        @inject(GameRepository) private readonly gameRepo: GameRepository,
         @inject(LoggerService) private readonly loggerService: LoggerService
     ) { }
 
@@ -29,7 +26,7 @@ export class CloseCommand implements Command {
             return;
         }
 
-        let game = await this.gameRepo.findActiveForChat(workspace._id, groupId);
+        let game = await this.gameService.getActiveGame(workspace._id.toString(), groupId);
 
         if (!game) {
             await message.reply("Nenhum jogo agendado encontrado para este grupo.");
@@ -37,13 +34,12 @@ export class CloseCommand implements Command {
         }
 
         try {
-            const result = await this.lineupSvc.closeGame(game);
+            const result = await this.gameService.closeGameForBot(game);
             if (result.added) {
                 const failedPlayers: string[] = [];
 
-                result.results.forEach((r) => {
+                result.results.forEach((r: any) => {
                     if (r.success) {
-                        console.log(`✔ ${r.playerName} processado com sucesso`);
                     } else {
                         failedPlayers.push(r.playerName);
                     }

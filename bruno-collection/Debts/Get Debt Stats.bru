@@ -1,0 +1,15 @@
+meta {
+  name: Get Debt Stats
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/debts/stats
+  body: none
+  auth: none
+}
+
+query {
+  ~workspaceId: 
+}

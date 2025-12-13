@@ -1,0 +1,21 @@
+meta {
+  name: Create Player
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/players
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "João Silva",
+    "phoneE164": "+5511999999999",
+    "nick": "Joao",
+    "isGoalie": false,
+    "role": "user"
+  }
+}

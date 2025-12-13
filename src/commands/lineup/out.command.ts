@@ -1,22 +1,19 @@
 import { inject, injectable } from "tsyringe";
 import { Command, IRole } from "../type";
 import { Message } from "whatsapp-web.js";
-import { LineUpService } from "../../services/lineup.service";
-import { GameDoc } from "../../core/models/game.model";
-import { UserModel, UserDoc } from "../../core/models/user.model";
+import { GameService } from "../../services/game.service";
 import { WorkspaceService } from "../../services/workspace.service";
-import { GameRepository } from "../../core/repositories/game.respository";
-import { UserRepository } from "../../core/repositories/user.repository";
 import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
+import { UserRepository } from "../../core/repositories/user.repository";
 
 @injectable()
 export class OutCommand implements Command {
     role = IRole.USER;
 
     constructor(
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
+        @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-        @inject(UserRepository) private readonly userRepo: UserRepository
+        @inject(UserRepository) private readonly userRepo: UserRepository,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -28,11 +25,7 @@ export class OutCommand implements Command {
             return;
         }
 
-        const game = (await this.lineupSvc.getActiveListOrWarn(
-            workspace._id.toString(),
-            groupId,
-            (txt: string) => message.reply(txt)
-        )) as GameDoc | null;
+        const game = await this.gameService.getActiveGame(workspace._id.toString(), groupId);
 
         if (!game) return;
 
@@ -43,36 +36,45 @@ export class OutCommand implements Command {
         const lid = await getLidFromMessage(message);
         const phone = await getPhoneFromMessage(message);
         const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
+        const author = await message.getContact();
 
-        const userIdStr = user._id.toString();
-        const inMain = players.some(p => p.userId?._id.toString() === userIdStr);
+        const isInMainRoster = game.roster.players.some(p => p.phoneE164 === phone);
+        const isInWaitlist = game.roster.waitlist?.some(w => w.phoneE164 === phone);
+        const isInOutlist = game.roster.outlist?.some(o => o.phoneE164 === phone);
 
-        if (inMain) {
+        if (isInMainRoster) {
             await message.reply(
-                'Você está escalado pro jogo! 💪\nSe não puder ir, use /desistir pra liberar a vaga — mas se puder, ajuda a fechar o time! ⚽'
+                `Você está escalado pro jogo! 💪\n` +
+                `Se não puder ir, use /desistir pra liberar a vaga — mas se puder, ajuda a fechar o time! ⚽`
             );
             return;
         }
 
-        const alreadyOut =
-            outlist.some(o => o.userId?.toString() === userIdStr) ||
-            outlist.some(o => (o.name ?? "").toLowerCase() === (user!.name ?? "").toLowerCase());
-
-        if (alreadyOut) {
-            await message.reply('Você já está marcado como "fora" para esta semana.');
+        if (isInWaitlist) {
+            await message.reply(
+                `Você está na lista de espera! 🔄\n` +
+                `Se não puder ir, use /desistir pra sair da lista.`
+            );
             return;
         }
 
-        const res = this.lineupSvc.addOffLineupPlayer(game, user);
+        if (isInOutlist) {
+            await message.reply(
+                `✅ ${author.pushname || author.name}, você já está marcado como "fora" para esta semana.`
+            );
+            return;
+        }
+
+        const res = await this.gameService.addOffLineupPlayer(game, user.phoneE164, user.name);
 
         if (res.added) {
             await game.save();
-            await message.reply(`✅ ${user.name}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
+            await message.reply(`✅ ${author.pushname || author.name}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
             return;
         }
 
         await message.reply(
-            `✅ ${user.name}, Ocorreu um erro, tente novamente mais tarde.`
+            `✅ ${author.pushname || author.name}, Ocorreu um erro, tente novamente mais tarde.`
         );
     }
 

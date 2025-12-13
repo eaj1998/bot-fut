@@ -102,8 +102,6 @@ export class WeatherCommand implements Command {
             const rain = daily.rain_sum?.[i] ?? daily.precipitation_sum?.[i];
 
             if (rain != undefined && rain > 0) {
-                console.log(`[COMANDO] Enviando figurinha de chuva para ${message.from}.`);
-
                 const sticker = MessageMedia.fromFilePath('./assets/pedro.webp');
                 this.server.sendMessage(message.from, sticker, { sendMediaAsSticker: true });
             }
@@ -147,7 +145,7 @@ export class WeatherCommand implements Command {
     }
 
     private formatToday(place: string, d: DailyForecast, i: number): string {
-        const date = this.formatDateBR(d.time[i]); 
+        const date = this.formatDateBR(d.time[i]);
         const code = d.weather_code[i];
         const icon = this.wmoIcon(code);
         const desc = this.wmoPtBr(code);

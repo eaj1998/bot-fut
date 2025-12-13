@@ -2,10 +2,9 @@ import { inject, injectable } from "tsyringe";
 import { Command, IRole } from "../type";
 import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
-import { LineUpService } from "../../services/lineup.service";
 import { Message } from "whatsapp-web.js";
 import { UserRepository } from "../../core/repositories/user.repository";
-import { LedgerRepository } from "../../core/repositories/ledger.repository";
+import { DebtsService, DEBTS_SERVICE_TOKEN } from "../../services/debts.service";
 import { LoggerService } from "../../logger/logger.service";
 import Utils from "../../utils/utils";
 import { OrganizzeService } from "../../services/organizze.service";
@@ -16,11 +15,10 @@ export class AddCreditCommand implements Command {
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
-        @inject(LineUpService) private readonly lineupSvc: LineUpService,
         @inject(LoggerService) private readonly loggerService: LoggerService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
-        @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
         @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
@@ -49,18 +47,15 @@ export class AddCreditCommand implements Command {
             const amountCents = Utils.parsePriceToCents(amount);
 
             if (amountCents != null && amountCents > 0) {
-                console.log(`amount`, amountCents);
                 try {
-                    await this.ledgerRepo.addCredit({
+                    await this.debtsService.createDebt({
+                        playerId: user._id.toString(),
                         workspaceId: workspace._id.toString(),
-                        userId: user._id.toString(),
-                        amountCents: amountCents ?? 0,
-                        note: "Credito adicionado via grupo",
-                        method: "pix",
+                        amount: -(amountCents / 100),
+                        notes: "Crédito adicionado via grupo",
                         category: "general"
                     });
 
-                    // Create Organizze transaction
                     const organizzeResult = await this.organizzeService.createTransaction({
                         description: `Crédito adicionado - ${user.name} - ${workspace.name}`,
                         amountCents: amountCents,
@@ -75,8 +70,8 @@ export class AddCreditCommand implements Command {
                     }
 
                 } catch (e: any) {
-                    this.loggerService.log(`[ADD-CREDIT] Falha ao creditar: ${e}`);
-                    message.reply(`Erro ao adicionar crédito, tente novamente mais tarde.`);
+                    this.loggerService.log(`[ADD-CREDIT] Falha ao adicionar crédito: ${e}`);
+                    message.reply(`Erro ao adicionar crédito: ${e.message}`);
                 }
             }
 

@@ -1,3 +1,6 @@
+import { injectable } from "tsyringe";
+
+@injectable()
 export default class Utils {
   static formatCentsToReal(cents: number): string {
     const reais = cents / 100;
@@ -40,7 +43,7 @@ export default class Utils {
       const n = Number(s.slice(0, -1));
       return Number.isInteger(n) && n >= 0 ? n : null;
     }
-    s = s.replace(/\./g, "").replace(",", "."); 
+    s = s.replace(/\./g, "").replace(",", ".");
     const v = Number(s);
     if (Number.isNaN(v) || v < 0) return null;
     return Math.round(v * 100);
@@ -55,5 +58,24 @@ export default class Utils {
     return typeof wd === "number" && wd >= 0 && wd <= 6 ? names[wd] : "-";
   }
 
+  public normalizePhone(phone: string): string {
+    let normalized = phone.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
 
+    normalized = normalized.replace(/\D/g, '');
+
+    if (!normalized.startsWith('55')) {
+      normalized = '55' + normalized;
+    }
+
+    if (normalized.length === 14 && normalized.startsWith('55')) {
+      const ddd = normalized.substring(2, 4);
+      const number = normalized.substring(4);
+
+      if (number.length === 10 && number.startsWith('9')) {
+        normalized = '55' + ddd + number.substring(1);
+      }
+    }
+
+    return normalized;
+  }
 }

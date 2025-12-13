@@ -1,0 +1,25 @@
+meta {
+  name: Update Schedule
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/chats/:id/schedule
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "weekday": 1,
+    "time": "20:30",
+    "title": "⚽ CAMPO DO VIANA",
+    "priceCents": 1500,
+    "pix": "+5549999999999"
+  }
+}

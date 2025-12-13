@@ -25,17 +25,33 @@ export class HttpServer extends IBotServerPort {
     loggerService.setName('HTTPServer');
   }
 
-  sendMessage(
-    chatId: string,
-    message: WAWebJS.MessageContent,
-    options?: WAWebJS.MessageSendOptions
-  ): any {  
-    if (!this.socket) {
-      this.loggerService.log('No socket available');
-      return { pin: async (duration?: number) => true };
-    }
-    this.socket.emit('message', { chat: chatId, message, options });
-    return { pin: async (duration?: number) => true };
+  // sendMessage(
+  //   chatId: string,
+  //   message: WAWebJS.MessageContent,
+  //   options?: WAWebJS.MessageSendOptions
+  // ): any {
+  //   if (!this.socket) {
+  //     this.loggerService.log('No socket available');
+  //     return { pin: async (duration?: number) => true };
+  //   }
+  //   this.socket.emit('message', { chat: chatId, message, options });
+  //   return { pin: async (duration?: number) => true };
+  // }
+
+  async sendMessage(chatId: string, message: string): Promise<any> {
+    console.log(`[HTTP Mock] Sending message to ${chatId}: ${message}`);
+    if(this.socket)
+      this.socket.emit('message', { chat: chatId, message });
+    return Promise.resolve({ id: 'mock-message-id', body: message });
+  }
+
+  async getContactById(contactId: string): Promise<any> {
+    console.log(`[HTTP Mock] Getting contact: ${contactId}`);
+    return Promise.resolve({
+      id: contactId,
+      name: 'Mock Contact',
+      isMyContact: true
+    });
   }
 
   private async dispatchAsyncMessage(input: string, user: any) {

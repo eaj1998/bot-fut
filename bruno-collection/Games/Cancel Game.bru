@@ -1,0 +1,19 @@
+meta {
+  name: Cancel Game
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/games/{{gameId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+vars:pre-request {
+  gameId: 69230edad9c416eb895aa7c4
+}

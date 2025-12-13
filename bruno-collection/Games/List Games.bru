@@ -1,0 +1,21 @@
+meta {
+  name: List Games
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/games
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~status: 
+  ~type: 
+  ~search: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

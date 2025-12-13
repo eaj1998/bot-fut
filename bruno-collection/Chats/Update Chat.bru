@@ -1,0 +1,34 @@
+meta {
+  name: Update Chat
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/chats/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Grupo Campo Viana Atualizado",
+    "label": "Viana Segunda",
+    "status": "active",
+    "schedule": {
+      "weekday": 1,
+      "time": "20:30",
+      "title": "⚽ CAMPO DO VIANA",
+      "priceCents": 1500,
+      "pix": "+5549999999999"
+    }
+  }
+}

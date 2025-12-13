@@ -45,15 +45,17 @@ export interface GameRoster {
 /**
  * Documento principal do Game
  */
-export interface GameDoc extends Document {
+export interface IGame extends Document {
   _id: Types.ObjectId;
   workspaceId: Types.ObjectId;
   chatId: string;
   date: Date;
   title?: string;
-  priceCents?: number;
+  location?: string;
+  gameType?: string;
+  priceCents: number;
   maxPlayers?: number;
-  status: "open" | "closed" | "cancelled" | "finished"
+  status: "open" | "closed" | "cancelled" | "finished" | "scheduled"
   roster: GameRoster;
   createdAt: Date;
   updatedAt: Date;
@@ -71,7 +73,7 @@ const RosterPlayerSchema = new Schema<GamePlayer>(
     paidAt: Date,
     guest: { type: Boolean, default: false },
     organizzeId: Number,
-    invitedByUserId: {type: Types.ObjectId, ref: "User"},
+    invitedByUserId: { type: Types.ObjectId, ref: "User" },
     phoneE164: String,
   },
   { _id: false }
@@ -107,17 +109,19 @@ const RosterSchema = new Schema<GameRoster>(
   { _id: false }
 );
 
-const GameSchema = new Schema<GameDoc>(
+const GameSchema = new Schema<IGame>(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", required: true, index: true },
     chatId: { type: String, required: true, index: true },
     date: { type: Date, required: true, index: true },
     title: String,
+    location: String,
+    gameType: String,
     priceCents: Number,
     maxPlayers: Number,
     status: {
       type: String,
-      enum: ["open", "closed", "cancelled", "finished"],
+      enum: ["open", "closed", "cancelled", "finished", "scheduled"],
       default: "open",
     },
     roster: {
@@ -128,7 +132,7 @@ const GameSchema = new Schema<GameDoc>(
   { timestamps: true }
 );
 
-export const GameModel: Model<GameDoc> = model<GameDoc>("Game", GameSchema);
+export const GameModel: Model<IGame> = model<IGame>("Game", GameSchema);
 
 
 export const GAME_MODEL_TOKEN = "GAME_MODEL_TOKEN";

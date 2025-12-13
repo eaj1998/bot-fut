@@ -12,6 +12,17 @@ export interface WorkspaceDoc extends Document {
         pix?: string;
         title?: string;
     };
+    organizzeConfig?: {
+        email: string;           // Encrypted
+        apiKey: string;          // Encrypted
+        accountId: number;
+        categories: {
+            fieldPayment: number;    // Category ID for "field-payment"
+            playerPayment: number;   // Category ID for "player-payment"
+            playerDebt: number;      // Category ID for "player-debt"
+            general: number;         // Category ID for "general"
+        };
+    };
 }
 
 const WorkspaceSchema = new Schema({
@@ -26,12 +37,23 @@ const WorkspaceSchema = new Schema({
         title: { type: String },
         default: { type: Object, default: {} }
     },
+    organizzeConfig: {
+        email: { type: String },
+        apiKey: { type: String },
+        accountId: { type: Number },
+        categories: {
+            fieldPayment: { type: Number },
+            playerPayment: { type: Number },
+            playerDebt: { type: Number },
+            general: { type: Number }
+        }
+    },
     roles: [{ userId: { type: Types.ObjectId, ref: "User" }, role: String }]
 }, { timestamps: true });
 
 export const WorkspaceModel: Model<WorkspaceDoc> = model<WorkspaceDoc>(
-  "Workspace",
-  WorkspaceSchema
+    "Workspace",
+    WorkspaceSchema
 );
 
 export const WORKSPACE_MODEL_TOKEN = "WORKSPACE_MODEL_TOKEN";

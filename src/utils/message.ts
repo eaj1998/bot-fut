@@ -31,12 +31,10 @@ export async function getLidFromMessage(message: Message): Promise<string | unde
     try {
         const contact = await message.getContact();
         if (contact) {
-            // @ts-ignore
             const lid = (contact as any).lid;
             if (lid) {
                 const lidStr = typeof lid === 'object' ? lid._serialized : lid;
                 const cleanLid = lidStr.replace(/\D/g, '');
-                console.log('[getLidFromMessage] Found LID in contact:', cleanLid);
                 return cleanLid;
             }
         }
@@ -46,41 +44,26 @@ export async function getLidFromMessage(message: Message): Promise<string | unde
     const source = message.author || message.from;
     if (source && source.endsWith('@lid')) {
         const cleanLid = source.replace(/\D/g, '');
-        console.log('[getLidFromMessage] Found LID in author/from:', cleanLid);
         return cleanLid;
     }
 
-    console.log('[getLidFromMessage] No LID found');
     return undefined;
 }
 
 export async function getPhoneFromMessage(message: Message): Promise<string | undefined> {
-    const author = message.author || message.from;
-
-    console.log('[getPhoneFromMessage] author/from:', author);
-
-    if (author && !author.endsWith('@lid')) {
-        console.log('[getPhoneFromMessage] Using author/from as phone:', author);
-        return author;
+    const author = message.author ?? message.from ?? null;
+    if (author) {
+        return author.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
     }
 
-    try {
-        const contact = await message.getContact();
-        if (contact) {
-            if (contact.number) {
-                const phone = `${contact.number}@c.us`;
-                console.log('[getPhoneFromMessage] Found phone in contact.number:', phone);
-                return phone;
-            }
-            if (contact.id && contact.id.user) {
-                const phone = `${contact.id.user}@c.us`;
-                console.log('[getPhoneFromMessage] Found phone in contact.id.user:', phone);
-                return phone;
-            }
+    const contact = await message.getContact();
+    if (contact) {
+        if (contact.number) {
+            return contact.number.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
+        } else if (contact.id?.user) {
+            return contact.id.user.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
         }
-    } catch (e) {
     }
 
-    console.log('[getPhoneFromMessage] No phone found, returning undefined');
     return undefined;
 }

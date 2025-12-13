@@ -1,0 +1,10 @@
+mongodump \
+  --uri "" \
+  --db botFutebol \
+  --archive | \
+mongorestore \
+  --uri "" \
+  --archive \
+  --drop \
+  --nsFrom "botFutebol.*" \
+  --nsTo "botFutHml.*"

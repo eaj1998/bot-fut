@@ -1,11 +1,11 @@
 import { inject, injectable, singleton } from "tsyringe";
 import { Model, Types } from "mongoose";
-import { USER_MODEL_TOKEN, UserDoc } from "../models/user.model";
+import { USER_MODEL_TOKEN, IUser } from "../models/user.model";
 
 @singleton()
 @injectable()
 export class UserRepository {
-    constructor(@inject(USER_MODEL_TOKEN) private readonly model: Model<UserDoc>) { }
+    constructor(@inject(USER_MODEL_TOKEN) private readonly model: Model<IUser>) { }
 
     async findByWorkspaceAndPhone(workspaceId: Types.ObjectId, phoneE164: string) {
         return this.model.findOne({ workspaceId, phoneE164 });
@@ -14,12 +14,9 @@ export class UserRepository {
     async upsertByPhone(workspaceId: Types.ObjectId, phoneE164: string | undefined, name: string, lid?: string) {
         if (lid) lid = lid.replace(/\D/g, '');
 
-        console.log('[upsertByPhone] Input:', { workspaceId: workspaceId.toString(), phoneE164, name, lid });
-
         if (phoneE164?.endsWith('@lid')) {
             const extractedLid = phoneE164.replace(/\D/g, '');
             if (!lid) lid = extractedLid;
-            console.log('[upsertByPhone] Phone is LID, extracting:', extractedLid);
             phoneE164 = undefined;
         }
 
@@ -27,49 +24,40 @@ export class UserRepository {
 
         if (lid) {
             user = await this.model.findOne({ lid });
-            console.log('[upsertByPhone] Lookup by LID:', lid, 'found:', !!user);
         }
 
         if (!user && phoneE164) {
-            user = await this.model.findOne({ workspaceId, phoneE164 });
-            console.log('[upsertByPhone] Lookup by phone+workspace:', { phoneE164, workspaceId: workspaceId.toString() }, 'found:', !!user);
+            user = await this.model.findOne({ phoneE164 });
         }
 
         if (user) {
             let changed = false;
 
-            if (!user.workspaceId) {
-                console.log('[upsertByPhone] Updating missing workspaceId');
-                user.workspaceId = workspaceId;
-                changed = true;
-            }
-
             if (lid && !user.lid) {
-                console.log('[upsertByPhone] Updating missing LID');
                 user.lid = lid;
                 changed = true;
             }
 
             if (phoneE164 && (!user.phoneE164 || user.phoneE164.endsWith('@lid'))) {
-                console.log('[upsertByPhone] Updating phone from', user.phoneE164, 'to', phoneE164);
                 user.phoneE164 = phoneE164;
                 changed = true;
             }
 
             if (changed) {
                 await user.save();
-                console.log('[upsertByPhone] User updated');
             }
             return user;
         }
 
-        if (!phoneE164) {
-            console.error('[upsertByPhone] Cannot create user without phone number');
-            throw new Error('Cannot create user without phone number');
+        if (!phoneE164 && lid) {
+            phoneE164 = lid;
         }
 
-        console.log('[upsertByPhone] Creating new user');
-        return this.model.create({ workspaceId, phoneE164, name, lid });
+        if (!phoneE164) {
+            throw new Error('Cannot create user without phone number or LID');
+        }
+
+        return this.model.create({ phoneE164, name, lid });
     }
 
     async findByPhoneE164(phone: string) {
@@ -80,7 +68,74 @@ export class UserRepository {
         return await this.model.findOne({ _id: userId });
     }
 
-    async create(data: Partial<UserDoc>) {
+    async create(data: Partial<IUser>) {
         return this.model.create(data);
     }
+
+    async findAll(filters: {
+        status?: string;
+        search?: string;
+        page?: number;
+        limit?: number;
+        sortBy?: string;
+        sortOrder?: 'asc' | 'desc';
+    }) {
+        const { status, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = filters;
+        const query: any = {};
+
+        if (status) {
+            query.status = status;
+        }
+
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { phoneE164: { $regex: search, $options: 'i' } },
+                { nick: { $regex: search, $options: 'i' } },
+            ];
+        }
+
+        const sort: any = {};
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+        const skip = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+            this.model.find(query).sort(sort).skip(skip).limit(limit).lean(),
+            this.model.countDocuments(query),
+        ]);
+
+        return { users, total };
+    }
+
+    async update(id: string, data: Partial<IUser>) {
+        return this.model.findByIdAndUpdate(id, data, { new: true });
+    }
+
+    async delete(id: string) {
+        return this.model.findByIdAndDelete(id);
+    }
+
+    async exists(phoneE164: string, excludeId?: string) {
+        const query: any = { phoneE164 };
+        if (excludeId) {
+            query._id = { $ne: excludeId };
+        }
+        const user = await this.model.findOne(query);
+        return !!user;
+    }
+
+    async getStats() {
+        const total = await this.model.countDocuments();
+        const admins = await this.model.countDocuments({ role: 'admin' });
+        const users = await this.model.countDocuments({ role: 'user' });
+
+        return {
+            total,
+            admins,
+            users,
+        };
+    }
 }
+
+export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY_TOKEN';

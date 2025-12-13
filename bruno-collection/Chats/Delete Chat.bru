@@ -1,0 +1,15 @@
+meta {
+  name: Delete Chat
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/chats/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 
+}

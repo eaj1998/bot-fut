@@ -3,45 +3,12 @@ import { Command, IRole } from "../type";
 import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
 import { GameRepository } from "../../core/repositories/game.respository";
-import { LedgerRepository } from "../../core/repositories/ledger.repository";
+import { DebtsService, DEBTS_SERVICE_TOKEN } from "../../services/debts.service";
 import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { buildUtcCalendarDay } from "../../utils/date";
 import { LoggerService } from "../../logger/logger.service";
 import { OrganizzeService } from "../../services/organizze.service";
-
-function parseDDMM(s: string): { day: number; month: number } | null {
-    const m = /^(\d{1,2})\/(\d{1,2})$/.exec((s ?? "").trim());
-    if (!m) return null;
-    const d = Number(m[1]), mm = Number(m[2]);
-    if (d >= 1 && d <= 31 && mm >= 1 && mm <= 12) return { day: d, month: mm };
-    return null;
-}
-
-// Aceita "50,00", "50.00", "R$ 50,00", "1400c"
-function parseAmountToCents(raw?: string | number | null): number | null {
-    if (raw == null) return null;
-    if (typeof raw === "number") return Number.isFinite(raw) ? Math.round(raw * 100) : null;
-    const s = String(raw).trim();
-    // suporta notação "1400c"
-    if (/^\d+\s*c$/i.test(s)) {
-        const n = parseInt(s.replace(/c/i, ""), 10);
-        return Number.isFinite(n) ? n : null;
-    }
-    // remove símbolo R$ e espaços
-    let t = s.replace(/[Rr]\$|\s/g, "");
-    // se tiver vírgula e ponto, assume BR: milhar '.' e decimal ','
-    if (t.includes(",") && t.includes(".")) {
-        t = t.replace(/\./g, "").replace(",", ".");
-    } else if (t.includes(",")) {
-        // somente vírgula: trata como decimal
-        t = t.replace(",", ".");
-    }
-    const v = Number(t);
-    if (!Number.isFinite(v)) return null;
-    const cents = Math.round(v * 100);
-    return cents >= 0 ? cents : null;
-}
 
 @injectable()
 export class AddDebitCommand implements Command {
@@ -50,16 +17,12 @@ export class AddDebitCommand implements Command {
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(GameRepository) private readonly gameRepo: GameRepository,
-        @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
         @inject(LoggerService) private readonly logService: LoggerService,
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
-    // Formatos aceitos:
-    // /addDebit 13/11 slug=workspace amount=50,00 note=aluguel goleiro
-    // /addDebit slug=workspace 13/11 50,00 goleiro aluguel
-    // /addDebit slug=workspace date=13/11 amount=R$50,00 note="goleiro aluguel"
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
         const [cmd, ...tokens] = message.body.trim().split(/\s+/);
@@ -89,7 +52,7 @@ export class AddDebitCommand implements Command {
             await this.server.sendMessage(groupId, "❌ Data obrigatória. Use dd/mm. Ex.: 13/11");
             return;
         }
-        const dmy = parseDDMM(rawDate);
+        const dmy = this.parseDDMM(rawDate);
         if (!dmy) {
             await this.server.sendMessage(groupId, "❌ Data inválida. Use dd/mm. Ex.: 13/11");
             return;
@@ -113,7 +76,7 @@ export class AddDebitCommand implements Command {
             if (amountLike) rawAmount = amountLike;
         }
 
-        const cents = parseAmountToCents(rawAmount ?? "");
+        const cents = this.parseAmountToCents(rawAmount ?? "");
         if (cents == null) {
             await this.server.sendMessage(groupId, "❌ Valor inválido. Exemplos: 150,00 | 150.00 | R$150 | 15000c");
             return;
@@ -146,13 +109,13 @@ export class AddDebitCommand implements Command {
         }
 
         try {
-            await this.ledgerRepo.addDebit({
+            await this.debtsService.createDebt({
+                playerId: "", // Débito do campo, sem jogador específico
                 workspaceId: ws._id.toString(),
-                userId: "",
-                amountCents: cents,
                 gameId: game._id.toString(),
-                note: `${note} do jogo ${rawDate} (${game.title ?? "Jogo"})`,
-                category: "general",
+                amount: cents / 100,
+                notes: `${note} do jogo ${rawDate} (${game.title ?? "Jogo"})`,
+                category: "field-payment",
             });
 
             // Create Organizze transaction
@@ -178,5 +141,34 @@ export class AddDebitCommand implements Command {
             this.logService.log(`Erro ao registrar débito do jogo: `, e);
             await this.server.sendMessage(groupId, `❌ Não foi possível registrar o débito, tente novamente mais tarde.`);
         }
+    }
+
+
+    parseDDMM(s: string): { day: number; month: number } | null {
+        const m = /^(\d{1,2})\/(\d{1,2})$/.exec((s ?? "").trim());
+        if (!m) return null;
+        const d = Number(m[1]), mm = Number(m[2]);
+        if (d >= 1 && d <= 31 && mm >= 1 && mm <= 12) return { day: d, month: mm };
+        return null;
+    }
+
+    parseAmountToCents(raw?: string | number | null): number | null {
+        if (raw == null) return null;
+        if (typeof raw === "number") return Number.isFinite(raw) ? Math.round(raw * 100) : null;
+        const s = String(raw).trim();
+        if (/^\d+\s*c$/i.test(s)) {
+            const n = parseInt(s.replace(/c/i, ""), 10);
+            return Number.isFinite(n) ? n : null;
+        }
+        let t = s.replace(/[Rr]\$|\s/g, "");
+        if (t.includes(",") && t.includes(".")) {
+            t = t.replace(/\./g, "").replace(",", ".");
+        } else if (t.includes(",")) {
+            t = t.replace(",", ".");
+        }
+        const v = Number(t);
+        if (!Number.isFinite(v)) return null;
+        const cents = Math.round(v * 100);
+        return cents >= 0 ? cents : null;
     }
 }

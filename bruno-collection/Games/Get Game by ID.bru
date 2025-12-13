@@ -1,0 +1,19 @@
+meta {
+  name: Get Game by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/games/{{gameId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+vars:pre-request {
+  gameId: 69231976ede70806c949bf11
+}

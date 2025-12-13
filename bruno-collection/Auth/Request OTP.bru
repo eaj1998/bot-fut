@@ -1,0 +1,17 @@
+meta {
+  name: Request OTP
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/request-otp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "phone": "+5549992007299"
+  }
+}

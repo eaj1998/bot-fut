@@ -6,6 +6,8 @@ type IEventType = {
   message: (message: Message) => void;
   group_join: (notification: GroupNotification) => void;
   group_leave: (notification: GroupNotification) => void;
+  sendMessage(chatId: string, message: string): Promise<any>;
+  getContactById(contactId: string): Promise<any>; 
 };
 
 export abstract class IBotServerPort {
@@ -19,13 +21,13 @@ export abstract class IBotServerPort {
     throw new Error('Not implemented');
   }
 
-  sendMessage(chatId: string, message: string): Promise<Message> ;
+  sendMessage(chatId: string, message: string): Promise<Message>;
   sendMessage(
     chatId: string,
     message: WAWebJS.MessageContent,
     options?: WAWebJS.MessageSendOptions
-  ): Promise<Message> ;
-  
+  ): Promise<Message>;
+
   sendMessage(
     _chatId: string,
     _message: WAWebJS.MessageContent,
@@ -33,6 +35,11 @@ export abstract class IBotServerPort {
   ): Promise<Message> {
     throw new Error('Not implemented');
   }
+
+  getContactById(contactId: string): Promise<any> {
+    throw new Error('Not implemented');
+  }
+  
   onMessage(handler: (message: Message) => Promise<void>): void {
     this.events['message'] = handler;
   }
@@ -44,6 +51,7 @@ export abstract class IBotServerPort {
   onQRCode(handler: (qr: string) => void): void {
     this.events['qr'] = handler;
   }
+
 }
 
 export const BOT_SERVER_TOKEN = Symbol('BOT_SERVER_TOKEN');

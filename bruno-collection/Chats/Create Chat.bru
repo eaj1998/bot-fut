@@ -1,0 +1,27 @@
+meta {
+  name: Create Chat
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/chats
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "workspaceId": "507f1f77bcf86cd799439011",
+    "chatId": "120363123456789012@g.us",
+    "name": "Grupo Campo Viana",
+    "label": "Viana Segunda",
+    "schedule": {
+      "weekday": 1,
+      "time": "20:30",
+      "title": "⚽ CAMPO DO VIANA",
+      "priceCents": 1400,
+      "pix": "+5549999999999"
+    }
+  }
+}

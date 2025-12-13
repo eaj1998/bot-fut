@@ -1,0 +1,19 @@
+meta {
+  name: Get Dashboard Stats
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/dashboard/stats
+  body: none
+  auth: none
+}
+
+query {
+  ~workspaceId: 
+}
+
+docs {
+  Obtém estatísticas agregadas do dashboard incluindo dados de jogadores, jogos, débitos, workspaces e chats.
+}

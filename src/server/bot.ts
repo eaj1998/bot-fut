@@ -16,16 +16,28 @@ export class BotServer extends IBotServerPort {
     loggerService.setName('BotServer');
   }
 
-  sendMessage(
-    chatId: string,
-    message: WAWebJS.MessageContent,
-    options?: WAWebJS.MessageSendOptions
-  ): Promise<Message> {
-    if (!this.client) {
-      this.loggerService.log('No client available');
-       throw new Error('WA client not ready');
+  async sendMessage(chatId: string, message: string): Promise<any> {
+    try {
+      if (!this.client) {
+        throw new Error('Server cannot be initialized without setup');
+      }
+      await this.client.sendMessage(chatId, message);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
     }
-    return this.client.sendMessage(chatId, message, options);
+  } 
+
+  async getContactById(contactId: string): Promise<any> {
+    try {
+      if (!this.client) {
+        throw new Error('Server cannot be initialized without setup');
+      }
+      return await this.client.getContactById(contactId);
+    } catch (error) {
+      console.error('Error getting contact:', error);
+      return null;
+    }
   }
 
   async setup(): Promise<void> {

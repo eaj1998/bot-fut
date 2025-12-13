@@ -1,0 +1,22 @@
+meta {
+  name: Mark Player Payment
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/games/{{gameId}}/players/{{playerId}}/payment
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "isPaid": true
+  }
+}
+
+vars:pre-request {
+  gameId: 69209460fb02d0d1a5cf6086
+  playerId: 6913c8e1ca7eed38f9a1d3f9
+}

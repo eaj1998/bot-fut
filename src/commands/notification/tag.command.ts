@@ -20,7 +20,9 @@ export class TagCommand implements Command {
         @inject(Utils) private readonly util: Utils,
         @inject(BOT_CLIENT_TOKEN) private readonly client: IBotServerPort,
         @inject(LoggerService) private readonly loggerService: LoggerService
-    ) { }
+    ) {
+        this.loggerService.setName('TagCommand');
+    }
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
@@ -48,6 +50,7 @@ export class TagCommand implements Command {
 
         if (group) {
             for (let participant of group.participants) {
+                this.loggerService.log('participant', participant);
                 const serializedId = participant.id._serialized;
 
                 const contact = await this.client.getContactById(serializedId);

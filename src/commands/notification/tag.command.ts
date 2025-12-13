@@ -45,14 +45,18 @@ export class TagCommand implements Command {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
                 const user = await this.userRepo.findByPhoneE164(participantNumber);
-                if (user && game?.roster.outlist.some(w => w.userId?._id.toString() === user?._id.toString())) {
 
+                if (user && user.status === 'inactive') {
+                    continue;
+                }
+
+                if (user && game?.roster.outlist.some(w => w.userId?._id.toString() === user?._id.toString())) {
                     jogadoresForaCount++;
                     continue;
                 }
+
                 mentions.push(participant.id._serialized);
                 text += `@${participant.id.user} `;
-
             }
         }
 

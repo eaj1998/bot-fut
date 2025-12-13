@@ -177,6 +177,7 @@ export class DebtsService {
             workspaceId: data.workspaceId,
             amount: data.amount,
             amountCents: Math.round(data.amount * 100),
+            type: 'debit',
             status: 'pendente',
             notes: data.notes,
             category: data.category || 'player-debt',

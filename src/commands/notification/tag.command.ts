@@ -47,6 +47,8 @@ export class TagCommand implements Command {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
                 const normalizedPhone = this.util.normalizePhone(participantNumber);
+                console.log('normalizedPhone', normalizedPhone);
+                console.log('participant', participant);
 
                 let user = await this.userRepo.findByPhoneE164(normalizedPhone);
 

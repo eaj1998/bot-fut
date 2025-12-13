@@ -34,12 +34,12 @@ export class AuthService {
         let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
         if (!user) {
-            this.loggerService.info(`Nao achou USER`);
+            this.loggerService.info(`User not found, creating new user`);
+
             const isValidPhone = await this.whatsappService.isPhoneNumberRegistered(phone);
             if (!isValidPhone) {
-                throw new ApiError(404, 'Phone number not found on WhatsApp!');
+                this.loggerService.warn(`Phone number may not be registered on WhatsApp: ${phone}`);
             }
-
 
             user = await this.userModel.create({
                 phoneE164: phone,

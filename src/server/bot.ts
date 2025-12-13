@@ -26,16 +26,17 @@ export class BotServer extends IBotServerPort {
       console.error('Error sending message:', error);
       throw error;
     }
-  } 
+  }
 
   async getContactById(contactId: string): Promise<any> {
     try {
       if (!this.client) {
-        throw new Error('Server cannot be initialized without setup');
+        throw new Error('Client not initialized');
       }
-      return await this.client.getContactById(contactId);
+      const contact = await this.client.getContactById(contactId);
+      return contact;
     } catch (error) {
-      console.error('Error getting contact:', error);
+      this.loggerService.warn(`Contact not found or error: ${contactId}`);
       return null;
     }
   }

@@ -83,9 +83,10 @@ Bom jogo! ⚽`;
             const formattedPhone = this.formatPhoneNumber(cleanPhone);
 
             const contact = await this.botClient.getContactById(`${formattedPhone}@c.us`);
-            return contact !== null;
+
+            return contact !== null && contact !== undefined;
         } catch (error) {
-            this.loggerService.log(`Failed to check if phone is registered: ${phone}`, error);
+            this.loggerService.log(`Phone number not registered or error checking: ${phone}`, error);
             return false;
         }
     }

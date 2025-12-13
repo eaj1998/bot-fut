@@ -221,7 +221,7 @@ export class AuthService {
 
             if (!user) {
                 user = await this.userModel.findOne({
-                    lid: id,
+                    lid: phone,
                     role: 'admin',
                     status: 'active'
                 }).exec();

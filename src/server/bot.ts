@@ -16,12 +16,12 @@ export class BotServer extends IBotServerPort {
     loggerService.setName('BotServer');
   }
 
-  async sendMessage(chatId: string, message: string): Promise<any> {
+  async sendMessage(chatId: string, message: string, options?: any): Promise<any> {
     try {
       if (!this.client) {
         throw new Error('Server cannot be initialized without setup');
       }
-      await this.client.sendMessage(chatId, message);
+      await this.client.sendMessage(chatId, message, options);
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;

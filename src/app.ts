@@ -42,7 +42,7 @@ export class App {
     await this.server.setup();
 
     this.server.onReady(() => {
-      this.loggerService.log('The APP is up and ready');
+      this.loggerService.log('The APP is up and ready!');
     });
 
     this.server.onQRCode((qr: string) => {

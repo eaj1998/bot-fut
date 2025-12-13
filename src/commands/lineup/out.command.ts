@@ -3,7 +3,8 @@ import { Command, IRole } from "../type";
 import { Message } from "whatsapp-web.js";
 import { GameService } from "../../services/game.service";
 import { WorkspaceService } from "../../services/workspace.service";
-import Utils from "../../utils/utils";
+import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
+import { UserRepository } from "../../core/repositories/user.repository";
 
 @injectable()
 export class OutCommand implements Command {
@@ -12,7 +13,7 @@ export class OutCommand implements Command {
     constructor(
         @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-        @inject(Utils) private readonly util: Utils
+        @inject(UserRepository) private readonly userRepo: UserRepository,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -28,8 +29,14 @@ export class OutCommand implements Command {
 
         if (!game) return;
 
+        if (!game.roster) (game as any).roster = { goalieSlots: 2, players: [], waitlist: [], outlist: [] };
+        const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
+        const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
+        const userName = await getUserNameFromMessage(message);
+        const lid = await getLidFromMessage(message);
+        const phone = await getPhoneFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
         const author = await message.getContact();
-        const phone = this.util.normalizePhone(author.id._serialized);
 
         const isInMainRoster = game.roster.players.some(p => p.phoneE164 === phone);
         const isInWaitlist = game.roster.waitlist?.some(w => w.phoneE164 === phone);
@@ -58,7 +65,7 @@ export class OutCommand implements Command {
             return;
         }
 
-        const res = await this.gameService.addOffLineupPlayer(game, phone, author.pushname || author.name || "Jogador");
+        const res = await this.gameService.addOffLineupPlayer(game, user.phoneE164, user.name);
 
         if (res.added) {
             await game.save();

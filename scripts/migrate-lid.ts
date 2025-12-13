@@ -28,7 +28,6 @@ async function run() {
         console.log('📱 Inicializando cliente WhatsApp...');
         let dataPath = process.env.DATA_PATH || '.';
 
-        // Check if dataPath is writable
         try {
             const fs = require('fs');
             fs.accessSync(dataPath, fs.constants.W_OK);
@@ -114,7 +113,8 @@ async function migrateUsers(client: Client) {
                             const user = batch.find(u => u.phoneE164.includes(result.pn) || result.pn.includes(u.phoneE164.replace(/\D/g, '')));
 
                             if (user) {
-                                user.lid = typeof result.lid === 'object' ? (result.lid as any)._serialized.replace(/\D/g, '') : result.lid.replace(/\D/g, '');
+                                const rawLid = typeof result.lid === 'object' ? (result.lid as any)._serialized : result.lid;
+                                user.lid = rawLid;
                                 await user.save();
                                 console.log(`   ✅ LID salvo para ${user.name}: ${user.lid}`);
                             } else {

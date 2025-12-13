@@ -48,6 +48,7 @@ export interface DebtResponseDto {
     amount: number;
     amountCents: number;
     dueDate?: string;
+    type: 'debit' | 'credit';
     status: "pendente" | "confirmado" | "estornado";
     notes?: string;
     category: string;

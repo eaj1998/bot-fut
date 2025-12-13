@@ -4,7 +4,8 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
-import Utils from '../../utils/utils';
+import { UserRepository } from '../../core/repositories/user.repository';
+import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
 
 @injectable()
 export class LineUpAddCommand implements Command {
@@ -14,14 +15,12 @@ export class LineUpAddCommand implements Command {
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
     @inject(GameService) private readonly gameService: GameService,
     @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-    @inject(Utils) private util: Utils
+    @inject(UserRepository) private readonly userRepo: UserRepository,
   ) { }
 
   async handle(message: Message): Promise<void> {
     const groupId = message.from;
     const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
-
-    const author = await message.getContact();
 
     if (!workspace) {
       await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");
@@ -34,9 +33,13 @@ export class LineUpAddCommand implements Command {
       await message.reply("Nenhum jogo agendado encontrado para este grupo.");
       return;
     }
-    const phone = this.util.normalizePhone(author.id._serialized);
 
-    const res = await this.gameService.addPlayerToGame(game, phone, author.pushname || author.name || "Jogador");
+    const userName = await getUserNameFromMessage(message);
+    const lid = await getLidFromMessage(message);
+    const phone = await getPhoneFromMessage(message);
+    const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
+
+    const res = await this.gameService.addPlayerToGame(game, user.phoneE164, user.name);
 
     if (!res.added && res.message) {
       await message.reply(res.message);

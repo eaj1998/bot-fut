@@ -2,7 +2,6 @@ import { Model, Types } from "mongoose";
 import { CHAT_MODEL_TOKEN, ChatDoc } from "../models/chat.model";
 import { inject, singleton } from "tsyringe";
 import { WORKSPACE_MODEL_TOKEN, WorkspaceDoc } from "../models/workspace.model";
-import { UserRepository } from "./user.repository";
 import { EncryptionUtil } from "../../utils/encryption.util";
 
 @singleton()
@@ -109,6 +108,11 @@ export class WorkspaceRepository {
       return null;
     }
 
+    if (!workspace.organizzeConfig.email || !workspace.organizzeConfig.apiKey) {
+      console.warn('[ORGANIZZE] Workspace Organizze config incomplete, skipping');
+      return null;
+    }
+
     try {
       return {
         email: EncryptionUtil.decrypt(workspace.organizzeConfig.email),
@@ -135,7 +139,7 @@ export class WorkspaceRepository {
 
     try {
       return {
-        email: EncryptionUtil.decrypt(workspace.organizzeConfig.email),
+        email: workspace.organizzeConfig.email ? EncryptionUtil.decrypt(workspace.organizzeConfig.email) : '',
         hasApiKey: !!workspace.organizzeConfig.apiKey,
         accountId: workspace.organizzeConfig.accountId,
         categories: workspace.organizzeConfig.categories,

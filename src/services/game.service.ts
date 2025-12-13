@@ -7,7 +7,6 @@ import { ApiError } from '../api/middleware/error.middleware';
 
 import { WhatsAppService } from './whatsapp.service';
 
-import { WorkspaceService } from './workspace.service';
 import { GameRepository } from '../core/repositories/game.respository';
 import { LedgerRepository } from '../core/repositories/ledger.repository';
 import { ConfigService } from '../config/config.service';
@@ -20,8 +19,8 @@ import Utils from '../utils/utils';
 import { getNextWeekday, applyTime, formatHorario, todayISOyyyy_mm_dd, formatDateBR } from '../utils/date';
 import { isOutfield } from '../utils/lineup';
 import axios from 'axios';
-import { Message, MessageSendOptions } from 'whatsapp-web.js';
 import { GameModel, GameRoster, GamePlayer } from '../core/models/game.model';
+import { Message } from 'whatsapp-web.js';
 
 type ClosePlayerResult = {
   success: boolean;
@@ -991,7 +990,7 @@ export class GameService {
     const categoryId = categories.playerPayment;
 
     const payload = {
-      description: `${player.name} - Jogo ${formatDateBR(dataDoJogo)}`,
+      description: `${player.name} - Jogo ${formatDateBR(dataDoJogo)} - Slot: ${player.slot}`,
       amount_cents: amountCents,
       date: todayISOyyyy_mm_dd(),
       account_id: accountId,

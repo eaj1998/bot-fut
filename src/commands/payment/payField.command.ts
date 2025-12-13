@@ -8,6 +8,7 @@ import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { buildUtcCalendarDay } from "../../utils/date";
 import { LoggerService } from "../../logger/logger.service";
+import { OrganizzeService } from "../../services/organizze.service";
 
 function parseDDMM(s: string): { day: number; month: number } | null {
     const m = /^(\d{1,2})\/(\d{1,2})$/.exec((s ?? "").trim());
@@ -26,6 +27,7 @@ export class PayFieldCommand implements Command {
         @inject(GameRepository) private readonly gameRepo: GameRepository,
         @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
         @inject(LoggerService) private readonly logService: LoggerService,
+        @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -66,7 +68,7 @@ export class PayFieldCommand implements Command {
             await message.reply("Valor inválido. Ex.: 150,00 ou R$ 150,00");
             return;
         }
-        
+
         try {
             await this.ledgerRepo.addDebit({
                 workspaceId: ws._id.toString(), userId: "",
@@ -75,8 +77,22 @@ export class PayFieldCommand implements Command {
                 note: `Pagamento ao campo do jogo ${rawDate} (${game.title ?? "Jogo"})`,
                 category: "field-payment",
 
+
             });
-            await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}).`);
+
+            // Create Organizze transaction
+            const organizzeResult = await this.organizzeService.createTransaction({
+                description: `Pagamento ao campo - ${game.title ?? "Jogo"} - ${rawDate}`,
+                amountCents: -cents,
+                categoryId: 152985744,
+                paid: true
+            });
+
+            if (organizzeResult.added) {
+                await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}) no ledger e Organizze.`);
+            } else {
+                await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}) no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
+            }
 
         } catch (e) {
             this.logService.log(`Ocorreu um erro ao registrar debito do jogo: `, e);
@@ -85,5 +101,7 @@ export class PayFieldCommand implements Command {
 
 
 
+
     }
 }
+

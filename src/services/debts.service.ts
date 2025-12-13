@@ -73,6 +73,7 @@ export class DebtsService {
             amountCents: ledger.amountCents,
             status: ledger.status,
             notes: ledger.note,
+            type: ledger.type,
             category: ledger.category,
             createdAt: ledger.createdAt.toISOString(),
             paidAt: ledger.confirmedAt?.toISOString(),
@@ -402,7 +403,7 @@ export class DebtsService {
         const thisMonth = debitsDto.filter(d => {
             const date = new Date(d.createdAt);
             const now = new Date();
-            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear() && d.type === 'credit';
         });
 
         const totalDebitsAmount = debits.reduce((sum, d) => sum + d.amountCents, 0);

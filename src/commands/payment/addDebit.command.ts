@@ -8,6 +8,7 @@ import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { buildUtcCalendarDay } from "../../utils/date";
 import { LoggerService } from "../../logger/logger.service";
+import { OrganizzeService } from "../../services/organizze.service";
 
 @injectable()
 export class AddDebitCommand implements Command {
@@ -19,6 +20,7 @@ export class AddDebitCommand implements Command {
         @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
         @inject(LoggerService) private readonly logService: LoggerService,
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
+        @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -116,10 +118,25 @@ export class AddDebitCommand implements Command {
                 category: "field-payment",
             });
 
-            await this.server.sendMessage(
-                groupId,
-                `✅ Registrado débito de ${Utils.formatCentsToReal(cents)} (${rawDate}) - ${note}.`
-            );
+            // Create Organizze transaction
+            const organizzeResult = await this.organizzeService.createTransaction({
+                description: `${note} - ${rawDate}`,
+                amountCents: -cents,
+                categoryId: 155927947,
+                paid: true
+            });
+
+            if (organizzeResult.added) {
+                await this.server.sendMessage(
+                    groupId,
+                    `✅ Registrado débito de ${Utils.formatCentsToReal(cents)} (${rawDate}) - ${note} no ledger e Organizze.`
+                );
+            } else {
+                await this.server.sendMessage(
+                    groupId,
+                    `✅ Registrado débito de ${Utils.formatCentsToReal(cents)} (${rawDate}) - ${note} no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`
+                );
+            }
         } catch (e) {
             this.logService.log(`Erro ao registrar débito do jogo: `, e);
             await this.server.sendMessage(groupId, `❌ Não foi possível registrar o débito, tente novamente mais tarde.`);

@@ -7,6 +7,7 @@ import { UserRepository } from "../../core/repositories/user.repository";
 import { DebtsService, DEBTS_SERVICE_TOKEN } from "../../services/debts.service";
 import { LoggerService } from "../../logger/logger.service";
 import Utils from "../../utils/utils";
+import { OrganizzeService } from "../../services/organizze.service";
 
 @injectable()
 export class AddCreditCommand implements Command {
@@ -18,6 +19,7 @@ export class AddCreditCommand implements Command {
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
         @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
+        @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
 
@@ -29,8 +31,7 @@ export class AddCreditCommand implements Command {
         const parts = message.body.trim().split(/\s+/);
         const [, slug, amount] = parts;
 
-        const contact = await message.getContact();
-        const user = await this.userRepo.findByPhoneE164(contact.id._serialized);
+        const user = await this.userRepo.findByPhoneE164(message.author ?? message.from);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;
@@ -47,16 +48,26 @@ export class AddCreditCommand implements Command {
 
             if (amountCents != null && amountCents > 0) {
                 try {
-                    // Cria um débito negativo (crédito) usando o DebtsService
                     await this.debtsService.createDebt({
                         playerId: user._id.toString(),
                         workspaceId: workspace._id.toString(),
-                        amount: -(amountCents / 100), // Negativo para crédito
+                        amount: -(amountCents / 100),
                         notes: "Crédito adicionado via grupo",
                         category: "general"
                     });
 
-                    message.reply(`Crédito adicionado com sucesso!`);
+                    const organizzeResult = await this.organizzeService.createTransaction({
+                        description: `Crédito adicionado - ${user.name} - ${workspace.name}`,
+                        amountCents: amountCents,
+                        categoryId: 155929474,
+                        paid: true
+                    });
+
+                    if (organizzeResult.added) {
+                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado com sucesso no ledger e Organizze!`);
+                    } else {
+                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
+                    }
 
                 } catch (e: any) {
                     this.loggerService.log(`[ADD-CREDIT] Falha ao adicionar crédito: ${e}`);

@@ -6,6 +6,8 @@ import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { parseGuestArg } from '../../utils/lineup';
 import Utils from '../../utils/utils';
+import { getUserNameFromMessage, getLidFromMessage } from '../../utils/message';
+import { UserRepository } from '../../core/repositories/user.repository';
 
 @injectable()
 export class GuestCommand implements Command {
@@ -15,6 +17,7 @@ export class GuestCommand implements Command {
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+        @inject(UserRepository) private readonly userRepo: UserRepository,
         @inject(Utils) private util: Utils
     ) { }
 
@@ -43,14 +46,14 @@ export class GuestCommand implements Command {
 
         const { name: guestName, asGoalie } = parseGuestArg(nomeConvidado);
 
-        const contact = await message.getContact();
-
-        const phone = this.util.normalizePhone(contact.id._serialized);
+        const userName = await getUserNameFromMessage(message);
+        const lid = await getLidFromMessage(message);
+        const user = await this.userRepo.upsertByPhone(workspace._id, message.author ?? message.from, userName, lid);
 
         const res = await this.gameService.addGuestPlayer(
             game,
-            phone,
-            contact.pushname || contact.name || "Jogador",
+            user.phoneE164,
+            user.name,
             guestName,
             { asGoalie }
         );

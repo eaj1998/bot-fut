@@ -1,15 +1,22 @@
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { BOT_CLIENT_TOKEN, IBotServerPort } from '../server/type';
 import { LoggerService } from '../logger/logger.service';
 
 @injectable()
 export class WhatsAppService {
+    private _botClient?: IBotServerPort;
 
     constructor(
-        @inject(BOT_CLIENT_TOKEN) private readonly botClient: IBotServerPort,
         @inject(LoggerService) private readonly loggerService: LoggerService
     ) {
         this.loggerService.setName('WhatsAppService');
+    }
+
+    private get botClient(): IBotServerPort {
+        if (!this._botClient) {
+            this._botClient = container.resolve(BOT_CLIENT_TOKEN);
+        }
+        return this._botClient;
     }
 
     async sendOTP(phone: string, code: string): Promise<boolean> {

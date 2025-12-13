@@ -59,7 +59,7 @@ export default class Utils {
   }
 
   public normalizePhone(phone: string): string {
-    let normalized = phone.replace('@c.us', '');
+    let normalized = phone.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
 
     normalized = normalized.replace(/\D/g, '');
 

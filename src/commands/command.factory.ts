@@ -29,11 +29,13 @@ import { PriceBBQCommand } from './bbq/priceBBQ.command';
 import { CloseBBQCommand } from './bbq/closeBBQ.command';
 import { PayBBQCommand } from './bbq/payBBQ.command';
 import { CancelBBQCommand } from './bbq/cancelBBQ.command';
+import { RandomizeTeamsCommand } from './lineup/randomizeTeams.command';
 
 @injectable()
 export class CommandFactory {
   public create(command: string): Command | undefined {
     switch (command) {
+
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);
@@ -64,6 +66,7 @@ export class CommandFactory {
       case '/fechar-churras': return container.resolve(CloseBBQCommand);
       case '/pagar-churras': return container.resolve(PayBBQCommand);
       case '/cancelar-churras': return container.resolve(CancelBBQCommand);
+      case '/times': return container.resolve(RandomizeTeamsCommand);
 
       default: return undefined;
     }

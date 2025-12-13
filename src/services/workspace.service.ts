@@ -27,7 +27,6 @@ export class WorkspaceService {
     async resolveWorkspaceFromMessage(message: Message) {
         const chat = await message.getChat();
         const chatId = chat.id._serialized;
-
         const workspace = await this.repo.getWorkspaceByChat(chatId);
         return { chatId, chat, workspace };
     }

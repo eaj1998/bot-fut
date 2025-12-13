@@ -204,4 +204,24 @@ export class AuthService {
             },
         };
     }
+
+    async isAdmin(message: any): Promise<boolean> {
+        try {
+            const id = message.author ?? message.from ?? null;
+            if (!id) {
+                return false;
+            }
+            const phone = id.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
+            const user = await this.userModel.findOne({
+                phoneE164: phone,
+                role: 'admin',
+                status: 'active'
+            }).exec();
+
+            return !!user;
+        } catch (error) {
+            this.loggerService.error('[isAdmin] Error checking admin status:', error);
+            return false;
+        }
+    }
 }

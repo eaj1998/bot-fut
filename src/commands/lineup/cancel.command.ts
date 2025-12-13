@@ -19,7 +19,7 @@ export class CancelCommand implements Command {
         const groupId = message.from;
         const { workspace } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
 
-        const author = await message.getContact();
+
 
         if (!workspace) {
             await message.reply("🔗 Este grupo ainda não está vinculado a um workspace. Use /bind <slug>");

@@ -32,9 +32,6 @@ export class DebtsService {
         @inject(BBQ_SERVICE_TOKEN) private readonly bbqService: BBQService
     ) { }
 
-    /**
-     * Converte documento do ledger para DTO de resposta
-     */
     private async toResponseDto(ledger: LedgerDoc | FlattenMaps<LedgerDoc>): Promise<DebtResponseDto> {
         let playerName = 'Desconhecido';
         let gameName: string | undefined;
@@ -82,9 +79,6 @@ export class DebtsService {
     }
 
 
-    /**
-     * Cria um novo débito
-     */
     async createDebt(data: CreateDebtDto): Promise<DebtResponseDto> {
         if (!data.workspaceId || !data.amount) {
             throw new Error('Workspace e valor são obrigatórios');
@@ -103,7 +97,6 @@ export class DebtsService {
 
         let organizzeId: number | undefined;
 
-        // Integração com Organizze
         try {
             const workspace = await this.workspaceRepository.findById(data.workspaceId);
             if (workspace?.organizzeConfig?.email && workspace.organizzeConfig.apiKey && workspace.organizzeConfig.accountId) {
@@ -118,7 +111,7 @@ export class DebtsService {
 
                 const payload = {
                     description: data.notes || (data.playerId ? `Débito Jogador` : `Débito Geral`),
-                    amount_cents: -Math.round(data.amount * 100), // Negativo para despesas
+                    amount_cents: -Math.round(data.amount * 100),
                     date: new Date().toISOString().split('T')[0],
                     account_id: config.accountId,
                     category_id: categoryId,
@@ -186,9 +179,6 @@ export class DebtsService {
         };
     }
 
-    /**
-     * Lista débitos com filtros
-     */
     async listDebts(filters: ListDebtsDto): Promise<PaginatedDebtsResponseDto> {
         const page = filters.page || 1;
         const limit = filters.limit || 20;
@@ -245,9 +235,6 @@ export class DebtsService {
         };
     }
 
-    /**
-     * Obtém um débito por ID
-     */
     async getDebtById(id: string): Promise<DebtResponseDto> {
         const ledger = await this.ledgerRepository['model'].findById(id).lean();
         if (!ledger) {
@@ -256,10 +243,6 @@ export class DebtsService {
         return this.toResponseDto(ledger);
     }
 
-    /**
-     * Registra pagamento de débito (CENTRALIZADO)
-     * Detecta automaticamente se é débito de jogo ou geral e executa a lógica apropriada
-     */
     async payDebt(id: string, data: PayDebtDto): Promise<DebtResponseDto> {
         const ledger = await this.ledgerRepository['model'].findById(id);
         if (!ledger) {
@@ -270,18 +253,15 @@ export class DebtsService {
             throw new Error('Este registro não é um débito');
         }
 
-        // DETECÇÃO: Débito de jogo vs débito geral
         const isGameDebt = !!ledger.gameId;
 
         if (isGameDebt) {
-            // FLUXO DE JOGO: Usa GameService para marcar pagamento
-            // Isso atualiza o roster do jogo, cria crédito, e atualiza Organizze
             const game = await this.gameRepository.findById(ledger.gameId!);
             if (!game) {
                 throw new Error('Jogo não encontrado');
             }
 
-            // Encontra o slot do jogador no jogo
+
             const player = game.roster.players.find(p =>
                 p.userId?.toString() === ledger.userId?.toString()
             );
@@ -290,22 +270,20 @@ export class DebtsService {
                 throw new Error('Jogador não encontrado no jogo');
             }
 
-            // Marca como pago no jogo (isso já cria crédito e atualiza Organizze)
+
             await this.gameService.markAsPaid(
                 game._id,
                 player.slot,
                 { method: data.method || 'pix' }
             );
 
-            // Marca o débito como confirmado
+
             await this.ledgerRepository['model'].findByIdAndUpdate(id, {
                 status: 'confirmado',
                 confirmedAt: new Date(),
             });
 
         } else {
-            // FLUXO GERAL: Cria crédito diretamente
-            // Ajusta categoria se necessário
             let creditCategory = data.category || 'player-payment';
             if (data.category === 'player-debt') {
                 creditCategory = 'player-payment';
@@ -326,7 +304,7 @@ export class DebtsService {
                 confirmedAt: new Date(),
             });
 
-            // Atualiza Organizze se existir ID
+
             if (ledger.organizzeId) {
                 try {
                     const workspace = await this.workspaceRepository.findById(ledger.workspaceId.toString());
@@ -354,7 +332,7 @@ export class DebtsService {
             await this.ledgerRepository.recomputeUserBalance(ledger.workspaceId.toString(), ledger.userId!.toString());
         }
 
-        // Check if this is a BBQ debt and if all BBQ debts are paid
+
         if (ledger.category === 'churrasco' && ledger.bbqId) {
             await this.bbqService.checkAndFinishBBQ(
                 ledger.bbqId.toString(),
@@ -365,9 +343,6 @@ export class DebtsService {
         return this.getDebtById(id);
     }
 
-    /**
-     * Cancela um débito
-     */
     async cancelDebt(id: string): Promise<void> {
         const ledger = await this.ledgerRepository['model'].findById(id).lean();
         if (!ledger) {
@@ -423,9 +398,6 @@ export class DebtsService {
         };
     }
 
-    /**
-     * Envia lembretes de pagamento
-     */
     async sendReminders(data: SendRemindersDto): Promise<{ sent: number; failed: number }> {
         let debts: DebtResponseDto[] = [];
 

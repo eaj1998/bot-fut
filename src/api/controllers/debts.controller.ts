@@ -10,9 +10,6 @@ export class DebtsController {
         @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService
     ) { }
 
-    /**
-     * Lista todos os débitos com filtros
-     */
     listDebts = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const filters: ListDebtsDto = {
@@ -34,9 +31,6 @@ export class DebtsController {
         }
     };
 
-    /**
-     * Obtém um débito por ID
-     */
     getDebtById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -51,9 +45,6 @@ export class DebtsController {
         }
     };
 
-    /**
-     * Cria um novo débito
-     */
     createDebt = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data: CreateDebtDto = req.body;
@@ -74,9 +65,6 @@ export class DebtsController {
         }
     };
 
-    /**
-     * Registra pagamento de débito
-     */
     payDebt = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -98,9 +86,6 @@ export class DebtsController {
         }
     };
 
-    /**
-     * Cancela um débito
-     */
     cancelDebt = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -115,9 +100,6 @@ export class DebtsController {
         }
     };
 
-    /**
-     * Obtém estatísticas de débitos
-     */
     getStats = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const workspaceId = req.query.workspaceId as string;
@@ -128,9 +110,6 @@ export class DebtsController {
         }
     };
 
-    /**
-     * Envia lembretes de pagamento
-     */
     sendReminders = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data: SendRemindersDto = req.body;

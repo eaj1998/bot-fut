@@ -1,8 +1,5 @@
 import { Types } from 'mongoose';
 
-/**
- * DTO para criar um novo débito
- */
 export interface CreateDebtDto {
     playerId: string;
     gameId?: string;
@@ -14,9 +11,6 @@ export interface CreateDebtDto {
     status?: "pendente" | "confirmado";
 }
 
-/**
- * DTO para atualizar um débito
- */
 export interface UpdateDebtDto {
     amount?: number;
     dueDate?: string;
@@ -24,9 +18,6 @@ export interface UpdateDebtDto {
     status?: "pendente" | "confirmado" | "estornado";
 }
 
-/**
- * DTO para registrar pagamento
- */
 export interface PayDebtDto {
     amount?: number; // Valor pago (se parcial)
     method?: 'pix' | 'dinheiro' | 'transf';
@@ -34,9 +25,6 @@ export interface PayDebtDto {
     category?: 'field-payment' | 'player-payment' | 'player-debt' | 'general' | 'equipment' | 'rental-goalkeeper';
 }
 
-/**
- * DTO de resposta de débito
- */
 export interface DebtResponseDto {
     id: string;
     playerId: string;
@@ -57,9 +45,6 @@ export interface DebtResponseDto {
     updatedAt: string;
 }
 
-/**
- * DTO para listagem de débitos
- */
 export interface ListDebtsDto {
     status?: "pendente" | "confirmado" | "estornado" | 'all';
     playerId?: string;
@@ -72,9 +57,6 @@ export interface ListDebtsDto {
     sortOrder?: 'asc' | 'desc';
 }
 
-/**
- * DTO de resposta paginada
- */
 export interface PaginatedDebtsResponseDto {
     debts: DebtResponseDto[];
     overdue: number;
@@ -87,9 +69,6 @@ export interface PaginatedDebtsResponseDto {
     limit: number;
 }
 
-/**
- * DTO para estatísticas de débitos
- */
 export interface DebtsStatsDto {
     totalPending: number;
     totalPendingAmount: number;
@@ -102,9 +81,6 @@ export interface DebtsStatsDto {
     totalDebitsAmount: number;  // Total de débitos (pendentes + confirmados)
 }
 
-/**
- * DTO para enviar lembretes
- */
 export interface SendRemindersDto {
     debtIds?: string[];
     workspaceId?: string;

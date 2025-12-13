@@ -8,9 +8,6 @@ export class DashboardController {
         @inject(DASHBOARD_SERVICE_TOKEN) private readonly dashboardService: DashboardService
     ) { }
 
-    /**
-     * Obtém estatísticas completas do dashboard
-     */
     getDashboard = async (req: Request, res: Response) => {
         try {
             const workspaceId = req.params.workspaceId;
@@ -25,9 +22,6 @@ export class DashboardController {
         }
     };
 
-    /**
-     * Obtém apenas estatísticas
-     */
     getStats = async (req: Request, res: Response) => {
         try {
             const workspaceId = req.params.workspaceId;

@@ -139,7 +139,6 @@ export class GamesController {
     const { gameId } = req.params;
     const gameDetail = await this.gameService.getGameDetail(gameId);
 
-    // Generate CSV
     const csv = this.generateCSV(gameDetail);
 
     res.setHeader('Content-Type', 'text/csv');

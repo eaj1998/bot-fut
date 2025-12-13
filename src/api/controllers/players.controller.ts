@@ -10,9 +10,6 @@ export class PlayersController {
         @inject(PLAYERS_SERVICE_TOKEN) private readonly playersService: PlayersService
     ) { }
 
-    /**
-     * Lista todos os jogadores com filtros e paginação
-     */
     listPlayers = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const filters: ListPlayersDto = {
@@ -31,9 +28,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Obtém um jogador por ID
-     */
     getPlayerById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -48,9 +42,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Cria um novo jogador
-     */
     createPlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data: CreatePlayerDto = req.body;
@@ -71,9 +62,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Atualiza um jogador
-     */
     updatePlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -95,9 +83,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Deleta um jogador
-     */
     deletePlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -118,9 +103,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Suspende um jogador
-     */
     suspendPlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -135,9 +117,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Ativa um jogador
-     */
     activatePlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -152,9 +131,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Obtém estatísticas de jogadores
-     */
     getStats = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const stats = await this.playersService.getStats();
@@ -164,9 +140,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Obtém débitos de um jogador
-     */
     getPlayerDebts = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -181,9 +154,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Obtém jogos de um jogador
-     */
     getPlayerGames = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -198,9 +168,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Obtém movimentações (transações) de um jogador com paginação
-     */
     getPlayerTransactions = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
@@ -218,9 +185,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Exporta jogadores em CSV
-     */
     exportPlayers = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const filters: ListPlayersDto = {
@@ -232,7 +196,6 @@ export class PlayersController {
 
             const result = await this.playersService.listPlayers(filters);
 
-            // Gera CSV
             const headers = ['ID', 'Nome', 'Email', 'Telefone', 'CPF', 'Status', 'Débito Total', 'Data de Cadastro'];
             const rows = result.players.map(p => [
                 p.id,
@@ -258,9 +221,6 @@ export class PlayersController {
         }
     };
 
-    /**
-     * Adiciona crédito ao jogador
-     */
     addCredit = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;

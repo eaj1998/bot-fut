@@ -1,8 +1,5 @@
 import { Types } from 'mongoose';
 
-/**
- * DTO para criar um novo jogador
- */
 export interface CreatePlayerDto {
     name: string;
     phoneE164: string;
@@ -13,9 +10,6 @@ export interface CreatePlayerDto {
     role?: 'admin' | 'user';
 }
 
-/**
- * DTO para atualizar um jogador
- */
 export interface UpdatePlayerDto {
     name?: string;
     phoneE164?: string;
@@ -27,9 +21,6 @@ export interface UpdatePlayerDto {
     status?: 'active' | 'inactive';
 }
 
-/**
- * DTO de resposta de jogador
- */
 export interface PlayerResponseDto {
     id: string;
     name: string;
@@ -48,9 +39,6 @@ export interface PlayerResponseDto {
     updatedAt: string;
 }
 
-/**
- * DTO para listagem paginada de jogadores
- */
 export interface ListPlayersDto {
     status?: 'active' | 'inactive' | 'all';
     search?: string;
@@ -60,9 +48,6 @@ export interface ListPlayersDto {
     sortOrder?: 'asc' | 'desc';
 }
 
-/**
- * DTO de resposta paginada
- */
 export interface PaginatedPlayersResponseDto {
     players: PlayerResponseDto[];
     total: number;
@@ -74,9 +59,6 @@ export interface PaginatedPlayersResponseDto {
     inactiveCount: number;
 }
 
-/**
- * DTO para estatísticas de jogadores
- */
 export interface PlayersStatsDto {
     total: number;
     active: number;

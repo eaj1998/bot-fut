@@ -359,42 +359,99 @@ export class DebtsService {
             query.workspaceId = new Types.ObjectId(workspaceId);
         }
 
-        const allLedgers = await this.ledgerRepository['model'].find(query).lean();
-
-        const debits = allLedgers.filter(l => l.type === 'debit');
-        const credits = allLedgers.filter(l => l.type === 'credit' && l.status === 'confirmado');
-        const debitsDto = await Promise.all(debits.map(d => this.toResponseDto(d)));
-
-        const pending = debitsDto.filter(d => d.status === 'pendente');
-        const paid = debitsDto.filter(d => d.status === 'confirmado');
-
         const fiveDaysAgo = new Date();
         fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-        const overdue = debitsDto.filter(d => {
-            if (d.status !== 'pendente') return false;
-            const createdDate = new Date(d.createdAt);
-            return createdDate < fiveDaysAgo;
-        });
 
-        const thisMonth = debitsDto.filter(d => {
-            const date = new Date(d.createdAt);
-            const now = new Date();
-            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear() && d.type === 'credit';
-        });
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const totalDebitsAmount = debits.reduce((sum, d) => sum + d.amountCents, 0);
-        const totalCreditsAmount = credits.reduce((sum, c) => sum + c.amountCents, 0);
+        const [stats] = await this.ledgerRepository['model'].aggregate([
+            { $match: query },
+            {
+                $facet: {
+                    pending: [
+                        { $match: { type: 'debit', status: 'pendente' } },
+                        {
+                            $group: {
+                                _id: null,
+                                count: { $sum: 1 },
+                                totalAmount: { $sum: '$amountCents' }
+                            }
+                        }
+                    ],
+                    paid: [
+                        { $match: { type: 'debit', status: 'confirmado' } },
+                        {
+                            $group: {
+                                _id: null,
+                                count: { $sum: 1 }
+                            }
+                        }
+                    ],
+                    credits: [
+                        { $match: { type: 'credit', status: 'confirmado' } },
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: '$amountCents' }
+                            }
+                        }
+                    ],
+                    overdue: [
+                        {
+                            $match: {
+                                type: 'debit',
+                                status: 'pendente',
+                                createdAt: { $lt: fiveDaysAgo }
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                count: { $sum: 1 },
+                                totalAmount: { $sum: '$amountCents' }
+                            }
+                        }
+                    ],
+                    thisMonth: [
+                        {
+                            $match: {
+                                type: 'credit',
+                                status: 'confirmado',
+                                createdAt: { $gte: firstDayOfMonth }
+                            }
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                count: { $sum: 1 },
+                                totalAmount: { $sum: '$amountCents' }
+                            }
+                        }
+                    ],
+                    totalDebits: [
+                        { $match: { type: 'debit' } },
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: '$amountCents' }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]);
 
         return {
-            totalPending: pending.length,
-            totalPendingAmount: pending.reduce((sum, d) => sum + d.amountCents, 0),
-            totalPaid: paid.length,
-            totalPaidAmount: totalCreditsAmount,
-            totalOverdue: overdue.length,
-            totalOverdueAmount: overdue.reduce((sum, d) => sum + d.amountCents, 0),
-            thisMonth: thisMonth.length,
-            thisMonthAmount: thisMonth.reduce((sum, d) => sum + d.amountCents, 0),
-            totalDebitsAmount,
+            totalPending: stats.pending[0]?.count || 0,
+            totalPendingAmount: stats.pending[0]?.totalAmount || 0,
+            totalPaid: stats.paid[0]?.count || 0,
+            totalPaidAmount: stats.credits[0]?.totalAmount || 0,
+            totalOverdue: stats.overdue[0]?.count || 0,
+            totalOverdueAmount: stats.overdue[0]?.totalAmount || 0,
+            thisMonth: stats.thisMonth[0]?.count || 0,
+            thisMonthAmount: stats.thisMonth[0]?.totalAmount || 0,
+            totalDebitsAmount: stats.totalDebits[0]?.totalAmount || 0,
         };
     }
 

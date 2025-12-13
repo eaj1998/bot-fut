@@ -34,23 +34,25 @@ export class DashboardService {
             debtsStats,
             workspacesStats,
             chatsStats,
+            balance,
+            recentGames,
+            recentDebts,
+            monthlyRevenue,
+            revenueGrowth,
         ] = await Promise.all([
             this.playersService.getStats(),
             this.gameService.getStats(),
             this.debtsService.getStats(workspaceId),
             this.workspaceService.getStats(),
             this.chatService.getStats(),
+            workspaceId ? this.ledgerRepository.sumWorkspaceCashbox(workspaceId) : Promise.resolve(0),
+            this.getRecentGames(5),
+            this.getRecentDebts(5, workspaceId),
+            this.getMonthlyRevenue(6, workspaceId),
+            this.calculateRevenueGrowth(workspaceId),
         ]);
 
-
-        let balance = 0;
-        let receivables = 0;
-
-        if (workspaceId) {
-            balance = await this.ledgerRepository.sumWorkspaceCashbox(workspaceId);
-
-            receivables = debtsStats.totalPendingAmount;
-        }
+        const receivables = workspaceId ? debtsStats.totalPendingAmount : 0;
 
         const stats: DashboardStatsDto = {
             totalPlayers: playersStats.total,
@@ -66,15 +68,11 @@ export class DashboardService {
             revenue: debtsStats.totalPaidAmount,
             balance,
             receivables,
-            revenueGrowth: await this.calculateRevenueGrowth(workspaceId),
+            revenueGrowth,
             totalWorkspaces: workspacesStats.totalWorkspaces,
             activeWorkspaces: workspacesStats.activeWorkspaces,
             totalChats: chatsStats.totalChats,
         };
-
-        const recentGames = await this.getRecentGames(5);
-        const recentDebts = await this.getRecentDebts(5, workspaceId);
-        const monthlyRevenue = await this.getMonthlyRevenue(6, workspaceId);
 
         return {
             stats,

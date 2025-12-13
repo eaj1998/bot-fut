@@ -129,11 +129,15 @@ export class UserRepository {
         const total = await this.model.countDocuments();
         const admins = await this.model.countDocuments({ role: 'admin' });
         const users = await this.model.countDocuments({ role: 'user' });
+        const active = await this.model.countDocuments({ status: 'active' });
+        const inactive = await this.model.countDocuments({ status: 'inactive' });
 
         return {
             total,
             admins,
             users,
+            active,
+            inactive,
         };
     }
 }

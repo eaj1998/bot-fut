@@ -7,11 +7,15 @@ meta {
 get {
   url: {{baseUrl}}/dashboard/stats
   body: none
-  auth: none
+  auth: bearer
 }
 
-query {
+params:query {
   ~workspaceId: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }
 
 docs {

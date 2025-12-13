@@ -1850,30 +1850,40 @@ export class GameService {
    * Obtém estatísticas gerais de jogos
    */
   async getStats(): Promise<any> {
-    const total = await this.gameModel.countDocuments();
-    const open = await this.gameModel.countDocuments({ status: 'open' });
-    const closed = await this.gameModel.countDocuments({ status: 'closed' });
-    const finished = await this.gameModel.countDocuments({ status: 'finished' });
-    const cancelled = await this.gameModel.countDocuments({ status: 'cancelled' });
-
     const now = new Date();
     const next7Days = new Date();
     next7Days.setDate(now.getDate() + 7);
 
-    const upcoming = await this.gameModel.countDocuments({
-      date: { $gte: now, $lte: next7Days },
-      status: { $in: ['open'] }
-    });
+    const [stats] = await this.gameModel.aggregate([
+      {
+        $facet: {
+          total: [{ $count: 'count' }],
+          open: [{ $match: { status: 'open' } }, { $count: 'count' }],
+          closed: [{ $match: { status: 'closed' } }, { $count: 'count' }],
+          finished: [{ $match: { status: 'finished' } }, { $count: 'count' }],
+          cancelled: [{ $match: { status: 'cancelled' } }, { $count: 'count' }],
+          upcoming: [
+            {
+              $match: {
+                date: { $gte: now, $lte: next7Days },
+                status: { $in: ['open'] }
+              }
+            },
+            { $count: 'count' }
+          ]
+        }
+      }
+    ]);
 
     const activePlayers = await this.userModel.countDocuments({ status: 'active' });
 
     return {
-      total,
-      open,
-      closed,
-      finished,
-      cancelled,
-      upcoming,
+      total: stats.total[0]?.count || 0,
+      open: stats.open[0]?.count || 0,
+      closed: stats.closed[0]?.count || 0,
+      finished: stats.finished[0]?.count || 0,
+      cancelled: stats.cancelled[0]?.count || 0,
+      upcoming: stats.upcoming[0]?.count || 0,
       activePlayers,
     };
   }

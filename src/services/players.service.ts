@@ -58,9 +58,18 @@ export class PlayersService {
             users.map((user) => this.toResponseDto(user))
         );
 
-        const activeCount = players.filter(p => p.status === 'active').length;
-        const inactiveCount = players.filter(p => p.status === 'inactive').length;
-        const withDebtsCount = players.filter(p => p.totalDebt > 0).length;
+        const stats = await this.userRepository.getStats();
+
+        const allUsers = await this.userRepository.findAll({ limit: 10000 });
+        let withDebtsCount = 0;
+
+        for (const user of allUsers.users) {
+            const debts = await this.ledgerRepository.findDebtsByUserId(user._id);
+
+            if (debts.length > 0) {
+                withDebtsCount++;
+            }
+        }
 
         return {
             players,
@@ -68,9 +77,9 @@ export class PlayersService {
             page: filters.page || 1,
             totalPages: Math.ceil(total / (filters.limit || 20)),
             limit: filters.limit || 20,
-            activeCount,
+            activeCount: stats.active,
             withDebtsCount,
-            inactiveCount,
+            inactiveCount: stats.inactive,
         };
     }
 
@@ -180,29 +189,42 @@ export class PlayersService {
     async getStats(): Promise<PlayersStatsDto> {
         const stats = await this.userRepository.getStats();
 
-        const allUsers = await this.userRepository.findAll({ limit: 10000 });
-        let withDebts = 0;
-        let totalDebt = 0;
-
-        for (const user of allUsers.users) {
-            const debts = await this.ledgerRepository.findByUserId(user._id);
-            const userDebt = debts
-                .filter(d => d.type === 'debit' && d.status === 'pendente')
-                .reduce((sum, d) => sum + d.amountCents, 0);
-
-            if (userDebt > 0) {
-                withDebts++;
-                totalDebt += userDebt;
+        const debtStats = await this.ledgerRepository['model'].aggregate([
+            {
+                $match: {
+                    type: 'debit',
+                    status: 'pendente'
+                }
+            },
+            {
+                $group: {
+                    _id: '$userId',
+                    totalDebt: { $sum: '$amountCents' }
+                }
+            },
+            {
+                $match: {
+                    totalDebt: { $gt: 0 }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    withDebts: { $sum: 1 },
+                    totalDebt: { $sum: '$totalDebt' }
+                }
             }
-        }
+        ]);
+
+        const debtData = debtStats[0] || { withDebts: 0, totalDebt: 0 };
 
         return {
             total: stats.total,
-            active: stats.total,
-            inactive: 0,
+            active: stats.active,
+            inactive: stats.inactive,
             suspended: 0,
-            withDebts,
-            totalDebt: totalDebt / 100,
+            withDebts: debtData.withDebts,
+            totalDebt: debtData.totalDebt / 100,
         };
     }
 

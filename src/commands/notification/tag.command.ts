@@ -6,6 +6,7 @@ import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
 import Utils from '../../utils/utils';
+import { LoggerService } from '../../logger/logger.service';
 
 @injectable()
 export class TagCommand implements Command {
@@ -17,7 +18,8 @@ export class TagCommand implements Command {
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
         @inject(Utils) private readonly util: Utils,
-        @inject(BOT_CLIENT_TOKEN) private readonly client: IBotServerPort
+        @inject(BOT_CLIENT_TOKEN) private readonly client: IBotServerPort,
+        @inject(LoggerService) private readonly loggerService: LoggerService
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -49,7 +51,7 @@ export class TagCommand implements Command {
                 const serializedId = participant.id._serialized;
 
                 const contact = await this.client.getContactById(serializedId);
-
+                this.loggerService.log('contact', contact);
                 const phoneE164 = contact.number
                     ? this.util.normalizePhone(contact.number)
                     : null;

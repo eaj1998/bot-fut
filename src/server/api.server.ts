@@ -70,10 +70,8 @@ export class ApiServer {
 
         this.app.use('/api', apiRoutes);
 
-        // 404 handler for undefined routes
         this.app.use(notFoundHandler);
 
-        // Error handler (must be last)
         const errorLogger = new LoggerService();
         errorLogger.setName('ErrorHandler');
         this.app.use(createErrorHandler(errorLogger));

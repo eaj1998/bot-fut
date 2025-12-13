@@ -53,13 +53,7 @@ export class TagCommand implements Command {
                 this.loggerService.log('participant', participant);
                 const serializedId = participant.id._serialized;
 
-                const contact = await this.client.getContactById(serializedId);
-                this.loggerService.log('contact', contact);
-                const phoneE164 = contact.number
-                    ? this.util.normalizePhone(contact.number)
-                    : null;
-
-                const lid = contact.lid || null;
+                const phoneE164 = this.util.normalizePhone(serializedId)
 
                 let user = null;
 
@@ -67,9 +61,11 @@ export class TagCommand implements Command {
                     user = await this.userRepo.findByPhoneE164(phoneE164);
                 }
 
-                if (!user && lid) {
-                    user = await this.userRepo.findByLid(lid);
+                if (!user) {
+                    user = await this.userRepo.findByLid(phoneE164);
                 }
+
+                if (!user) continue;
 
                 if (user && user.status === 'inactive') continue;
 

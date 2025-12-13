@@ -6,32 +6,34 @@ import { BBQ_MODEL_TOKEN, IBBQ, IBBQParticipant } from '../models/bbq.model';
 export class BBQRepository {
   constructor(
     @inject(BBQ_MODEL_TOKEN) private readonly model: Model<IBBQ>
-  ) {}
+  ) { }
 
-  async findTodayBBQ(workspaceId: string, chatId: string): Promise<IBBQ | null> {
-    const startOfDay = new Date();
+  async findBBQForDate(workspaceId: string, chatId: string, targetDate: Date): Promise<IBBQ | null> {
+    const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date();
+
+    const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
     return this.model.findOne({
       workspaceId,
       chatId,
-      createdAt: { $gte: startOfDay, $lte: endOfDay }
+      status: 'open',
+      date: { $gte: startOfDay, $lte: endOfDay }
     }).exec();
   }
 
-  async create(workspaceId: string, chatId: string): Promise<IBBQ> {
+  async create(workspaceId: string, chatId: string, date: Date): Promise<IBBQ> {
     const bbq = new this.model({
       workspaceId,
       chatId,
       status: 'open',
+      date: date,
       createdAt: new Date(),
       participants: [],
       valuePerPerson: null
     });
-    
+
     return bbq.save();
   }
 
@@ -46,15 +48,15 @@ export class BBQRepository {
   async removeParticipant(bbqId: string, userId: string): Promise<IBBQ | null> {
     return this.model.findByIdAndUpdate(
       bbqId,
-      { 
-        $pull: { 
-          participants: { 
+      {
+        $pull: {
+          participants: {
             $or: [
               { userId },
               { invitedBy: userId }
             ]
-          } 
-        } 
+          }
+        }
       },
       { new: true }
     ).exec();
@@ -71,9 +73,31 @@ export class BBQRepository {
   async close(bbqId: string): Promise<IBBQ | null> {
     return this.model.findByIdAndUpdate(
       bbqId,
-      { 
+      {
         status: 'closed',
         closedAt: new Date()
+      },
+      { new: true }
+    ).exec();
+  }
+
+  async cancel(bbqId: string): Promise<IBBQ | null> {
+    return this.model.findByIdAndUpdate(
+      bbqId,
+      {
+        status: 'cancelled',
+        canceledAt: new Date()
+      },
+      { new: true }
+    ).exec();
+  }
+
+  async markAsFinished(bbqId: string): Promise<IBBQ | null> {
+    return this.model.findByIdAndUpdate(
+      bbqId,
+      {
+        status: 'finished',
+        finishedAt: new Date()
       },
       { new: true }
     ).exec();

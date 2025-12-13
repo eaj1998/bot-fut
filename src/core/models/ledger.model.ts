@@ -4,10 +4,11 @@ export interface LedgerDoc extends Document {
     _id: Types.ObjectId;
     workspaceId: Types.ObjectId;
     gameId?: Types.ObjectId;
+    bbqId?: Types.ObjectId;
     userId?: Types.ObjectId;
     type: "debit" | "credit";
     method: "pix" | "dinheiro" | "transf" | "ajuste";
-    category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper";
+    category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper" | "churrasco";
     amountCents: number;
     note?: string;
     status: "pendente" | "confirmado" | "estornado";
@@ -20,10 +21,11 @@ export interface LedgerDoc extends Document {
 const LedgerSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", index: true, required: true },
     gameId: { type: Types.ObjectId, ref: "Game" },
+    bbqId: { type: Types.ObjectId, ref: "BBQ" },
     userId: { type: Types.ObjectId, ref: "User" },
     type: { type: String, enum: ["debit", "credit"], required: true },
     method: { type: String, enum: ["pix", "dinheiro", "transf", "ajuste"], default: "pix" },
-    category: { type: String, enum: ["field-payment", "player-payment", "player-debt", "general", "equipment", "rental-goalkeeper"], default: "general" },
+    category: { type: String, enum: ["field-payment", "player-payment", "player-debt", "general", "equipment", "rental-goalkeeper", "churrasco"], default: "general" },
     amountCents: { type: Number, required: true },
     note: String,
     status: { type: String, enum: ["pendente", "confirmado", "estornado"], default: "confirmado" },

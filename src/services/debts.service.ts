@@ -4,6 +4,7 @@ import { USER_REPOSITORY_TOKEN, UserRepository } from '../core/repositories/user
 import { GameRepository, GAME_REPOSITORY_TOKEN } from '../core/repositories/game.respository';
 import { WhatsAppService } from './whatsapp.service';
 import { GameService } from './game.service';
+import { BBQService, BBQ_SERVICE_TOKEN } from './bbq.service';
 import {
     CreateDebtDto,
     PayDebtDto,
@@ -27,7 +28,8 @@ export class DebtsService {
         @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository,
         @inject(WhatsAppService) private readonly whatsappService: WhatsAppService,
         @inject(GameService) private readonly gameService: GameService,
-        @inject(WorkspaceRepository) private readonly workspaceRepository: WorkspaceRepository
+        @inject(WorkspaceRepository) private readonly workspaceRepository: WorkspaceRepository,
+        @inject(BBQ_SERVICE_TOKEN) private readonly bbqService: BBQService
     ) { }
 
     /**
@@ -348,6 +350,14 @@ export class DebtsService {
             }
 
             await this.ledgerRepository.recomputeUserBalance(ledger.workspaceId.toString(), ledger.userId!.toString());
+        }
+
+        // Check if this is a BBQ debt and if all BBQ debts are paid
+        if (ledger.category === 'churrasco' && ledger.bbqId) {
+            await this.bbqService.checkAndFinishBBQ(
+                ledger.bbqId.toString(),
+                ledger.workspaceId.toString()
+            );
         }
 
         return this.getDebtById(id);

@@ -10,10 +10,11 @@ export interface IBBQ {
     _id: Types.ObjectId;
     chatId: string;
     workspaceId: string;
-    status: 'open' | 'closed';
+    status: 'open' | 'closed' | 'finished' | 'cancelled';
     date: Date;
     createdAt: Date;
     closedAt?: Date;
+    finishedAt?: Date;
     participants: IBBQParticipant[];
     valuePerPerson: number | null;
 }
@@ -21,13 +22,16 @@ export interface IBBQ {
 const BBQSchema = new Schema<IBBQ>({
     chatId: { type: String, required: true },
     workspaceId: { type: String, required: true },
-    status: { type: String, enum: ['open', 'closed'], default: 'open' },
-    date: { type: Date, required: true, default: () => {
-        const now = new Date();
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } },
+    status: { type: String, enum: ['open', 'closed', 'finished', 'cancelled'], default: 'open' },
+    date: {
+        type: Date, required: true, default: () => {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        }
+    },
     createdAt: { type: Date, default: Date.now },
     closedAt: { type: Date },
+    finishedAt: { type: Date },
     participants: [{
         userId: { type: String, required: true },
         userName: { type: String, required: true },

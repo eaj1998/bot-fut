@@ -23,6 +23,12 @@ import { AddCreditCommand } from './payment/addCredit.command';
 import { AddDebitCommand } from './payment/addDebit.command';
 import { CreateBBQCommand } from './bbq/createBBQ.command';
 import { JoinBBQCommand } from './bbq/joinBBQ.command';
+import { GiveupBBQCommand } from './bbq/giveupBBQ.command';
+import { GuestBBQCommand } from './bbq/guestBBQ.command';
+import { PriceBBQCommand } from './bbq/priceBBQ.command';
+import { CloseBBQCommand } from './bbq/closeBBQ.command';
+import { PayBBQCommand } from './bbq/payBBQ.command';
+import { CancelBBQCommand } from './bbq/cancelBBQ.command';
 
 @injectable()
 export class CommandFactory {
@@ -54,6 +60,12 @@ export class CommandFactory {
       //churras
       case '/lista-churras': return container.resolve(CreateBBQCommand);
       case '/churras': return container.resolve(JoinBBQCommand);
+      case '/desistir-churras': return container.resolve(GiveupBBQCommand);
+      case '/convidado-churras': return container.resolve(GuestBBQCommand);
+      case '/valor-churras': return container.resolve(PriceBBQCommand);
+      case '/fechar-churras': return container.resolve(CloseBBQCommand);
+      case '/pagar-churras': return container.resolve(PayBBQCommand);
+      case '/cancelar-churras': return container.resolve(CancelBBQCommand);
 
       default: return undefined;
     }

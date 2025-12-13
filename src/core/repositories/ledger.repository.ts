@@ -9,11 +9,13 @@ export type AddDebitInput = {
   userId?: string;
   amountCents: number;
   gameId?: string;
+  bbqId?: string;
   note?: string;
   category: "field-payment" | "player-payment" | "player-debt" | "general" | "equipment" | "rental-goalkeeper" | "churrasco";
   method?: string;
   status?: "pendente" | "confirmado";
   confirmedAt?: Date;
+  createdAt?: Date;
   organizzeId?: number;
 };
 
@@ -49,10 +51,12 @@ export class LedgerRepository {
       userId,
       amountCents,
       gameId,
+      bbqId,
       note,
       category = "general",
       status = "confirmado",
       confirmedAt = new Date(),
+      createdAt,
       organizzeId,
     } = input;
 
@@ -73,6 +77,12 @@ export class LedgerRepository {
     }
     if (gameId && Types.ObjectId.isValid(gameId)) {
       doc.gameId = new Types.ObjectId(gameId);
+    }
+    if (bbqId && Types.ObjectId.isValid(bbqId)) {
+      doc.bbqId = new Types.ObjectId(bbqId);
+    }
+    if (createdAt) {
+      doc.createdAt = createdAt;
     }
 
     await this.model.create(doc);
@@ -158,10 +168,65 @@ export class LedgerRepository {
     return this.model
       .find({
         userId: new Types.ObjectId(userId),
-        status: { $in: ["confirmado", "pendente"] } // Incluir pendentes para mostrar na listagem de débitos
+        status: { $in: ["pendente"] }
       })
-      .select({ _id: 1, workspaceId: 1, userId: 1, gameId: 1, type: 1, amountCents: 1, confirmedAt: 1, note: 1 })
+      .select({ _id: 1, workspaceId: 1, userId: 1, gameId: 1, type: 1, amountCents: 1, confirmedAt: 1, note: 1, category: 1 })
       .lean();
+  }
+
+  async findBBQDebtsByUser(workspaceId: string, userId: string) {
+    return this.model
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        userId: new Types.ObjectId(userId),
+        category: "churrasco",
+        type: "debit",
+        status: { $in: ["pendente"] }
+      })
+      .select({ amountCents: 1, note: 1, createdAt: 1 })
+      .lean();
+  }
+
+  async findPendingBBQDebtsByWorkspace(workspaceId: string) {
+    return this.model
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        category: "churrasco",
+        type: "debit",
+        status: "pendente"
+      })
+      .select({ amountCents: 1, note: 1, createdAt: 1 })
+      .lean();
+  }
+
+  async findPendingBBQDebtByUserAndDate(
+    workspaceId: string,
+    userId: string,
+    date: Date
+  ): Promise<LedgerDoc | null> {
+    // Create date range for the target day
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log('[BBQ Payment] Looking for debt on date:', date);
+    console.log('[BBQ Payment] Date range:', startOfDay, 'to', endOfDay);
+    console.log('[BBQ Payment] WorkspaceId:', workspaceId);
+    console.log('[BBQ Payment] UserId:', userId);
+
+    const result = await this.model.findOne({
+      workspaceId: new Types.ObjectId(workspaceId),
+      userId: new Types.ObjectId(userId),
+      category: "churrasco",
+      type: "debit",
+      status: "pendente",
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    }).exec();
+
+    console.log('[BBQ Payment] Found debt:', result ? 'YES' : 'NO');
+    return result;
   }
 
 

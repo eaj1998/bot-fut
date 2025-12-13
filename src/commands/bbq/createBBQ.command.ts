@@ -6,7 +6,7 @@ import { WorkspaceService } from '../../services/workspace.service';
 
 @injectable()
 export class CreateBBQCommand implements Command {
-    role = IRole.USER;
+    role = IRole.ADMIN;
 
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
@@ -22,7 +22,7 @@ export class CreateBBQCommand implements Command {
             return;
         }
 
-        const bbq = await this.bbqService.getOrCreateTodayBBQ(workspace._id.toString(), chatId);
+        const bbq = await this.bbqService.getOrCreateBBQForGameDay(workspace._id.toString(), chatId);
         const listMessage = this.bbqService.formatBBQList(bbq);
         await message.reply(listMessage);
     }

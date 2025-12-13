@@ -7,8 +7,8 @@ import { UserRepository } from '../../core/repositories/user.repository';
 import Utils from '../../utils/utils';
 
 @injectable()
-export class JoinBBQCommand implements Command {
-    role = IRole.USER;
+export class PriceBBQCommand implements Command {
+    role = IRole.ADMIN;
 
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
@@ -34,13 +34,21 @@ export class JoinBBQCommand implements Command {
             return;
         }
 
-        const userName = user.name || contact.pushname || contact.name || 'Usuário';
-        const result = await this.bbqService.joinBBQ(workspace._id.toString(), chatId, user._id.toString(), userName);
-        await message.reply(result.message);
+        const commandText = message.body;
+        const parts = commandText.split(' ');
 
-        if (result.success && result.bbq) {
-            const listMessage = this.bbqService.formatBBQList(result.bbq);
-            await message.reply(listMessage);
+        if (parts.length < 2) {
+            await message.reply('❌ Use: `/valor-churras X`');
+            return;
         }
+
+        const value = parseFloat(parts[1]);
+        if (isNaN(value) || value <= 0) {
+            await message.reply('❌ Valor inválido! Use um número maior que zero.');
+            return;
+        }
+
+        const result = await this.bbqService.setBBQValue(workspace._id.toString(), chatId, value);
+        await message.reply(result.message);
     }
 }

@@ -7,7 +7,7 @@ import { UserRepository } from '../../core/repositories/user.repository';
 import Utils from '../../utils/utils';
 
 @injectable()
-export class JoinBBQCommand implements Command {
+export class GiveupBBQCommand implements Command {
     role = IRole.USER;
 
     constructor(
@@ -34,8 +34,8 @@ export class JoinBBQCommand implements Command {
             return;
         }
 
-        const userName = user.name || contact.pushname || contact.name || 'Usuário';
-        const result = await this.bbqService.joinBBQ(workspace._id.toString(), chatId, user._id.toString(), userName);
+        const userName = contact.pushname || contact.name || user.name || 'Usuário';
+        const result = await this.bbqService.leaveBBQ(workspace._id.toString(), chatId, user._id.toString(), userName);
         await message.reply(result.message);
 
         if (result.success && result.bbq) {

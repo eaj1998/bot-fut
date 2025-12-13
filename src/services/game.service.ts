@@ -1366,18 +1366,41 @@ export class GameService {
       const wsId = (l.workspaceId as any)?.toString?.() ?? String(l.workspaceId);
       const ws = map.get(wsId)!;
 
-      const gid = l.gameId ? ((l.gameId as any)?.toString?.() ?? String(l.gameId)) : undefined;
-      const key = gid ?? "_no_game_";
+      // Determine the key for grouping
+      let key: string;
+      if (l.gameId) {
+        // Has gameId - group by game
+        const gid = (l.gameId as any)?.toString?.() ?? String(l.gameId);
+        key = gid;
+      } else if ((l as any).category === "churrasco") {
+        // BBQ debt - group by date extracted from note
+        let dateKey = "_bbq_";
+        if ((l as any).note) {
+          const noteMatch = ((l as any).note as string).match(/(\d{4}-\d{2}-\d{2})/);
+          if (noteMatch) {
+            dateKey = `_bbq_${noteMatch[1]}`; // e.g., "_bbq_2025-12-09"
+          }
+        }
+        key = dateKey;
+      } else {
+        // Other non-game debts
+        key = "_no_game_";
+      }
 
-      let game = ws.games.find(g => (g.gameId ?? "_no_game_") === key);
+      let game = ws.games.find(g => ((g as any)._internalKey ?? g.gameId ?? "_no_game_") === key);
       if (!game) {
-        game = { gameId: gid, debitsCents: 0, creditsCents: 0 };
-        ws.games.push(game);
+        const newGame: any = { gameId: key.startsWith("_bbq_") || key === "_no_game_" ? undefined : key, debitsCents: 0, creditsCents: 0 };
+        // Store the internal key for BBQ entries so we can match them later
+        if (key.startsWith("_bbq_") || key === "_no_game_") {
+          newGame._internalKey = key;
+        }
+        ws.games.push(newGame);
+        game = newGame;
       }
 
       const cents = Number(l.amountCents ?? 0);
-      if (l.type === "debit") game.debitsCents += cents;
-      if (l.type === "credit") game.creditsCents += cents;
+      if (l.type === "debit") game!.debitsCents += cents;
+      if (l.type === "credit") game!.creditsCents += cents;
     }
 
     const wsIds = Array.from(map.keys())
@@ -1425,6 +1448,11 @@ export class GameService {
     for (const ws of map.values()) {
       for (const g of ws.games) {
         const gid = g.gameId;
+
+        // Check if this is a BBQ debt entry by checking the internal key
+        const internalKey = (g as any)._internalKey;
+        const isBBQ = internalKey && internalKey.startsWith("_bbq_");
+
         const IGame = gid ? rawIGames.get(gid) : undefined;
         const gi = gid ? gInfo.get(gid) : undefined;
 
@@ -1459,12 +1487,50 @@ export class GameService {
             const clean = (p.name ?? "").replace(/\s*\(conv\.[^)]+\)\s*$/i, "").trim() || "Convidado";
             lines.push({ label: `Convidado ${clean}`, amountCents: priceCents });
           }
+        } else if (isBBQ) {
+          const bbqLedgers = ledgers.filter(l =>
+            !l.gameId &&
+            (l as any).category === "churrasco" &&
+            (l.workspaceId as any)?.toString?.() === ws.workspaceId &&
+            l.type === "debit"
+          );
+
+          const processedIds = new Set<string>();
+
+          for (const bbqL of bbqLedgers) {
+            const ledgerId = (bbqL._id as any)?.toString?.() ?? String(bbqL._id);
+            if (processedIds.has(ledgerId)) {
+              continue; // Skip if already processed
+            }
+            processedIds.add(ledgerId);
+
+            const amount = Number(bbqL.amountCents ?? 0);
+            lines.push({ label: "Churrasco", amountCents: amount });
+          }
         }
 
         const totalLines = lines.reduce((s, l) => s + (l.amountCents ?? 0), 0);
 
-        g.date = gi?.date;
-        g.title = gi?.title ?? "Jogo";
+        // Set title and date
+        if (isBBQ) {
+          g.title = "🍖 Churrasco";
+          // Try to extract date from note field (format: "Debito de churrasco - YYYY-MM-DD - UserName")
+          const bbqLedger = ledgers.find(l =>
+            !l.gameId &&
+            (l as any).category === "churrasco" &&
+            (l.workspaceId as any)?.toString?.() === ws.workspaceId
+          );
+          if (bbqLedger && (bbqLedger as any).note) {
+            const noteMatch = ((bbqLedger as any).note as string).match(/(\d{4}-\d{2}-\d{2})/);
+            if (noteMatch) {
+              g.date = new Date(noteMatch[1]);
+            }
+          }
+        } else {
+          g.date = gi?.date;
+          g.title = gi?.title ?? "Jogo";
+        }
+
         g.totalCents = Number.isFinite(totalLines) ? totalLines : 0;
         g.lines = Array.isArray(lines) ? lines : [];
       }
@@ -1542,6 +1608,35 @@ export class GameService {
       priceCents: number;
     }>;
 
+    // Add BBQ debts from ledger
+    const bbqLedgers = await this.ledgerRepo.findBBQDebtsByUser(
+      workspace._id.toString(),
+      user._id.toString()
+    );
+
+    for (const bbqL of bbqLedgers) {
+      let date = bbqL.createdAt || new Date();
+      // Try to extract date from note (format: "Debito de churrasco - YYYY-MM-DD - UserName")
+      if (bbqL.note) {
+        const noteMatch = bbqL.note.match(/(\d{4}-\d{2}-\d{2})/);
+        if (noteMatch) {
+          date = new Date(noteMatch[1]);
+        }
+      }
+
+      debts.push({
+        gameId: null,
+        date,
+        title: "🍖 Churrasco",
+        own: [{ type: "your place" as const, slot: undefined }],
+        guests: [],
+        priceCents: bbqL.amountCents || 0,
+      });
+    }
+
+    // Sort debts by date (most recent first)
+    debts.sort((a, b) => b.date.getTime() - a.date.getTime());
+
     return { balanceCents, debts };
   }
 
@@ -1561,11 +1656,20 @@ export class GameService {
       const data = `${String(dia.getDate()).padStart(2, "0")}/${String(dia.getMonth() + 1).padStart(2, "0")}`;
       const valor = Utils.formatCentsToReal(g.priceCents);
 
-      const ownStr = g.own.map((o: OwnDebts) => `- Vaga própria (slot ${o.slot ?? "?"}) — ${valor}`).join("\n");
-      const guestStr = g.guests.map((gu: GuestDebts) => `- Convidado ${gu.name ?? ""} (slot ${gu.slot ?? "?"}) — ${valor}`).join("\n");
-      const bloco = [ownStr, guestStr].filter(Boolean).join("\n");
+      // Check if this is a BBQ debt (title starts with 🍖)
+      const isBBQ = g.title?.startsWith("🍖");
 
-      linhas.push(`\n*${data}* — ${g.title}\n${bloco}`);
+      if (isBBQ) {
+        // BBQ debts don't have slots
+        linhas.push(`\n*${data}* — ${g.title}\n- Churrasco — ${valor}`);
+      } else {
+        // Game debts with slots
+        const ownStr = g.own.map((o: OwnDebts) => `- Vaga própria (slot ${o.slot ?? "?"}) — ${valor}`).join("\n");
+        const guestStr = g.guests.map((gu: GuestDebts) => `- Convidado ${gu.name ?? ""} (slot ${gu.slot ?? "?"}) — ${valor}`).join("\n");
+        const bloco = [ownStr, guestStr].filter(Boolean).join("\n");
+
+        linhas.push(`\n*${data}* — ${g.title}\n${bloco}`);
+      }
     }
 
     linhas.push(`\nℹ️ Goleiros não geram débito.`);
@@ -1683,6 +1787,40 @@ export class GameService {
           receivableCents: receivable,
         });
       }
+    }
+
+    const bbqDebts = await this.ledgerRepo.findPendingBBQDebtsByWorkspace(workspaceId);
+
+    const bbqByDate = new Map<string, { date: Date; total: number }>();
+
+    for (const bbq of bbqDebts) {
+      const amount = bbq.amountCents || 0;
+
+      let date = bbq.createdAt || new Date();
+      if (bbq.note) {
+        const noteMatch = bbq.note.match(/(\d{4}-\d{2}-\d{2})/);
+        if (noteMatch) {
+          date = new Date(noteMatch[1]);
+        }
+      }
+
+      const dateKey = date.toISOString().split('T')[0];
+
+      if (bbqByDate.has(dateKey)) {
+        bbqByDate.get(dateKey)!.total += amount;
+      } else {
+        bbqByDate.set(dateKey, { date, total: amount });
+      }
+    }
+
+    for (const { date, total: amount } of bbqByDate.values()) {
+      total += amount;
+      items.push({
+        gameId: null as any,
+        date,
+        title: "🍖 Churrasco",
+        receivableCents: amount,
+      });
     }
 
     return { totalCents: total, games: items };

@@ -13,8 +13,8 @@ export type SyntheticUser = {
 type MockParticipantInput = {
     id: number;
     name: string;
-    phone: string;      
-    groupId: string;    
+    phone: string;
+    groupId: string;
 };
 
 function digitsFromPhone(phone: string): string {
@@ -104,6 +104,26 @@ export function makeMockMessage(
         body: input,
         getContact: async () => makeMockContact(user),
         getChat: async () => makeMockChat(chatId, label, isGroup, user.participants ?? []),
+        getMentions: async () => {
+            // Parse mentions from message body (format: @5511999999999)
+            const mentionRegex = /@(\d+)/g;
+            const mentions: Contact[] = [];
+            let match;
+
+            while ((match = mentionRegex.exec(input)) !== null) {
+                const phone = match[1];
+                const digits = digitsFromPhone(phone);
+                const contactId = makeContactIdFromDigits(digits);
+                mentions.push({
+                    id: contactId as any,
+                    number: phone,
+                    pushname: `User ${phone}`,
+                    name: `User ${phone}`,
+                } as Contact);
+            }
+
+            return mentions;
+        },
         pin: async (duration?: number) => true,
         reply: async (msg) => {
             await server.sendMessage(user.id ?? chatId, String(msg));

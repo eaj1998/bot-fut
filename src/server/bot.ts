@@ -71,12 +71,29 @@ export class BotServer extends IBotServerPort {
       }
     });
 
+    this.client.on('authenticated', () => {
+      this.loggerService.log('WhatsApp client authenticated successfully');
+    });
+
+    this.client.on('auth_failure', (msg) => {
+      this.loggerService.error('Authentication failure:', msg);
+    });
+
+    this.client.on('disconnected', (reason) => {
+      this.loggerService.warn('WhatsApp client disconnected:', reason);
+    });
+
     this.client.on('message', async (message) => {
       if (this.events.message) {
         this.events.message(message);
       }
     });
 
-    this.client.initialize();
+    this.client.initialize().catch((error) => {
+      this.loggerService.error('Failed to initialize WhatsApp client:', error);
+      if (error.message && error.message.includes('auth timeout')) {
+        this.loggerService.error('Authentication timeout - QR code was not scanned in time. Please restart the application.');
+      }
+    });
   }
 }

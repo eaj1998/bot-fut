@@ -22,6 +22,8 @@ export class ApiServer {
     }
 
     private setupMiddleware() {
+        this.app.set('trust proxy', 1);
+
         this.app.use(helmet());
         this.app.use(
             cors({
@@ -32,16 +34,17 @@ export class ApiServer {
 
         this.app.use(
             rateLimit({
-                windowMs: 15 * 60 * 1000, // 15 minutes
-                max: 100, // limit each IP to 100 requests per windowMs
+                windowMs: 15 * 60 * 1000,
+                max: 100,
+                standardHeaders: true,
+                legacyHeaders: false,
+                skipSuccessfulRequests: false,
             }),
         );
 
-        // Body parsing
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
 
-        // Sanitize input
         this.app.use(sanitizeInput);
     }
 

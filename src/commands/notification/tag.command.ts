@@ -17,6 +17,7 @@ export class TagCommand implements Command {
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
         @inject(Utils) private readonly util: Utils,
+        @inject(BOT_CLIENT_TOKEN) private readonly client: IBotServerPort
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -45,29 +46,42 @@ export class TagCommand implements Command {
 
         if (group) {
             for (let participant of group.participants) {
-                const participantNumber = participant.id._serialized;
-                const normalizedPhone = this.util.normalizePhone(participantNumber);
-                console.log('normalizedPhone', normalizedPhone);
-                console.log('participant', participant);
+                const serializedId = participant.id._serialized;
 
-                let user = await this.userRepo.findByPhoneE164(normalizedPhone);
+                const contact = await this.client.getContactById(serializedId);
 
-                if (!user) {
-                    user = await this.userRepo.findByLid(normalizedPhone);
+                const phoneE164 = contact.number
+                    ? this.util.normalizePhone(contact.number)
+                    : null;
+
+                const lid = contact.lid || null;
+
+                let user = null;
+
+                if (phoneE164) {
+                    user = await this.userRepo.findByPhoneE164(phoneE164);
                 }
 
-                if (user && user.status === 'inactive') {
-                    continue;
+                if (!user && lid) {
+                    user = await this.userRepo.findByLid(lid);
                 }
 
-                if (user && game?.roster.outlist.some(w => w.userId?._id.toString() === user?._id.toString())) {
+                if (user && user.status === 'inactive') continue;
+
+                if (
+                    user &&
+                    game?.roster.outlist.some(
+                        w => w.userId?._id.toString() === user._id.toString()
+                    )
+                ) {
                     jogadoresForaCount++;
                     continue;
                 }
 
-                mentions.push(participant.id._serialized);
+                mentions.push(serializedId);
                 text += `@${participant.id.user} `;
             }
+
         }
 
         this.server.sendMessage(groupId, text, { mentions });

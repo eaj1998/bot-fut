@@ -17,9 +17,7 @@ export class StickerCommand implements Command {
     };
 
     if (stickers[message.body]) {
-      console.log(`[COMANDO] Figurinha "${message.body}" recebida.`);
       try {
-        console.log(`[COMANDO] Figurinha :"${stickers[message.body]}".`);
         const stickerPath = stickers[message.body];
         const sticker = MessageMedia.fromFilePath(stickerPath);
         this.server.sendMessage(message.from, sticker, { sendMediaAsSticker: true });

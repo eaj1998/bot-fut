@@ -35,7 +35,6 @@ export class PayBBQCommand implements Command {
         }
 
         const mentions = await message.getMentions();
-        console.log(mentions);
 
         let phone: string;
         let dateArg: string;

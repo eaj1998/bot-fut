@@ -204,17 +204,11 @@ export class LedgerRepository {
     userId: string,
     date: Date
   ): Promise<LedgerDoc | null> {
-    // Create date range for the target day
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-
-    console.log('[BBQ Payment] Looking for debt on date:', date);
-    console.log('[BBQ Payment] Date range:', startOfDay, 'to', endOfDay);
-    console.log('[BBQ Payment] WorkspaceId:', workspaceId);
-    console.log('[BBQ Payment] UserId:', userId);
 
     const result = await this.model.findOne({
       workspaceId: new Types.ObjectId(workspaceId),
@@ -225,7 +219,6 @@ export class LedgerRepository {
       createdAt: { $gte: startOfDay, $lte: endOfDay }
     }).exec();
 
-    console.log('[BBQ Payment] Found debt:', result ? 'YES' : 'NO');
     return result;
   }
 

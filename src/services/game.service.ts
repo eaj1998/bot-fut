@@ -715,7 +715,6 @@ export class GameService {
     }
 
     const player = game.roster.players[idx];
-    console.log(player);
     if (!player.paid) {
       return { updated: false, reason: "Jogador já está desmarcado", playerName: player.name };
     }

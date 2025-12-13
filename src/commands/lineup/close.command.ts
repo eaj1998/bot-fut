@@ -40,7 +40,6 @@ export class CloseCommand implements Command {
 
                 result.results.forEach((r: any) => {
                     if (r.success) {
-                        console.log(`✔ ${r.playerName} processado com sucesso`);
                     } else {
                         failedPlayers.push(r.playerName);
                     }

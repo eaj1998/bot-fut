@@ -42,8 +42,6 @@ export class BBQService {
     if (bbq.status === 'closed') {
       return { success: false, message: '❌ A lista do churrasco já está fechada!' };
     }
-    console.log('bbq', bbq);
-    console.log('userId', userId);
 
     const alreadyIn = bbq.participants.some(p => p.userId === userId);
     if (alreadyIn) {
@@ -252,7 +250,6 @@ export class BBQService {
 
     if (allPaid) {
       await this.bbqRepository.markAsFinished(bbqId);
-      console.log(`[BBQ] Marked BBQ ${bbqId} as finished - all participants have paid`);
     }
   }
 

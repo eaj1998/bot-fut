@@ -112,11 +112,11 @@ export class GamesController {
   });
 
   markPayment = asyncHandler(async (req: Request, res: Response) => {
-    const { gameId, slot } = req.params;
+    const { gameId } = req.params;
+    const slot = parseInt(req.params.slot, 10);
     const { isPaid }: MarkPaymentDto = req.body;
-    console.log('slot', slot);
 
-    await this.gameService.markPayment(gameId, parseInt(slot), isPaid);
+    await this.gameService.markPayment(gameId, slot, isPaid);
 
     res.json({
       success: true,

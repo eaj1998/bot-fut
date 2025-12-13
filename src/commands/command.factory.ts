@@ -33,8 +33,6 @@ import { CancelBBQCommand } from './bbq/cancelBBQ.command';
 @injectable()
 export class CommandFactory {
   public create(command: string): Command | undefined {
-    console.log('command', command);
-
     switch (command) {
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);

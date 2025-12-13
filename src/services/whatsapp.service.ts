@@ -75,8 +75,6 @@ Bom jogo! ⚽`;
             const cleanPhone = phone.replace('@c.us', '');
             const formattedPhone = this.formatPhoneNumber(cleanPhone);
 
-            console.log(`Verificando contato: ${formattedPhone}@c.us`);
-
             const contact = await this.botClient.getContactById(`${formattedPhone}@c.us`);
             return contact !== null;
         } catch (error) {

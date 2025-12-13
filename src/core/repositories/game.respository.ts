@@ -71,7 +71,6 @@ export class GameRepository {
 
     async criarMovimentacaoOrganizze(player: GamePlayer, dataDoJogo: Date): Promise<{ added: boolean }> {
         if (!this.configService.organizze.email || !this.configService.organizze.apiKey) {
-            console.log('[ORGANIZZE] Credenciais não configuradas. Pulando integração.');
             return { added: false };
         }
 

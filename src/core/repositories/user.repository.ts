@@ -64,6 +64,10 @@ export class UserRepository {
         return this.model.findOne({ phoneE164: phone });
     }
 
+    async findByLid(lid: string) {
+        return this.model.findOne({ lid });
+    }
+
     async findById(userId: string) {
         return await this.model.findOne({ _id: userId });
     }

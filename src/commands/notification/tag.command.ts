@@ -5,6 +5,7 @@ import { GroupChat, Message } from 'whatsapp-web.js';
 import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
+import Utils from '../../utils/utils';
 
 @injectable()
 export class TagCommand implements Command {
@@ -15,6 +16,7 @@ export class TagCommand implements Command {
         @inject(GameService) private readonly gameSvc: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
+        @inject(Utils) private readonly util: Utils,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -44,7 +46,13 @@ export class TagCommand implements Command {
         if (group) {
             for (let participant of group.participants) {
                 const participantNumber = participant.id._serialized;
-                const user = await this.userRepo.findByPhoneE164(participantNumber);
+                const normalizedPhone = this.util.normalizePhone(participantNumber);
+
+                let user = await this.userRepo.findByPhoneE164(normalizedPhone);
+
+                if (!user) {
+                    user = await this.userRepo.findByLid(normalizedPhone);
+                }
 
                 if (user && user.status === 'inactive') {
                     continue;

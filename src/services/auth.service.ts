@@ -212,15 +212,20 @@ export class AuthService {
                 return false;
             }
             const phone = id.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
-            console.log('phone', phone);
 
-            const user = await this.userModel.findOne({
+            let user = await this.userModel.findOne({
                 phoneE164: phone,
                 role: 'admin',
                 status: 'active'
             }).exec();
 
-            console.log('user', user);
+            if (!user) {
+                user = await this.userModel.findOne({
+                    lid: id,
+                    role: 'admin',
+                    status: 'active'
+                }).exec();
+            }
 
             return !!user;
         } catch (error) {

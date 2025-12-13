@@ -22,7 +22,7 @@ const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', group
 const USERS = [
   { id: 2, name: 'Edipão', phone: '554992007299', groupId: groupId },
   { id: 1, name: 'Andrei', phone: '554999264289', groupId: groupId },
-  { id: 3, name: 'Mikelongelo', phone: '554992007299', groupId: groupId },
+  { id: 3, name: 'Lucas', phone: '17097495473', groupId: groupId },
   { id: 4, name: 'Debastiani', phone: '554998126478', groupId: groupId },
   { id: 5, name: 'Murilo Xavier', phone: '554988334847', groupId: groupId },
   { id: 6, name: 'Ebenezer', phone: '555184240591', groupId: groupId },

@@ -4,7 +4,7 @@ import { Message } from 'whatsapp-web.js';
 import { BBQService } from '../../services/bbq.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
-import Utils from '../../utils/utils';
+import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
 
 @injectable()
 export class GuestBBQCommand implements Command {
@@ -13,8 +13,7 @@ export class GuestBBQCommand implements Command {
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(BBQService) private readonly bbqService: BBQService,
-        @inject(UserRepository) private readonly userRepo: UserRepository,
-        @inject(Utils) private util: Utils
+        @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -25,14 +24,16 @@ export class GuestBBQCommand implements Command {
         }
 
         const chatId = message.from;
-        const contact = await message.getContact();
-        const phone = this.util.normalizePhone(contact.id._serialized);
-        const user = await this.userRepo.findByPhoneE164(phone);
+        const userName = await getUserNameFromMessage(message);
+        const lid = await getLidFromMessage(message);
+        const phone = await getPhoneFromMessage(message);
 
-        if (!user) {
-            await message.reply('❌ Seu número não está cadastrado. Peça a um admin para cadastrar.');
+        if (!phone) {
+            await message.reply('❌ Não foi possível identificar seu número.');
             return;
         }
+
+        const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
 
         const commandText = message.body;
         const parts = commandText.split(' ');

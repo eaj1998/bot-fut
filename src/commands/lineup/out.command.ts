@@ -36,7 +36,6 @@ export class OutCommand implements Command {
         const lid = await getLidFromMessage(message);
         const phone = await getPhoneFromMessage(message);
         const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
-        const author = await message.getContact();
 
         const isInMainRoster = game.roster.players.some(p => p.phoneE164 === phone);
         const isInWaitlist = game.roster.waitlist?.some(w => w.phoneE164 === phone);
@@ -60,7 +59,7 @@ export class OutCommand implements Command {
 
         if (isInOutlist) {
             await message.reply(
-                `✅ ${author.pushname || author.name}, você já está marcado como "fora" para esta semana.`
+                `✅ ${userName}, você já está marcado como "fora" para esta semana.`
             );
             return;
         }
@@ -69,12 +68,12 @@ export class OutCommand implements Command {
 
         if (res.added) {
             await game.save();
-            await message.reply(`✅ ${author.pushname || author.name}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
+            await message.reply(`✅ ${userName}, você foi marcado como "fora" para esta semana e não receberá marcações do /marcar.`);
             return;
         }
 
         await message.reply(
-            `✅ ${author.pushname || author.name}, Ocorreu um erro, tente novamente mais tarde.`
+            `✅ ${userName}, Ocorreu um erro, tente novamente mais tarde.`
         );
     }
 

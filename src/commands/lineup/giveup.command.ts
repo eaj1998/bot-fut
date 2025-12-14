@@ -22,10 +22,7 @@ export class GiveUpCommand implements Command {
         ) { }
 
         async handle(message: Message): Promise<void> {
-                let nomeAutor = ""
-                const author = await message.getContact();
                 const nomeConvidado = this.gameService.argsFromMessage(message).join(" ").trim();
-                if (nomeConvidado) nomeAutor = nomeConvidado;
 
                 const groupId = message.from;
 
@@ -42,6 +39,8 @@ export class GiveUpCommand implements Command {
                 const lid = await getLidFromMessage(message);
                 const phone = await getPhoneFromMessage(message);
                 const user = await this.userRepo.upsertByPhone(workspace._id, phone, nomeConvidado || userName, lid);
+
+                const nomeAutor = nomeConvidado || userName;
 
                 const res = await this.gameService.removePlayerFromGame(game, phone ?? user.phoneE164, user.name, nomeAutor);
 

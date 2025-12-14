@@ -5,7 +5,7 @@ import { WorkspaceService } from "../../services/workspace.service";
 import { GameService } from "../../services/game.service";
 import { Message } from "whatsapp-web.js";
 import { UserRepository } from "../../core/repositories/user.repository";
-import Utils from "../../utils/utils";
+import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
 
 @injectable()
 export class DebtsCommand implements Command {
@@ -15,8 +15,7 @@ export class DebtsCommand implements Command {
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(GameService) private readonly gameSvc: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-        @inject(UserRepository) private readonly userRepo: UserRepository,
-        @inject(Utils) private util: Utils
+        @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
 
 
@@ -29,9 +28,16 @@ export class DebtsCommand implements Command {
         const [, ...args] = message.body.trim().split(/\s+/);
         const slug = (args[0] || "");
 
-        const contact = await message.getContact();
-        const phone = this.util.normalizePhone(contact.id._serialized);
-        const user = await this.userRepo.findByPhoneE164(phone);
+        const userName = await getUserNameFromMessage(message);
+        const lid = await getLidFromMessage(message);
+        const phone = await getPhoneFromMessage(message);
+
+        if (!phone) {
+            await message.reply('Não foi possível identificar seu número.');
+            return;
+        }
+
+        const user = await this.userRepo.upsertByPhone(undefined, phone, userName, lid);
         if (!user) {
             await message.reply("Seu número não está cadastrado. Peça a um admin para cadastrar.");
             return;

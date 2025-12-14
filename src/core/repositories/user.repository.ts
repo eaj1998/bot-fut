@@ -11,7 +11,7 @@ export class UserRepository {
         return this.model.findOne({ workspaceId, phoneE164 });
     }
 
-    async upsertByPhone(workspaceId: Types.ObjectId, phoneE164: string | undefined, name: string, lid?: string) {
+    async upsertByPhone(workspaceId: Types.ObjectId | undefined, phoneE164: string | undefined, name: string, lid?: string) {
         if (lid) lid = lid.replace(/\D/g, '');
 
         if (phoneE164?.endsWith('@lid')) {
@@ -57,7 +57,12 @@ export class UserRepository {
             throw new Error('Cannot create user without phone number or LID');
         }
 
-        return this.model.create({ phoneE164, name, lid });
+        const userData: any = { phoneE164, name, lid };
+        if (workspaceId) {
+            userData.workspaceId = workspaceId;
+        }
+
+        return this.model.create(userData);
     }
 
     async findByPhoneE164(phone: string) {

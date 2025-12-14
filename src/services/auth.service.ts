@@ -161,6 +161,8 @@ export class AuthService {
             name: user.name,
             phone: user.phoneE164,
             role: user.role || 'user',
+            status: user.status,
+            createdAt: user.createdAt
         };
     }
 

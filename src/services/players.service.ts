@@ -133,7 +133,6 @@ export class PlayersService {
                 throw new Error('Já existe um jogador com este telefone');
             }
         }
-
         const updated = await this.userRepository.update(id, data);
         if (!updated) {
             throw new Error('Erro ao atualizar jogador');
@@ -254,7 +253,8 @@ export class PlayersService {
         return games.map((game: any) => ({
             id: game._id.toString(),
             title: game.title || 'Jogo',
-            date: game.date,
+            date: game.date.toISOString().split('T')[0],
+            time: game.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
             status: game.status,
             priceCents: game.priceCents || 0,
             chatId: game.chatId,

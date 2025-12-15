@@ -32,35 +32,29 @@ export async function getUserNameFromMessage(message: Message): Promise<string> 
  */
 export async function getLidAndPhoneFromMessage(message: Message): Promise<{ lid?: string; phone?: string }> {
     try {
-        // Get the user ID from the message
         const userId = message.author || message.from;
         if (!userId) {
-            console.log('[getLidAndPhoneFromMessage] No userId found');
             return {};
         }
 
-        // Use WhatsApp's official method to get both LID and phone
         const client = (message as any).client;
         if (client && typeof client.getContactLidAndPhone === 'function') {
-            console.log('[getLidAndPhoneFromMessage] Using getContactLidAndPhone for:', userId);
             const result = await client.getContactLidAndPhone([userId]);
-            console.log('[getLidAndPhoneFromMessage] Result:', JSON.stringify(result, null, 2));
 
             if (result && result.length > 0) {
                 const data = result[0];
+                const cleanPhone = data.pn ? data.pn.replace(/@c\.us$/i, '') : undefined;
                 return {
                     lid: data.lid || undefined,
-                    phone: data.pn || undefined
+                    phone: cleanPhone
                 };
             }
         } else {
-            console.log('[getLidAndPhoneFromMessage] getContactLidAndPhone not available, falling back to manual extraction');
         }
     } catch (e) {
-        console.log('[getLidAndPhoneFromMessage] Error:', e);
+        // Silent error handling
     }
 
-    // Fallback to manual extraction
     return await getLidAndPhoneManually(message);
 }
 
@@ -80,7 +74,7 @@ async function getLidAndPhoneManually(message: Message): Promise<{ lid?: string;
             }
         }
     } catch (e) {
-        console.log('[getLidAndPhoneManually] Error getting contact:', e);
+        // Silent error handling
     }
 
     const author = message.author ?? message.from ?? null;

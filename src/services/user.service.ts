@@ -27,24 +27,10 @@ export class UserService {
         message: Message,
         workspaceId?: Types.ObjectId
     ): Promise<IUser> {
-        // Log the entire message object
-        console.log('[UserService] Full message object:', JSON.stringify(message, null, 2));
-        console.log('[UserService] Message._data:', JSON.stringify((message as any)._data, null, 2));
-
         // Extract user information from the message
         const userName = await getUserNameFromMessage(message);
         const lid = await getLidFromMessage(message);
         const phone = await getPhoneFromMessage(message);
-
-        // Debug logging
-        console.log('[UserService] Extracted data:', {
-            from: message.from,
-            author: message.author,
-            userName,
-            lid,
-            phone,
-            workspaceId: workspaceId?.toString()
-        });
 
         // Find or create the user
         return await this.userRepository.upsertByPhone(workspaceId, phone, userName, lid);

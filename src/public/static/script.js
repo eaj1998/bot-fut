@@ -27,7 +27,7 @@ const USERS = [
   { id: 5, name: 'Murilo Xavier', phone: '554988334847', groupId: groupId },
   { id: 6, name: 'Ebenezer', phone: '555184240591', groupId: groupId },
   { id: 7, name: 'Daniel Forgiarini', phone: '554999656215', groupId: groupId },
-  { id: 8, name: 'Pedrão', phone: '554988944669', groupId: groupId },
+  { id: 8, name: 'Pedrão', phone: '554988944661', groupId: groupId },
   { id: 9, name: 'Tainá', phone: '554998218945', groupId: groupId },
   { id: 10, name: 'Aninha', phone: '554999110988', groupId: groupId },
   { id: 11, name: 'Felipão', phone: '554988416153', groupId: groupId },

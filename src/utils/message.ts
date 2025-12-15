@@ -53,16 +53,34 @@ export async function getLidFromMessage(message: Message): Promise<string | unde
 export async function getPhoneFromMessage(message: Message): Promise<string | undefined> {
     const author = message.author ?? message.from ?? null;
     if (author) {
-        return author.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
+        // Se termina com @lid, não é um número de telefone válido
+        if (author.endsWith('@lid')) {
+            return undefined;
+        }
+        return author.replace(/@c\.us$/i, '');
     }
 
-    const contact = await message.getContact();
-    if (contact) {
-        if (contact.number) {
-            return contact.number.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
-        } else if (contact.id?.user) {
-            return contact.id.user.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
+    try {
+        const contact = await message.getContact();
+        if (contact) {
+            if (contact.number) {
+                const num = contact.number.replace(/@c\.us$/i, '');
+                // Verifica se não é um LID
+                if (num.endsWith('@lid') || /^\d{15,}$/.test(num)) {
+                    return undefined;
+                }
+                return num;
+            } else if (contact.id?.user) {
+                const user = contact.id.user.replace(/@c\.us$/i, '');
+                // Verifica se não é um LID
+                if (user.endsWith('@lid') || /^\d{15,}$/.test(user)) {
+                    return undefined;
+                }
+                return user;
+            }
         }
+    } catch (e) {
+        // getContact() pode falhar, ignora o erro
     }
 
     return undefined;

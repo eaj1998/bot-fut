@@ -27,75 +27,80 @@ export async function getUserNameFromMessage(message: Message): Promise<string> 
     }
 }
 
-export async function getLidFromMessage(message: Message): Promise<string | undefined> {
+/**
+ * Gets both LID and phone number using WhatsApp's official method
+ */
+export async function getLidAndPhoneFromMessage(message: Message): Promise<{ lid?: string; phone?: string }> {
+    try {
+        // Get the user ID from the message
+        const userId = message.author || message.from;
+        if (!userId) {
+            console.log('[getLidAndPhoneFromMessage] No userId found');
+            return {};
+        }
+
+        // Use WhatsApp's official method to get both LID and phone
+        const client = (message as any).client;
+        if (client && typeof client.getContactLidAndPhone === 'function') {
+            console.log('[getLidAndPhoneFromMessage] Using getContactLidAndPhone for:', userId);
+            const result = await client.getContactLidAndPhone([userId]);
+            console.log('[getLidAndPhoneFromMessage] Result:', JSON.stringify(result, null, 2));
+
+            if (result && result.length > 0) {
+                const data = result[0];
+                return {
+                    lid: data.lid || undefined,
+                    phone: data.pn || undefined
+                };
+            }
+        } else {
+            console.log('[getLidAndPhoneFromMessage] getContactLidAndPhone not available, falling back to manual extraction');
+        }
+    } catch (e) {
+        console.log('[getLidAndPhoneFromMessage] Error:', e);
+    }
+
+    // Fallback to manual extraction
+    return await getLidAndPhoneManually(message);
+}
+
+/**
+ * Manual fallback for extracting LID and phone
+ */
+async function getLidAndPhoneManually(message: Message): Promise<{ lid?: string; phone?: string }> {
+    const result: { lid?: string; phone?: string } = {};
+
     try {
         const contact = await message.getContact();
         if (contact) {
             const lid = (contact as any).lid;
-            console.log('[getLidFromMessage] contact.lid:', lid);
             if (lid) {
                 const lidStr = typeof lid === 'object' ? lid._serialized : lid;
-                const cleanLid = lidStr.replace(/\D/g, '');
-                console.log('[getLidFromMessage] cleanLid:', cleanLid);
-                return cleanLid;
+                result.lid = lidStr.replace(/\D/g, '');
             }
         }
     } catch (e) {
-        console.log('[getLidFromMessage] Error getting contact:', e);
+        console.log('[getLidAndPhoneManually] Error getting contact:', e);
     }
 
-    const source = message.author || message.from;
-    console.log('[getLidFromMessage] source:', source);
-    if (source && source.endsWith('@lid')) {
-        const cleanLid = source.replace(/\D/g, '');
-        console.log('[getLidFromMessage] cleanLid from source:', cleanLid);
-        return cleanLid;
+    const author = message.author ?? message.from ?? null;
+    if (author) {
+        if (author.endsWith('@lid')) {
+            result.lid = author.replace(/\D/g, '');
+        } else if (author.endsWith('@c.us')) {
+            result.phone = author.replace(/@c\.us$/i, '');
+        }
     }
 
-    return undefined;
+    return result;
+}
+
+export async function getLidFromMessage(message: Message): Promise<string | undefined> {
+    const { lid } = await getLidAndPhoneFromMessage(message);
+    return lid;
 }
 
 export async function getPhoneFromMessage(message: Message): Promise<string | undefined> {
-    const author = message.author ?? message.from ?? null;
-    console.log('[getPhoneFromMessage] author/from:', author);
-
-    if (author) {
-        // Se termina com @lid, não é um número de telefone válido
-        if (author.endsWith('@lid')) {
-            console.log('[getPhoneFromMessage] Detected LID, returning undefined');
-            return undefined;
-        }
-        const phone = author.replace(/@c\.us$/i, '');
-        console.log('[getPhoneFromMessage] Extracted phone:', phone);
-        return phone;
-    }
-
-    try {
-        const contact = await message.getContact();
-        if (contact) {
-            if (contact.number) {
-                const num = contact.number.replace(/@c\.us$/i, '');
-                console.log('[getPhoneFromMessage] contact.number:', num);
-                // Verifica se não é um LID
-                if (num.endsWith('@lid') || /^\d{15,}$/.test(num)) {
-                    console.log('[getPhoneFromMessage] contact.number is LID, returning undefined');
-                    return undefined;
-                }
-                return num;
-            } else if (contact.id?.user) {
-                const user = contact.id.user.replace(/@c\.us$/i, '');
-                console.log('[getPhoneFromMessage] contact.id.user:', user);
-                // Verifica se não é um LID
-                if (user.endsWith('@lid') || /^\d{15,}$/.test(user)) {
-                    console.log('[getPhoneFromMessage] contact.id.user is LID, returning undefined');
-                    return undefined;
-                }
-                return user;
-            }
-        }
-    } catch (e) {
-        console.log('[getPhoneFromMessage] Error getting contact:', e);
-    }
-
-    return undefined;
+    const { phone } = await getLidAndPhoneFromMessage(message);
+    return phone;
 }

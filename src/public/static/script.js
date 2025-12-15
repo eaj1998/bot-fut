@@ -38,6 +38,10 @@ const USERS = [
   { id: 16, name: 'Rafa', phone: '554989137227', groupId: groupId },
   { id: 17, name: 'Val', phone: '554991072330', groupId: groupId },
   { id: 18, name: 'Andrei', phone: '554988166996', groupId: groupId },
+  // Users with LID (simulating WhatsApp's new ID system)
+  { id: 19, name: 'Valéria (LID)', lid: '234294979096803', phone: '554991071925', groupId: groupId },
+  { id: 20, name: 'João (LID only)', lid: '642227802399051', groupId: groupId },
+  { id: 21, name: 'Maria (LID only)', lid: '987654321098765', groupId: groupId },
 ];
 
 

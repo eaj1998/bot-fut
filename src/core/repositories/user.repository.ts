@@ -12,8 +12,6 @@ export class UserRepository {
     }
 
     async upsertByPhone(workspaceId: Types.ObjectId | undefined, phoneE164: string | undefined, name: string, lid?: string) {
-        console.log('[upsertByPhone] Input:', { workspaceId: workspaceId?.toString(), phoneE164, name, lid });
-
         if (lid) lid = lid.replace(/\D/g, '');
 
         if (phoneE164?.endsWith('@lid')) {
@@ -25,15 +23,11 @@ export class UserRepository {
         let user = null;
 
         if (lid) {
-            console.log('[upsertByPhone] Searching by LID:', lid);
             user = await this.model.findOne({ lid });
-            console.log('[upsertByPhone] Found by LID:', user?._id?.toString());
         }
 
         if (!user && phoneE164) {
-            console.log('[upsertByPhone] Searching by phoneE164:', phoneE164);
             user = await this.model.findOne({ phoneE164 });
-            console.log('[upsertByPhone] Found by phoneE164:', user?._id?.toString());
         }
 
         if (user) {
@@ -55,15 +49,20 @@ export class UserRepository {
             return user;
         }
 
-        if (!phoneE164 && lid) {
-            phoneE164 = lid;
-        }
-
-        if (!phoneE164) {
+        if (!phoneE164 && !lid) {
             throw new Error('Cannot create user without phone number or LID');
         }
 
-        const userData: any = { phoneE164, name, lid };
+        const userData: any = { name };
+
+        if (phoneE164) {
+            userData.phoneE164 = phoneE164;
+        }
+
+        if (lid) {
+            userData.lid = lid;
+        }
+
         if (workspaceId) {
             userData.workspaceId = workspaceId;
         }

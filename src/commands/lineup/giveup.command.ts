@@ -6,8 +6,8 @@ import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import Utils from '../../utils/utils';
 import { GameRepository } from '../../core/repositories/game.respository';
-import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
-import { UserRepository } from '../../core/repositories/user.repository';
+import { UserService, USER_SERVICE_TOKEN } from '../../services/user.service';
+import { getUserNameFromMessage } from '../../utils/message';
 
 @injectable()
 export class GiveUpCommand implements Command {
@@ -18,7 +18,7 @@ export class GiveUpCommand implements Command {
                 @inject(GameService) private readonly gameService: GameService,
                 @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
                 @inject(Utils) private util: Utils,
-                @inject(UserRepository) private readonly userRepo: UserRepository
+                @inject(USER_SERVICE_TOKEN) private readonly userService: UserService
         ) { }
 
         async handle(message: Message): Promise<void> {
@@ -35,14 +35,12 @@ export class GiveUpCommand implements Command {
                 const game = await this.gameService.getActiveGame(workspace._id.toString(), groupId);
                 if (!game) return;
 
-                const userName = await getUserNameFromMessage(message);
-                const lid = await getLidFromMessage(message);
-                const phone = await getPhoneFromMessage(message);
-                const user = await this.userRepo.upsertByPhone(workspace._id, phone, nomeConvidado || userName, lid);
+                const user = await this.userService.resolveUserFromMessage(message, workspace._id);
 
+                const userName = await getUserNameFromMessage(message);
                 const nomeAutor = nomeConvidado || userName;
 
-                const res = await this.gameService.removePlayerFromGame(game, phone ?? user.phoneE164, user.name, nomeAutor);
+                const res = await this.gameService.removePlayerFromGame(game, user.phoneE164 || user.lid!, user.name, nomeAutor);
 
                 if (!res.removed) {
                         await this.server.sendMessage(message.from, res.message);

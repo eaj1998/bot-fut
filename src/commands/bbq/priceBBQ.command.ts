@@ -3,8 +3,6 @@ import { Command, IRole } from '../type';
 import { Message } from 'whatsapp-web.js';
 import { BBQService } from '../../services/bbq.service';
 import { WorkspaceService } from '../../services/workspace.service';
-import { UserRepository } from '../../core/repositories/user.repository';
-import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
 
 @injectable()
 export class PriceBBQCommand implements Command {
@@ -13,7 +11,6 @@ export class PriceBBQCommand implements Command {
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(BBQService) private readonly bbqService: BBQService,
-        @inject(UserRepository) private readonly userRepo: UserRepository
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -24,16 +21,6 @@ export class PriceBBQCommand implements Command {
         }
 
         const chatId = message.from;
-        const userName = await getUserNameFromMessage(message);
-        const lid = await getLidFromMessage(message);
-        const phone = await getPhoneFromMessage(message);
-
-        if (!phone) {
-            await message.reply('❌ Não foi possível identificar seu número.');
-            return;
-        }
-
-        const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
 
         const commandText = message.body;
         const parts = commandText.split(' ');

@@ -24,6 +24,7 @@ import { DashboardService, DASHBOARD_SERVICE_TOKEN } from './services/dashboard.
 import { BBQ_MODEL_TOKEN, BBQModel } from './core/models/bbq.model';
 import { BBQ_SERVICE_TOKEN, BBQService } from './services/bbq.service';
 import { BBQ_REPOSITORY_TOKEN, BBQRepository } from './core/repositories/bbq.repository';
+import { UserService, USER_SERVICE_TOKEN } from './services/user.service';
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ const main = async () => {
   container.register(BBQ_REPOSITORY_TOKEN, { useClass: BBQRepository });
 
   // Register services
+  container.register(USER_SERVICE_TOKEN, { useClass: UserService });
   container.register(PLAYERS_SERVICE_TOKEN, { useClass: PlayersService });
   container.register(DEBTS_SERVICE_TOKEN, { useClass: DebtsService });
   container.register(WORKSPACES_SERVICE_TOKEN, { useClass: WorkspaceService });

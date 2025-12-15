@@ -494,9 +494,15 @@ export class GameService {
     let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
     this.loggerService.log(`idxPlayer guest: ${idxPlayer}`);
     if (idxPlayer <= -1) {
+      console.log("userid: ", user._id.toString());
+      console.log('Players: ', players);
+
       idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
         .toLowerCase()
         .includes(user._id.toString()));
+
+      console.log('Achou?', idxPlayer);
+
     }
 
     let mensagemPromocao = "";

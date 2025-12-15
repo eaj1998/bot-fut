@@ -159,7 +159,7 @@ export class AuthService {
         return {
             id: user._id.toString(),
             name: user.name,
-            phone: user.phoneE164,
+            phone: user.phoneE164 || user.lid || '',
             role: user.role || 'user',
             status: user.status,
             createdAt: user.createdAt
@@ -199,7 +199,7 @@ export class AuthService {
             user: {
                 id: user._id.toString(),
                 name: user.name,
-                phone: user.phoneE164,
+                phone: user.phoneE164 || user.lid || '',
                 role: user.role || 'user',
                 createdAt: user.createdAt,
                 status: user.status || 'active',

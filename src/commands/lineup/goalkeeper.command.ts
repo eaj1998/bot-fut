@@ -42,7 +42,7 @@ export class GoalKeeperAddCommand implements Command {
     const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
 
 
-    const res = await this.gameService.addGoalkeeperToGame(game, user.phoneE164, user.name);
+    const res = await this.gameService.addGoalkeeperToGame(game, user.phoneE164 || user.lid!, user.name);
 
     if (!res.placed && res.message) {
       await message.reply(res.message);

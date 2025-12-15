@@ -52,7 +52,7 @@ export class GuestCommand implements Command {
 
         const res = await this.gameService.addGuestPlayer(
             game,
-            user.phoneE164,
+            user.phoneE164 || user.lid!,
             user.name,
             guestName,
             { asGoalie }

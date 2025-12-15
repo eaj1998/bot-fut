@@ -441,13 +441,13 @@ export class GameService {
 
     for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
       if (!used.has(slot)) {
-        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164, slot, name: user.name, paid: false, organizzeId: null });
+        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164 || user.lid, slot, name: user.name, paid: false, organizzeId: null });
         game.save();
         return { added: true };
       }
     }
 
-    game.roster.waitlist.push({ userId: user._id, phoneE164: user.phoneE164, name: user.name, createdAt: new Date() });
+    game.roster.waitlist.push({ userId: user._id, phoneE164: user.phoneE164 || user.lid, name: user.name, createdAt: new Date() });
     game.save();
     return { added: false, suplentePos: game.roster.waitlist.length };
   }
@@ -464,7 +464,7 @@ export class GameService {
           slot,
           userId: user._id,
           name: user.name,
-          phoneE164: user.phoneE164,
+          phoneE164: user.phoneE164 || user.lid,
           paid: false,
         });
         placed = true;
@@ -612,7 +612,7 @@ export class GameService {
           slot,
           userId: user._id,
           name: name ?? user.name,
-          phoneE164: user.phoneE164,
+          phoneE164: user.phoneE164 || user.lid,
           paid: false,
         });
         return { placed: true };
@@ -1083,7 +1083,12 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      user = await this.userModel.create({ name, phoneE164: phone });
+      // Check if phone is actually a LID (15+ digits)
+      const isLid = /^\d{15,}$/.test(phone);
+      user = await this.userModel.create({
+        name,
+        ...(isLid ? { lid: phone } : { phoneE164: phone })
+      });
     } else if (user.name === user.phoneE164) {
       user.name = name;
       await user.save();
@@ -1109,7 +1114,12 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      user = await this.userModel.create({ name, phoneE164: phone });
+      // Check if phone is actually a LID (15+ digits)
+      const isLid = /^\d{15,}$/.test(phone);
+      user = await this.userModel.create({
+        name,
+        ...(isLid ? { lid: phone } : { phoneE164: phone })
+      });
     } else if (user.name === user.phoneE164) {
       user.name = name;
       await user.save();
@@ -1122,7 +1132,7 @@ export class GameService {
       game.roster.outlist.push({
         userId: user._id,
         name: user.name,
-        phoneE164: user.phoneE164,
+        phoneE164: user.phoneE164 || user.lid,
         createdAt: new Date(),
       });
       return { added: true };
@@ -1135,7 +1145,12 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      user = await this.userModel.create({ name, phoneE164: phone });
+      // Check if phone is actually a LID (15+ digits)
+      const isLid = /^\d{15,}$/.test(phone);
+      user = await this.userModel.create({
+        name,
+        ...(isLid ? { lid: phone } : { phoneE164: phone })
+      });
     } else if (user.name === user.phoneE164) {
       user.name = name;
       await user.save();
@@ -1150,7 +1165,12 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: inviterPhone }).exec();
 
     if (!user) {
-      user = await this.userModel.create({ name: inviterName, phoneE164: inviterPhone });
+      // Check if phone is actually a LID (15+ digits)
+      const isLid = /^\d{15,}$/.test(inviterPhone);
+      user = await this.userModel.create({
+        name: inviterName,
+        ...(isLid ? { lid: inviterPhone } : { phoneE164: inviterPhone })
+      });
     } else if (user.name === user.phoneE164) {
       user.name = inviterName;
       await user.save();
@@ -1170,7 +1190,12 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      user = await this.userModel.create({ name, phoneE164: phone });
+      // Check if phone is actually a LID (15+ digits)
+      const isLid = /^\d{15,}$/.test(phone);
+      user = await this.userModel.create({
+        name,
+        ...(isLid ? { lid: phone } : { phoneE164: phone })
+      });
     } else if (user.name === user.phoneE164) {
       user.name = name;
       await user.save();

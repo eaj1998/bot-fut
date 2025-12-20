@@ -355,7 +355,7 @@ router.patch('/:id/status', requireAdmin, controller.updateStatus);
  *                 message:
  *                   type: string
  *       400:
- *         description: Erro ao fechar churrasco (ex: valor não definido)
+ *         description: "Erro ao fechar churrasco (ex: valor não definido)"
  *       404:
  *         description: Churrasco não encontrado
  *       401:

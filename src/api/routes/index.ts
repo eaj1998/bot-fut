@@ -8,6 +8,7 @@ import debtsRoutes from './debts.routes';
 import workspacesRoutes from './workspaces.routes';
 import chatsRoutes from './chats.routes';
 import dashboardRoutes from './dashboard.routes';
+import bbqRoutes from './bbq.routes';
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use('/debts', debtsRoutes);
 router.use('/workspaces', workspacesRoutes);
 router.use('/chats', chatsRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/bbq', bbqRoutes);
 
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

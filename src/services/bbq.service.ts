@@ -51,7 +51,9 @@ export class BBQService {
     const participant: IBBQParticipant = {
       userId,
       userName,
-      invitedBy: null
+      invitedBy: null,
+      isPaid: false,
+      isGuest: false
     };
 
     const updatedBBQ = await this.bbqRepository.addParticipant(bbq._id.toString(), participant);
@@ -94,7 +96,9 @@ export class BBQService {
     const guest: IBBQParticipant = {
       userId: `guest_${Date.now()}`,
       userName: guestName,
-      invitedBy: inviterId
+      invitedBy: inviterId,
+      isPaid: false,
+      isGuest: true
     };
 
     await this.bbqRepository.addParticipant(bbq._id.toString(), guest);
@@ -167,35 +171,31 @@ export class BBQService {
       return { success: false, message: '❌ Não há participantes no churrasco!' };
     }
 
-    const debtsMap = new Map<string, { userId: string; userName: string; count: number }>();
+    const year = bbq.date.getFullYear();
+    const month = String(bbq.date.getMonth() + 1).padStart(2, '0');
+    const day = String(bbq.date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
 
+    // Create individual debts for each participant
     for (const participant of bbq.participants) {
-      const debtor = participant.invitedBy || participant.userId;
+      // Determine who should be charged for this participant
+      const debtorId = participant.invitedBy || participant.userId;
       const debtorName = participant.invitedBy
         ? bbq.participants.find((p: IBBQParticipant) => p.userId === participant.invitedBy)?.userName || 'Desconhecido'
         : participant.userName;
 
-      if (debtsMap.has(debtor)) {
-        debtsMap.get(debtor)!.count += 1;
-      } else {
-        debtsMap.set(debtor, { userId: debtor, userName: debtorName, count: 1 });
-      }
-    }
-
-    for (const [_, debt] of debtsMap) {
-      const totalAmount = bbq.valuePerPerson * debt.count;
-
-      const year = bbq.date.getFullYear();
-      const month = String(bbq.date.getMonth() + 1).padStart(2, '0');
-      const day = String(bbq.date.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
+      // Determine note based on whether it's a guest or not
+      const isGuest = participant.invitedBy !== null;
+      const note = isGuest
+        ? `Débito de churrasco (convidado: ${participant.userName}) - ${dateStr} - ${debtorName}`
+        : `Débito de churrasco - ${dateStr} - ${participant.userName}`;
 
       await this.ledgerRepository.addDebit({
         workspaceId: workspaceId,
-        userId: debt.userId,
-        amountCents: totalAmount * 100,
+        userId: debtorId,
+        amountCents: bbq.valuePerPerson * 100,
         bbqId: bbq._id.toString(),
-        note: `Debito de churrasco - ${dateStr} - ${debt.userName}`,
+        note: note,
         category: "churrasco",
         status: "pendente",
         createdAt: bbq.date

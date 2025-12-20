@@ -85,12 +85,13 @@ export class LedgerRepository {
       doc.createdAt = createdAt;
     }
 
-    await this.model.create(doc);
+    const createdDebt = await this.model.create(doc);
 
     if (doc.userId) {
-      return await this.recomputeUserBalance(workspaceId, (doc.userId as Types.ObjectId).toString());
+      await this.recomputeUserBalance(workspaceId, (doc.userId as Types.ObjectId).toString());
     }
-    return 0;
+
+    return createdDebt;
   }
 
   async deleteCredit(workspaceId: Types.ObjectId, userId: Types.ObjectId, gameId?: Types.ObjectId) {
@@ -220,6 +221,51 @@ export class LedgerRepository {
     }).exec();
 
     return result;
+  }
+
+  async findPendingBBQDebtByBBQAndUser(
+    bbqId: string,
+    userId: string
+  ): Promise<LedgerDoc | null> {
+    const result = await this.model.findOne({
+      bbqId: new Types.ObjectId(bbqId),
+      userId: new Types.ObjectId(userId),
+      category: "churrasco",
+      type: "debit",
+      status: "pendente"
+    }).exec();
+
+    return result;
+  }
+
+  async findPendingBBQDebtByBBQUserAndParticipant(
+    bbqId: string,
+    userId: string,
+    participantName: string
+  ): Promise<LedgerDoc | null> {
+    // Find debt that matches the participant name in the note
+    const debts = await this.model.find({
+      bbqId: new Types.ObjectId(bbqId),
+      userId: new Types.ObjectId(userId),
+      category: "churrasco",
+      type: "debit",
+      status: "pendente"
+    }).exec();
+
+    // For guests, the note contains "convidado: PARTICIPANT_NAME"
+    // For regular participants, the note ends with "- PARTICIPANT_NAME"
+    for (const debt of debts) {
+      if (debt.note?.includes(`convidado: ${participantName}`) ||
+        debt.note?.endsWith(`- ${participantName}`)) {
+        return debt;
+      }
+    }
+
+    return null;
+  }
+
+  async findById(debtId: string): Promise<LedgerDoc | null> {
+    return this.model.findById(debtId).exec();
   }
 
 
@@ -448,6 +494,51 @@ export class LedgerRepository {
     }
 
     return debit;
+  }
+
+  /**
+   * Desconfirma um débito por ID
+   */
+  async unconfirmDebitById(debitId: string): Promise<LedgerDoc | null> {
+    const debit = await this.model.findByIdAndUpdate(
+      debitId,
+      {
+        $set: {
+          status: "pendente",
+          confirmedAt: undefined
+        }
+      },
+      { new: true }
+    ).exec();
+
+    if (debit && debit.userId) {
+      await this.recomputeUserBalance(
+        debit.workspaceId.toString(),
+        debit.userId.toString()
+      );
+    }
+
+    return debit;
+  }
+
+  /**
+   * Deleta um crédito por nota específica
+   */
+  async deleteCreditByNote(workspaceId: string, userId: string, note: string): Promise<boolean> {
+    const result = await this.model.deleteOne({
+      workspaceId: new Types.ObjectId(workspaceId),
+      userId: new Types.ObjectId(userId),
+      type: 'credit',
+      category: 'player-payment',
+      note: note
+    }).exec();
+
+    if (result.deletedCount && result.deletedCount > 0) {
+      await this.recomputeUserBalance(workspaceId, userId);
+      return true;
+    }
+
+    return false;
   }
 
 

@@ -1,5 +1,5 @@
 mongodump \
-  --uri "" \
+  --uri "mongodb+srv://edipo1998_db_user:B16JxiJbdnmYjO1W@botfutebol.u6odjr5.mongodb.net/?appName=botFutebol" \
   --db botFutebol \
   --archive | \
 mongorestore \

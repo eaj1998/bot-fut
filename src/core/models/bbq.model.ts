@@ -4,6 +4,9 @@ export interface IBBQParticipant {
     userId: string;
     userName: string;
     invitedBy: string | null;
+    isPaid: boolean;
+    isGuest: boolean;
+    debtId?: string;
 }
 
 export interface IBBQ {
@@ -35,7 +38,10 @@ const BBQSchema = new Schema<IBBQ>({
     participants: [{
         userId: { type: String, required: true },
         userName: { type: String, required: true },
-        invitedBy: { type: String, default: null }
+        invitedBy: { type: String, default: null },
+        isPaid: { type: Boolean, default: false },
+        isGuest: { type: Boolean, default: false },
+        debtId: { type: String }
     }],
     valuePerPerson: { type: Number, default: null }
 });

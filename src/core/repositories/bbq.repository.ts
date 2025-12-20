@@ -103,8 +103,39 @@ export class BBQRepository {
     ).exec();
   }
 
+  async finish(bbqId: string): Promise<IBBQ | null> {
+    return this.markAsFinished(bbqId);
+  }
+
+  async unfinish(bbqId: string): Promise<IBBQ | null> {
+    return this.model.findByIdAndUpdate(
+      bbqId,
+      {
+        status: 'closed',
+        finishedAt: undefined
+      },
+      { new: true }
+    ).exec();
+  }
+
   async findById(bbqId: string): Promise<IBBQ | null> {
     return this.model.findById(bbqId).exec();
+  }
+
+  async updateParticipantPaymentStatus(bbqId: string, userId: string, isPaid: boolean): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, 'participants.userId': userId },
+      { $set: { 'participants.$.isPaid': isPaid } },
+      { new: true }
+    ).exec();
+  }
+
+  async updateParticipantDebtId(bbqId: string, userId: string, debtId: string): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, 'participants.userId': userId },
+      { $set: { 'participants.$.debtId': debtId } },
+      { new: true }
+    ).exec();
   }
 }
 

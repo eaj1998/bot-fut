@@ -15,7 +15,8 @@
     "migrate:phone": "ts-node scripts/migrate-phone-normalize.ts",
     "migrate:organizze": "ts-node scripts/migrate-organizze-config.ts",
     "migrate:sync-organizze": "ts-node scripts/sync-organizze-status.ts",
-    "migrate:lid": "ts-node scripts/migrate-lid.ts"
+    "migrate:lid": "ts-node scripts/migrate-lid.ts",
+    "migrate:ledger": "ts-node scripts/migrate-ledger-to-transactions.ts"
   },
   "keywords": [],
   "author": "",

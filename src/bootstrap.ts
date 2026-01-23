@@ -25,6 +25,12 @@ import { BBQ_MODEL_TOKEN, BBQModel } from './core/models/bbq.model';
 import { BBQ_SERVICE_TOKEN, BBQService } from './services/bbq.service';
 import { BBQ_REPOSITORY_TOKEN, BBQRepository } from './core/repositories/bbq.repository';
 import { UserService, USER_SERVICE_TOKEN } from './services/user.service';
+import { TRANSACTION_MODEL_TOKEN, TransactionModel } from './core/models/transaction.model';
+import { MEMBERSHIP_MODEL_TOKEN, MembershipModel } from './core/models/membership.model';
+import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from './core/repositories/transaction.repository';
+import { MembershipRepository, MEMBERSHIP_REPOSITORY_TOKEN } from './core/repositories/membership.repository';
+import { MembershipService, MEMBERSHIP_SERVICE_TOKEN } from './services/membership.service';
+import { FinancialService, FINANCIAL_SERVICE_TOKEN } from './services/financial.service';
 
 dotenv.config();
 
@@ -43,12 +49,16 @@ const main = async () => {
   container.register(CHAT_MODEL_TOKEN, { useValue: ChatModel });
   container.register(OTP_MODEL_TOKEN, { useValue: OtpModel });
   container.register(BBQ_MODEL_TOKEN, { useValue: BBQModel });
+  container.register(TRANSACTION_MODEL_TOKEN, { useValue: TransactionModel });
+  container.register(MEMBERSHIP_MODEL_TOKEN, { useValue: MembershipModel });
 
   // Register repositories
   container.register('USER_REPOSITORY_TOKEN', { useClass: UserRepository });
   container.register(LEDGER_REPOSITORY_TOKEN, { useClass: LedgerRepository });
   container.register(GAME_REPOSITORY_TOKEN, { useClass: GameRepository });
   container.register(BBQ_REPOSITORY_TOKEN, { useClass: BBQRepository });
+  container.register(TRANSACTION_REPOSITORY_TOKEN, { useClass: TransactionRepository });
+  container.register(MEMBERSHIP_REPOSITORY_TOKEN, { useClass: MembershipRepository });
 
   // Register services
   container.register(USER_SERVICE_TOKEN, { useClass: UserService });
@@ -58,6 +68,8 @@ const main = async () => {
   container.register(CHATS_SERVICE_TOKEN, { useClass: ChatService });
   container.register(DASHBOARD_SERVICE_TOKEN, { useClass: DashboardService });
   container.register(BBQ_SERVICE_TOKEN, { useClass: BBQService });
+  container.register(MEMBERSHIP_SERVICE_TOKEN, { useClass: MembershipService });
+  container.register(FINANCIAL_SERVICE_TOKEN, { useClass: FinancialService });
   try {
     config.validate();
     logger.log('✅ Configuration validated');

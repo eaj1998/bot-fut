@@ -11,8 +11,9 @@ export class GamesController {
     private gameService: GameService,
   ) { }
 
-  listGames = asyncHandler(async (req: Request, res: Response) => {
-    const filters: GameFilterDto = {
+  listGames = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const filters: GameFilterDto & { workspaceId: string } = {
+      workspaceId: req.workspaceId!,
       status: req.query.status as GameStatus,
       search: req.query.search as string,
       page: req.query.page ? parseInt(req.query.page as string) : 1,
@@ -45,6 +46,7 @@ export class GamesController {
 
   createGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const dto: CreateGameDto = req.body;
+    dto.workspaceId = req.workspaceId!; // Enforce workspace context
     const game = await this.gameService.createGame(dto, req.user!.phone);
 
     res.status(201).json({

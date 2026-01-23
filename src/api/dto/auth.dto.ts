@@ -35,6 +35,11 @@ export class AuthResponseDto {
     role: 'admin' | 'user';
     createdAt: Date;
     status: 'active' | 'inactive';
+    workspaces?: {
+      id: string;
+      name: string;
+      role: string;
+    }[];
   };
 }
 

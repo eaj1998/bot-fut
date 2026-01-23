@@ -4,16 +4,18 @@ export interface IWorkspaceMember extends Document {
     _id: Types.ObjectId;
     workspaceId: Types.ObjectId;
     userId: Types.ObjectId;
-    role: 'admin' | 'member';
+    roles: string[];
+    nickname?: string;
+    status: 'ACTIVE' | 'INVITED';
     joinedAt: Date;
-    isActive: boolean;
 }
 
 const WorkspaceMemberSchema = new Schema({
     workspaceId: { type: Types.ObjectId, ref: "Workspace", required: true, index: true },
     userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
-    role: { type: String, enum: ['admin', 'member'], default: 'member' },
-    isActive: { type: Boolean, default: true },
+    roles: [{ type: String }],
+    nickname: { type: String },
+    status: { type: String, enum: ['ACTIVE', 'INVITED'], default: 'ACTIVE' },
 }, { timestamps: true });
 
 WorkspaceMemberSchema.index({ workspaceId: 1, userId: 1 }, { unique: true });

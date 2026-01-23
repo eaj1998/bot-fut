@@ -9,6 +9,10 @@ import { WhatsAppService } from './whatsapp.service';
 
 import { GameRepository } from '../core/repositories/game.respository';
 import { LedgerRepository } from '../core/repositories/ledger.repository';
+import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from '../core/repositories/transaction.repository';
+import { MembershipRepository, MEMBERSHIP_REPOSITORY_TOKEN } from '../core/repositories/membership.repository';
+import { TransactionType, TransactionCategory, TransactionStatus } from '../core/models/transaction.model';
+import { MembershipStatus } from '../core/models/membership.model';
 import { ConfigService } from '../config/config.service';
 import { LoggerService } from '../logger/logger.service';
 
@@ -27,6 +31,8 @@ type ClosePlayerResult = {
   playerName: string;
   ledger: boolean;
   organizze: boolean;
+  isMember?: boolean; // NEW: indica se é mensalista ACTIVE
+  transactionId?: string; // NEW: ID da transaction criada
   error?: string;
 };
 
@@ -80,6 +86,8 @@ export class GameService {
     @inject(WhatsAppService) private whatsappService: WhatsAppService,
     @inject(GameRepository) private readonly gameRepo: GameRepository,
     @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+    @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
+    @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
     @inject(ConfigService) private readonly configService: ConfigService,
     @inject(LoggerService) private readonly loggerService: LoggerService,
 
@@ -87,6 +95,7 @@ export class GameService {
   ) { }
 
   async listGames(filters: {
+    workspaceId: string;
     status?: string;
     type?: string;
     search?: string;
@@ -97,7 +106,7 @@ export class GameService {
     const limit = filters.limit || 20;
     const skip = (page - 1) * limit;
 
-    const query: any = {};
+    const query: any = { workspaceId: filters.workspaceId };
     if (filters.status) query.status = filters.status;
     if (filters.type) query.gameType = filters.type;
     if (filters.search) {
@@ -250,106 +259,180 @@ export class GameService {
     return this.mapToGameResponse(game);
   }
 
+  /**
+   * REFATORADO: Fecha o jogo criando Transactions ao invés de Ledger entries
+   * Mensalistas ACTIVE não são cobrados (já pagam mensalidade)
+   * Registra despesas automáticas (quadra, árbitro)
+   */
   async closeGameInternal(game: IGame): Promise<CloseGameResult> {
+    const session = await this.gameModel.db.startSession();
+
     try {
-      const amountCents =
-        game.priceCents ?? this.configService.organizze.valorJogo;
-      const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+      return await session.withTransaction(async () => {
+        const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
+        const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+        const workspace = await this.workspaceRepo.findById(game.workspaceId.toString());
 
-      const tasks = game.roster.players
-        .filter(p => (p.slot ?? 0) > goalieSlots)
-        .map(async (player): Promise<ClosePlayerResult> => {
-          const playerName = player.name;
+        // Processar cada jogador (exceto goleiros)
+        const tasks = game.roster.players
+          .filter(p => (p.slot ?? 0) > goalieSlots)
+          .map(async (player): Promise<ClosePlayerResult> => {
+            const playerName = player.name;
 
-          let ledgerOk = false;
-          try {
-            const targetUserId =
-              player.guest
+            try {
+              const targetUserId = player.guest
                 ? player.invitedByUserId?.toString()
                 : player.userId?.toString();
 
-            if (!targetUserId) {
-              // Pagamento sem dono, tratado como erro de lancamento
+              if (!targetUserId) {
+                return {
+                  success: false,
+                  playerName,
+                  ledger: false,
+                  organizze: false,
+                  error: player.guest ? "Convidado sem invitedByUserId" : "Jogador sem userId"
+                };
+              }
+
+              // NOVA LÓGICA: Verificar se é mensalista ACTIVE
+              const membership = await this.membershipRepo.findByUserId(
+                targetUserId,
+                game.workspaceId.toString()
+              );
+
+              if (membership && membership.status === MembershipStatus.ACTIVE) {
+                // Mensalista ACTIVE: NÃO cobrar
+                return {
+                  success: true,
+                  playerName,
+                  ledger: false,
+                  organizze: false,
+                  isMember: true,
+                };
+              }
+
+              // Jogador é avulso/convidado ou membership não ACTIVE
+              // Criar Transaction ao invés de Ledger
+              let transactionId: string | undefined;
+              let ledgerOk = false;
+
+              const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
+
+              if (finalAmount > 0) {
+                const transaction = await this.transactionRepo.createTransaction({
+                  workspaceId: game.workspaceId.toString(),
+                  userId: targetUserId,
+                  gameId: game._id.toString(),
+                  type: TransactionType.INCOME,
+                  category: TransactionCategory.GAME_FEE,
+                  status: TransactionStatus.PENDING,
+                  amount: finalAmount,
+                  dueDate: game.date,
+                  description: player.guest
+                    ? `Jogo ${game.title} - ${formatDateBR(game.date)} (convidado: ${player.name})`
+                    : `Jogo ${game.title} - ${formatDateBR(game.date)}`,
+                  method: 'pix',
+                });
+
+                transactionId = transaction._id.toString();
+                ledgerOk = true;
+              }
+
+              // Tentar sincronizar com Organizze (mantido para compatibilidade)
+              let organizzeOk = false;
+              try {
+                const org = await this.criarMovimentacaoOrganizze(
+                  player,
+                  game.date,
+                  finalAmount,
+                  game.workspaceId.toString()
+                );
+                organizzeOk = !!org.added;
+              } catch {
+                // Organizze é opcional
+              }
+
+              return {
+                success: ledgerOk,
+                playerName,
+                ledger: ledgerOk,
+                organizze: organizzeOk,
+                transactionId,
+                isMember: false,
+              };
+            } catch (err: any) {
               return {
                 success: false,
                 playerName,
                 ledger: false,
                 organizze: false,
-                error: player.guest
-                  ? "Convidado sem invitedByUserId"
-                  : "Jogador sem userId"
+                error: err?.message ?? String(err)
               };
             }
+          });
 
-            if (targetUserId) {
-              await this.ledgerRepo.addDebit({
-                workspaceId: game.workspaceId.toString(),
-                userId: targetUserId,
-                amountCents: this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents,
-                gameId: game._id.toString(),
-                note: player.guest
-                  ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
-                  : `Débito referente ao jogo ${playerName} - ${formatDateBR(game.date)}`,
-                category: "player-debt",
-                status: "pendente"
-              });
-              ledgerOk = true;
-            } else {
-              ledgerOk = false;
-            }
-          } catch (err: any) {
-            return {
+        const settled = await Promise.allSettled(tasks);
+        const results: ClosePlayerResult[] = settled.map((r) =>
+          r.status === "fulfilled"
+            ? r.value
+            : {
               success: false,
-              playerName,
+              playerName: "Desconhecido",
               ledger: false,
               organizze: false,
-              error: `ledger: ${err?.message ?? String(err)}`
-            };
-          }
+              error: r.reason?.message ?? String(r.reason)
+            }
+        );
 
-          let organizzeOk = false;
-          try {
-            const org = await this.criarMovimentacaoOrganizze(player, game.date, amountCents, game.workspaceId.toString());
-            organizzeOk = !!org.added;
-          } catch (err: any) {
-            return {
-              success: false,
-              playerName,
-              ledger: ledgerOk,
-              organizze: false,
-              error: `organizze: ${err?.message ?? String(err)}`
-            };
-          }
+        // NOVA LÓGICA: Registrar despesas automáticas do jogo
+        // TODO: Adicionar campos defaultFieldCost e defaultRefereeCost ao WorkspaceModel
+        // Por enquanto, usar valores padrão ou fallback para 0
+        const fieldCost = (workspace as any)?.defaultFieldCost || 0;
+        const refereeCost = (workspace as any)?.defaultRefereeCost || 0;
 
-          return {
-            success: ledgerOk && organizzeOk,
-            playerName,
-            ledger: ledgerOk,
-            organizze: organizzeOk
-          };
-        });
+        if (fieldCost > 0) {
+          await this.transactionRepo.createTransaction({
+            workspaceId: game.workspaceId.toString(),
+            gameId: game._id.toString(),
+            type: TransactionType.EXPENSE,
+            category: TransactionCategory.FIELD_RENTAL,
+            status: TransactionStatus.COMPLETED,
+            amount: fieldCost,
+            dueDate: game.date,
+            paidAt: new Date(),
+            description: `Aluguel quadra - ${game.title} - ${formatDateBR(game.date)}`,
+            method: 'transf',
+          });
+        }
 
-      const settled = await Promise.allSettled(tasks);
-      const results: ClosePlayerResult[] = settled.map((r) =>
-        r.status === "fulfilled"
-          ? r.value
-          : {
-            success: false,
-            playerName: "Desconhecido",
-            ledger: false,
-            organizze: false,
-            error: r.reason?.message ?? String(r.reason)
-          }
-      );
+        if (refereeCost > 0) {
+          await this.transactionRepo.createTransaction({
+            workspaceId: game.workspaceId.toString(),
+            gameId: game._id.toString(),
+            type: TransactionType.EXPENSE,
+            category: TransactionCategory.REFEREE,
+            status: TransactionStatus.COMPLETED,
+            amount: refereeCost,
+            dueDate: game.date,
+            paidAt: new Date(),
+            description: `Árbitro - ${game.title} - ${formatDateBR(game.date)}`,
+            method: 'dinheiro',
+          });
+        }
 
-      game.status = "closed";
-      if (typeof game.save === "function") {
-        await game.save();
-      }
+        // Atualizar status do jogo
+        game.status = "closed";
+        if (typeof game.save === "function") {
+          await game.save({ session });
+        }
 
-      return { added: true, results };
-    } catch {
-      return { added: false, results: [] };
+        return { added: true, results };
+      });
+    } catch (error) {
+      this.loggerService.error('Erro ao fechar jogo', { gameId: game._id, error });
+      throw error;
+    } finally {
+      session.endSession();
     }
   }
 

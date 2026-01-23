@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { GamesController } from '../controllers/games.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { ensureWorkspace } from '../middleware/ensureWorkspace';
 import { requireAdmin } from '../middleware/role.middleware';
 
 const router = Router();
 const controller = container.resolve(GamesController);
 
 router.use(authenticate);
+router.use(ensureWorkspace);
 
 /**
  * @swagger

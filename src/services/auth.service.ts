@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { USER_MODEL_TOKEN, IUser } from '../core/models/user.model';
 import { OTP_MODEL_TOKEN, IOtp } from '../core/models/otp.model';
+import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
 import { ConfigService } from '../config/config.service';
 import { WhatsAppService } from './whatsapp.service';
 import { AuthResponseDto, RequestOtpDto, VerifyOtpDto } from '../api/dto/auth.dto';
@@ -20,6 +21,7 @@ export class AuthService {
     constructor(
         @inject(USER_MODEL_TOKEN) private userModel: Model<IUser>,
         @inject(OTP_MODEL_TOKEN) private otpModel: Model<IOtp>,
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private workspaceMemberModel: Model<IWorkspaceMember>,
         @inject(ConfigService) private config: ConfigService,
         @inject(WhatsAppService) private whatsappService: WhatsAppService,
         @inject(LoggerService) private loggerService: LoggerService,
@@ -132,7 +134,7 @@ export class AuthService {
         }
 
         this.loggerService.info(`OTP verified successfully for phone: ${normalizedPhone}`);
-        return this.generateAuthResponse(user);
+        return await this.generateAuthResponse(user);
     }
 
     async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
@@ -144,7 +146,7 @@ export class AuthService {
                 throw new ApiError(401, 'User not found');
             }
 
-            return this.generateAuthResponse(user);
+            return await this.generateAuthResponse(user);
         } catch (error) {
             throw new ApiError(401, 'Invalid refresh token');
         }
@@ -178,7 +180,7 @@ export class AuthService {
         return otp;
     }
 
-    private generateAuthResponse(user: IUser): AuthResponseDto {
+    async generateAuthResponse(user: IUser): Promise<AuthResponseDto> {
         const payload = {
             id: user._id.toString(),
             phone: user.phoneE164,
@@ -193,6 +195,33 @@ export class AuthService {
             expiresIn: this.config.jwt.refreshExpiresIn,
         });
 
+        const members = await this.workspaceMemberModel.find({
+            userId: user._id,
+            status: 'ACTIVE'
+        }).populate('workspaceId', 'name').exec();
+
+        this.loggerService.info(`Found ${members.length} workspace members for user ${user._id}`);
+
+        const workspaces = members
+            .filter(m => {
+                if (!m.workspaceId) {
+                    this.loggerService.warn(`WorkspaceMember ${m._id} has null workspaceId - workspace may have been deleted`);
+                    return false;
+                }
+                return true;
+            })
+            .map(m => {
+                const w = m.workspaceId as any; // populated
+                this.loggerService.info(`Mapping workspace: ${w._id} - ${w.name}`);
+                return {
+                    id: w._id.toString(),
+                    name: w.name,
+                    role: m.roles && m.roles.length > 0 ? m.roles[0] : 'PLAYER'
+                };
+            });
+
+        this.loggerService.info(`Returning ${workspaces.length} workspaces to user`);
+
         return {
             accessToken,
             refreshToken,
@@ -203,6 +232,7 @@ export class AuthService {
                 role: user.role || 'user',
                 createdAt: user.createdAt,
                 status: user.status || 'active',
+                workspaces
             },
         };
     }

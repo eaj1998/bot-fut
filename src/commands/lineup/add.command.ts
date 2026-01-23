@@ -35,22 +35,27 @@ export class LineUpAddCommand implements Command {
 
     const user = await this.userService.resolveUserFromMessage(message, workspace._id);
 
-    const res = await this.gameService.addPlayerToGame(game, user.phoneE164 || user.lid!, user.name);
+    try {
+      await this.gameService.addPlayer(game._id.toString(), {
+        phone: user.phoneE164 || user.lid!,
+        name: user.name,
+        isGoalkeeper: false
+      });
 
-    if (!res.added && res.message) {
-      await message.reply(res.message);
-      return;
-    }
 
-    if (res.added) {
-      const texto = await this.gameService.formatGameList(game);
-      await this.server.sendMessage(groupId, texto);
-    } else if (res.suplentePos) {
-      await message.reply(
-        `Lista principal cheia! Você foi adicionado como o ${res.suplentePos}º suplente.`
-      );
-      const texto = await this.gameService.formatGameList(game);
-      await this.server.sendMessage(groupId, texto);
+      const updatedGame = await this.gameService.getGameById(game._id.toString());
+
+      if (updatedGame) {
+        const texto = await this.gameService.formatGameList(updatedGame);
+        await this.server.sendMessage(groupId, texto);
+      }
+    } catch (error: any) {
+      if (error.statusCode === 403 || error.statusCode === 400 || error.statusCode === 404) {
+        await message.reply(error.message);
+      } else {
+        await message.reply("❌ Erro ao adicionar jogador. Tente novamente.");
+        console.error('Error in LineUpAddCommand:', error);
+      }
     }
   }
 }

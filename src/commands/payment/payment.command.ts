@@ -4,7 +4,6 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
-import { UserRepository } from '../../core/repositories/user.repository';
 import { GameRepository } from '../../core/repositories/game.respository';
 import { tryParseDDMM } from '../../utils/date';
 

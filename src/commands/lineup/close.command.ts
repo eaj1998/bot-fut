@@ -35,29 +35,36 @@ export class CloseCommand implements Command {
 
         try {
             const result = await this.gameService.closeGameForBot(game);
-            if (result.added) {
-                const failedPlayers: string[] = [];
 
-                result.results.forEach((r: any) => {
-                    if (r.success) {
-                    } else {
-                        failedPlayers.push(r.playerName);
-                    }
-                });
+            if (result.added) {
+                const results = result.results as any[];
+
+                const successCount = results.filter(r => r.success).length;
+                const memberCount = results.filter(r => r.success && r.isMember).length;
+                const billedCount = results.filter(r => r.success && !r.isMember).length;
+                const failedPlayers = results.filter(r => !r.success);
+
+                let msg = `✅ *Jogo fechado com sucesso!*\n\n`;
+                msg += `📊 *Resumo:*\n`;
+                msg += `- Total Processado: ${results.length}\n`;
+                msg += `- Cobranças Geradas: ${billedCount}\n`;
+                msg += `- Mensalistas (Isentos): ${memberCount}\n`;
 
                 if (failedPlayers.length > 0) {
-                    const msg = `⚠ Os seguintes jogadores falharam ao adicionar o débito:\n${failedPlayers
-                        .map((name) => `- ${name}`)
-                        .join('\n')}`;
-                    this.server.sendMessage(game.chatId, msg);
+                    msg += `\n⚠ *Falhas (${failedPlayers.length}):*\n`;
+                    failedPlayers.forEach(p => {
+                        msg += `- ${p.playerName}: ${p.error || 'Erro desconhecido'}\n`;
+                    });
                 } else {
-                    this.server.sendMessage(game.chatId, '✅ Todos os débitos foram adicionados com sucesso!');
-                    return;
+                    msg += `\n✨ Todos os jogadores processados corretamente!`;
                 }
+
+                await this.server.sendMessage(game.chatId, msg);
+                return;
             } else {
                 this.loggerService.log('❌ Erro ao fechar o jogo.');
                 await this.server.sendMessage(groupId, 'Erro inesperado ao fechar o jogo.');
-                return
+                return;
             }
 
         } catch (error) {

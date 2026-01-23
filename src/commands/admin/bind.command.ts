@@ -50,14 +50,16 @@ export class BindCommand {
         $set: {
           chatId,
           workspaceId: ws._id,
-          label: chat.name || "Grupo",
           schedule: {
             weekday: weekday ?? 2,
             time,
             title: ws.name ?? slug,
-            priceCents: ws.settings?.pricePerGameCents ?? 1400,
-            pix: ws.settings?.pix ?? "fcjogasimples@gmail.com",
           },
+          financials: {
+            defaultPriceCents: ws.settings?.pricePerGameCents ?? 1400,
+            pixKey: ws.settings?.pix ?? "fcjogasimples@gmail.com",
+            acceptsCash: true
+          }
         },
       },
       { upsert: true, new: true }
@@ -71,7 +73,7 @@ export class BindCommand {
       `Workspace: ${ws.name}\n` +
       `Dia: ${diaTxt}\n` +
       `Horário: ${time}\n` +
-      `Pix: ${chatDoc.schedule?.pix}\n` +
+      `Pix: ${chatDoc.financials?.pixKey}\n` +
       `Valor: R$ ${(ws.settings?.pricePerGameCents ?? 1400) / 100}`
     );
   }

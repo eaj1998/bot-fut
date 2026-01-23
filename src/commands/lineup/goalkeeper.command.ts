@@ -4,9 +4,7 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
-import { GameRepository } from '../../core/repositories/game.respository';
-import { UserRepository } from '../../core/repositories/user.repository';
-import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../../utils/message';
+import { UserService, USER_SERVICE_TOKEN } from '../../services/user.service';
 
 @injectable()
 export class GoalKeeperAddCommand implements Command {
@@ -16,8 +14,7 @@ export class GoalKeeperAddCommand implements Command {
     @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
     @inject(GameService) private readonly gameService: GameService,
     @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-    @inject(GameRepository) private readonly gameRepo: GameRepository,
-    @inject(UserRepository) private readonly userRepo: UserRepository,
+    @inject(USER_SERVICE_TOKEN) private readonly userService: UserService,
   ) { }
 
   async handle(message: Message): Promise<void> {
@@ -36,31 +33,27 @@ export class GoalKeeperAddCommand implements Command {
       return;
     }
 
-    const userName = await getUserNameFromMessage(message);
-    const lid = await getLidFromMessage(message);
-    const phone = await getPhoneFromMessage(message);
-    const user = await this.userRepo.upsertByPhone(workspace._id, phone, userName, lid);
+    const user = await this.userService.resolveUserFromMessage(message, workspace._id);
 
+    try {
+      await this.gameService.addPlayer(game._id.toString(), {
+        phone: user.phoneE164 || user.lid!,
+        name: user.name,
+        isGoalkeeper: true
+      });
 
-    const res = await this.gameService.addGoalkeeperToGame(game, user.phoneE164 || user.lid!, user.name);
-
-    if (!res.placed && res.message) {
-      await message.reply(res.message);
-      return;
+      const updatedGame = await this.gameService.getGameById(game._id.toString());
+      if (updatedGame) {
+        const texto = await this.gameService.formatGameList(updatedGame);
+        await this.server.sendMessage(groupId, texto);
+      }
+    } catch (error: any) {
+      if (error.statusCode === 403 || error.statusCode === 400 || error.statusCode === 404) {
+        await message.reply(error.message);
+      } else {
+        await message.reply("❌ Erro ao adicionar goleiro. Tente novamente.");
+        console.error('Error in GoalKeeperAddCommand:', error);
+      }
     }
-
-    if (!res.placed && res.pos) {
-      await this.gameRepo.save(game);
-
-      await message.reply(`🧤 Sem vaga de goleiro no momento — você foi adicionado como o ${res.pos}º suplente.`);
-      const textoWait = await this.gameService.formatGameList(game);
-      await this.server.sendMessage(groupId, textoWait);
-      return;
-    }
-
-    await this.gameRepo.save(game);
-
-    const texto = await this.gameService.formatGameList(game);
-    await this.server.sendMessage(groupId, texto);
   }
 }

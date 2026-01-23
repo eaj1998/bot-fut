@@ -6,8 +6,7 @@ import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { parseGuestArg } from '../../utils/lineup';
 import Utils from '../../utils/utils';
-import { getUserNameFromMessage, getLidFromMessage } from '../../utils/message';
-import { UserRepository } from '../../core/repositories/user.repository';
+import { UserService, USER_SERVICE_TOKEN } from '../../services/user.service';
 
 @injectable()
 export class GuestCommand implements Command {
@@ -17,7 +16,7 @@ export class GuestCommand implements Command {
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
-        @inject(UserRepository) private readonly userRepo: UserRepository,
+        @inject(USER_SERVICE_TOKEN) private readonly userService: UserService,
         @inject(Utils) private util: Utils
     ) { }
 
@@ -46,34 +45,30 @@ export class GuestCommand implements Command {
 
         const { name: guestName, asGoalie } = parseGuestArg(nomeConvidado);
 
-        const userName = await getUserNameFromMessage(message);
-        const lid = await getLidFromMessage(message);
-        const user = await this.userRepo.upsertByPhone(workspace._id, message.author ?? message.from, userName, lid);
+        const user = await this.userService.resolveUserFromMessage(message, workspace._id);
 
-        const res = await this.gameService.addGuestPlayer(
-            game,
-            user.phoneE164 || user.lid!,
-            user.name,
-            guestName,
-            { asGoalie }
-        );
+        try {
+            await this.gameService.addPlayer(game._id.toString(), {
+                phone: user.phoneE164 || user.lid!,
+                name: user.name,
+                guestName: guestName,
+                isGoalkeeper: asGoalie
+            });
 
-        if (!res.placed) {
-            if (res.role === "goalie") {
-                await message.reply(`🧤 Não há vaga de goleiro no momento para "${res.finalName}".`);
-            } else {
-                await message.reply(`Lista principal cheia para jogadores de linha. "${res.finalName}" não pôde ser adicionado.`);
+            // Refetch game to get updated roster
+            const updatedGame = await this.gameService.getGameById(game._id.toString());
+
+            if (updatedGame) {
+                const texto = await this.gameService.formatGameList(updatedGame);
+                await this.server.sendMessage(groupId, texto);
             }
-            return;
+        } catch (error: any) {
+            if (error.statusCode === 403 || error.statusCode === 400 || error.statusCode === 404) {
+                await message.reply(error.message);
+            } else {
+                await message.reply("❌ Erro ao adicionar convidado. Tente novamente.");
+                console.error('Error in GuestCommand:', error);
+            }
         }
-
-        await game.save();
-
-        await message.reply(
-            `${res.role === "goalie" ? "🧤" : "✅"} "${res.finalName}" entrou na lista (slot ${res.slot}).`
-        );
-
-        const texto = await this.gameService.formatGameList(game);
-        await this.server.sendMessage(groupId, texto);
     }
 }

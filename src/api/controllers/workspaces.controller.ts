@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from '../../services/workspace.service';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 @injectable()
 export class WorkspacesController {
@@ -9,10 +10,11 @@ export class WorkspacesController {
     ) { }
 
     /**
-     * Lista todos os workspaces
+     * Lista todos os workspaces do usuário autenticado
      */
-    listWorkspaces = async (req: Request, res: Response) => {
+    listWorkspaces = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const filters = {
                 status: req.query.status as any,
                 search: req.query.search as string,
@@ -22,7 +24,7 @@ export class WorkspacesController {
                 sortOrder: req.query.sortOrder as 'asc' | 'desc',
             };
 
-            const result = await this.workspaceService.listWorkspaces(filters);
+            const result = await this.workspaceService.listWorkspaces(userId, filters);
             res.json(result);
         } catch (error: any) {
             res.status(500).json({
@@ -52,13 +54,15 @@ export class WorkspacesController {
     /**
      * Obtém detalhes de um workspace
      */
-    getWorkspaceById = async (req: Request, res: Response) => {
+    getWorkspaceById = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
-            const workspace = await this.workspaceService.getWorkspaceById(id);
+            const workspace = await this.workspaceService.getWorkspaceById(userId, id);
             res.json(workspace);
         } catch (error: any) {
-            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            const statusCode = error.message.includes('Access denied') ? 403 :
+                error.message === 'Workspace não encontrado' ? 404 : 500;
             res.status(statusCode).json({
                 success: false,
                 message: error.message || 'Erro ao obter workspace',
@@ -70,13 +74,15 @@ export class WorkspacesController {
     /**
      * Obtém chats de um workspace
      */
-    getWorkspaceChats = async (req: Request, res: Response) => {
+    getWorkspaceChats = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
-            const chats = await this.workspaceService.getWorkspaceChats(id);
+            const chats = await this.workspaceService.getWorkspaceChats(userId, id);
             res.json(chats);
         } catch (error: any) {
-            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            const statusCode = error.message.includes('Access denied') ? 403 :
+                error.message === 'Workspace não encontrado' ? 404 : 500;
             res.status(statusCode).json({
                 success: false,
                 message: error.message || 'Erro ao obter chats',
@@ -88,13 +94,15 @@ export class WorkspacesController {
     /**
      * Obtém estatísticas de um workspace
      */
-    getWorkspaceStats = async (req: Request, res: Response) => {
+    getWorkspaceStats = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
-            const stats = await this.workspaceService.getWorkspaceStats(id);
+            const stats = await this.workspaceService.getWorkspaceStats(userId, id);
             res.json(stats);
         } catch (error: any) {
-            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            const statusCode = error.message.includes('Access denied') ? 403 :
+                error.message === 'Workspace não encontrado' ? 404 : 500;
             res.status(statusCode).json({
                 success: false,
                 message: error.message || 'Erro ao obter estatísticas',
@@ -106,9 +114,10 @@ export class WorkspacesController {
     /**
      * Cria um novo workspace
      */
-    createWorkspace = async (req: Request, res: Response) => {
+    createWorkspace = async (req: AuthRequest, res: Response) => {
         try {
-            const workspace = await this.workspaceService.createWorkspace(req.body);
+            const userId = req.user!.id;
+            const workspace = await this.workspaceService.createWorkspace(userId, req.body);
             res.status(201).json(workspace);
         } catch (error: any) {
             const statusCode = error.message.includes('já existe') ? 409 : 400;
@@ -123,14 +132,16 @@ export class WorkspacesController {
     /**
      * Atualiza um workspace
      */
-    updateWorkspace = async (req: Request, res: Response) => {
+    updateWorkspace = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
-            const workspace = await this.workspaceService.updateWorkspace(id, req.body);
+            const workspace = await this.workspaceService.updateWorkspace(userId, id, req.body);
             res.json(workspace);
         } catch (error: any) {
             let statusCode = 500;
-            if (error.message === 'Workspace não encontrado') statusCode = 404;
+            if (error.message.includes('Access denied')) statusCode = 403;
+            else if (error.message === 'Workspace não encontrado') statusCode = 404;
             else if (error.message.includes('já existe')) statusCode = 409;
 
             res.status(statusCode).json({
@@ -144,14 +155,16 @@ export class WorkspacesController {
     /**
      * Deleta um workspace
      */
-    deleteWorkspace = async (req: Request, res: Response) => {
+    deleteWorkspace = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
-            await this.workspaceService.deleteWorkspace(id);
+            await this.workspaceService.deleteWorkspace(userId, id);
             res.status(204).send();
         } catch (error: any) {
             let statusCode = 500;
-            if (error.message === 'Workspace não encontrado') statusCode = 404;
+            if (error.message.includes('Access denied')) statusCode = 403;
+            else if (error.message === 'Workspace não encontrado') statusCode = 404;
             else if (error.message.includes('Não é possível deletar')) statusCode = 400;
 
             res.status(statusCode).json({
@@ -165,8 +178,9 @@ export class WorkspacesController {
     /**
      * Atualiza configurações do Organizze para um workspace
      */
-    updateOrganizzeSettings = async (req: Request, res: Response) => {
+    updateOrganizzeSettings = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
             const { email, apiKey, accountId, categories } = req.body;
 
@@ -189,7 +203,7 @@ export class WorkspacesController {
                 });
             }
 
-            const workspace = await this.workspaceService.updateOrganizzeSettings(id, {
+            const workspace = await this.workspaceService.updateOrganizzeSettings(userId, id, {
                 email,
                 apiKey,
                 accountId,
@@ -198,7 +212,10 @@ export class WorkspacesController {
 
             res.json(workspace);
         } catch (error: any) {
-            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            let statusCode = 500;
+            if (error.message.includes('Access denied')) statusCode = 403;
+            else if (error.message === 'Workspace não encontrado') statusCode = 404;
+
             res.status(statusCode).json({
                 success: false,
                 message: error.message || 'Erro ao atualizar configurações do Organizze',
@@ -211,13 +228,17 @@ export class WorkspacesController {
     /**
      * Remove configurações do Organizze de um workspace
      */
-    deleteOrganizzeSettings = async (req: Request, res: Response) => {
+    deleteOrganizzeSettings = async (req: AuthRequest, res: Response) => {
         try {
+            const userId = req.user!.id;
             const { id } = req.params;
-            const workspace = await this.workspaceService.deleteOrganizzeSettings(id);
+            const workspace = await this.workspaceService.deleteOrganizzeSettings(userId, id);
             res.json(workspace);
         } catch (error: any) {
-            const statusCode = error.message === 'Workspace não encontrado' ? 404 : 500;
+            let statusCode = 500;
+            if (error.message.includes('Access denied')) statusCode = 403;
+            else if (error.message === 'Workspace não encontrado') statusCode = 404;
+
             res.status(statusCode).json({
                 success: false,
                 message: error.message || 'Erro ao remover configurações do Organizze',

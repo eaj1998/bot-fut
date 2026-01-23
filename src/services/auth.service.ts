@@ -243,23 +243,32 @@ export class AuthService {
             if (!id) {
                 return false;
             }
-            const phone = id.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
 
-            let user = await this.userModel.findOne({
-                phoneE164: phone,
-                role: 'admin',
-                status: 'active'
+            const rawPhone = id.replace(/@c\.us$/i, '').replace(/@lid$/i, '');
+
+            const user = await this.userModel.findOne({
+                $or: [
+                    { phoneE164: rawPhone },
+                    { phoneE164: `+${rawPhone}` },
+                    { lid: rawPhone }
+                ]
             }).exec();
 
             if (!user) {
-                user = await this.userModel.findOne({
-                    lid: phone,
-                    role: 'admin',
-                    status: 'active'
-                }).exec();
+                return false;
             }
 
-            return !!user;
+            if (user.role === 'admin' && user.status === 'active') {
+                return true;
+            }
+
+            const membership = await this.workspaceMemberModel.findOne({
+                userId: user._id,
+                roles: { $in: ['ADMIN', 'OWNER'] },
+                status: 'ACTIVE'
+            }).exec();
+
+            return !!membership;
         } catch (error) {
             this.loggerService.error('[isAdmin] Error checking admin status:', error);
             return false;

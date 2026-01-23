@@ -2,56 +2,99 @@
  * DTOs para gerenciamento de Chats
  */
 
+export interface ChatSettingsDto {
+    language?: string;
+    autoCreateGame?: boolean;
+    autoCreateDaysBefore?: number;
+    allowGuests?: boolean;
+    requirePaymentProof?: boolean;
+    sendReminders?: boolean;
+}
+
+export interface ChatFinancialsDto {
+    defaultPriceCents?: number;
+    pixKey?: string;
+    pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
+    acceptsCash?: boolean;
+}
+
 export interface ChatScheduleDto {
-    weekday: number; // 0 = Dom, 1 = Seg, ..., 6 = Sáb
-    time: string; // "HH:mm"
-    title: string;
-    priceCents: number;
-    pix: string;
+    weekday?: number;
+    time?: string;
+    durationMinutes?: number;
+    title?: string;
+    location?: string;
+    mapsLink?: string;
 }
 
 export interface CreateChatDto {
     workspaceId: string;
-    chatId: string; // ID do chat na plataforma (WhatsApp)
-    name?: string;
-    label?: string;
+    chatId: string;
+    platform?: 'WHATSAPP' | 'TELEGRAM';
+    settings?: ChatSettingsDto;
+    financials?: ChatFinancialsDto;
     schedule?: ChatScheduleDto;
 }
 
 export interface UpdateChatDto {
-    name?: string;
-    label?: string;
+    status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | 'SETUP_REQUIRED';
+    settings?: ChatSettingsDto;
+    financials?: ChatFinancialsDto;
     schedule?: ChatScheduleDto;
-    status?: 'active' | 'inactive' | 'archived';
 }
 
+// Para compatibilidade com rota específica de schedule, se houver
 export interface UpdateScheduleDto {
     weekday?: number;
     time?: string;
+    durationMinutes?: number;
     title?: string;
-    priceCents?: number;
-    pix?: string;
+    location?: string;
+    mapsLink?: string;
 }
 
 export interface ChatResponseDto {
     id: string;
     workspaceId: string;
-    name: string;
     chatId: string;
-    label?: string;
-    type: 'group' | 'private';
-    status: 'active' | 'inactive' | 'archived';
-    memberCount: number;
-    schedule?: ChatScheduleDto;
-    lastMessage?: string;
-    lastMessageAt?: string;
+    platform: string;
+    status: string;
+
+    // Nested objects
+    settings: {
+        language: string;
+        autoCreateGame: boolean;
+        autoCreateDaysBefore: number;
+        allowGuests: boolean;
+        requirePaymentProof: boolean;
+        sendReminders: boolean;
+    };
+    financials: {
+        defaultPriceCents: number;
+        pixKey?: string;
+        pixKeyType?: string;
+        acceptsCash: boolean;
+    };
+    schedule: {
+        weekday?: number;
+        time?: string;
+        durationMinutes?: number;
+        title?: string;
+        location?: string;
+        mapsLink?: string;
+    };
+
+    // Legacy/Computed fields support
+    name?: string;
+    memberCount?: number;
+
     createdAt: string;
     updatedAt: string;
 }
 
 export interface ListChatsDto {
     workspaceId?: string;
-    status?: 'active' | 'inactive' | 'archived' | 'all';
+    status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | 'SETUP_REQUIRED' | 'all';
     search?: string;
     page?: number;
     limit?: number;
@@ -72,5 +115,6 @@ export interface ChatsStatsDto {
     activeChats: number;
     inactiveChats: number;
     archivedChats: number;
+    setupRequiredChats: number;
     chatsWithSchedule: number;
 }

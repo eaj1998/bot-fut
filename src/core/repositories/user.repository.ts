@@ -139,6 +139,10 @@ export class UserRepository {
         return !!user;
     }
 
+    async findByIds(ids: string[] | Types.ObjectId[]): Promise<IUser[]> {
+        return this.model.find({ _id: { $in: ids } }).lean() as unknown as IUser[];
+    }
+
     async getStats() {
         const total = await this.model.countDocuments();
         const admins = await this.model.countDocuments({ role: 'admin' });

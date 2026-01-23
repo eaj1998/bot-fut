@@ -1,8 +1,9 @@
 import { injectable, inject } from 'tsyringe';
 import { Message } from 'whatsapp-web.js';
-import { Types } from 'mongoose';
+import { Types, Model } from 'mongoose';
 import { UserRepository } from '../core/repositories/user.repository';
 import { IUser } from '../core/models/user.model';
+import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
 import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../utils/message';
 
 /**
@@ -12,12 +13,14 @@ import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '
 @injectable()
 export class UserService {
     constructor(
-        @inject('USER_REPOSITORY_TOKEN') private readonly userRepository: UserRepository
+        @inject('USER_REPOSITORY_TOKEN') private readonly userRepository: UserRepository,
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
     ) { }
 
     /**
      * Resolves a user from a WhatsApp message.
      * Extracts user information (name, LID, phone) and finds or creates the user in the database.
+     * Also ensures the user is a member of the workspace if workspaceId is provided.
      * 
      * @param message - WhatsApp message to extract user information from
      * @param workspaceId - Optional workspace ID to associate with the user
@@ -33,7 +36,27 @@ export class UserService {
         const phone = await getPhoneFromMessage(message);
 
         // Find or create the user
-        return await this.userRepository.upsertByPhone(workspaceId, phone, userName, lid);
+        const user = await this.userRepository.upsertByPhone(workspaceId, phone, userName, lid);
+
+        // If workspaceId provided, ensure user is a member
+        if (workspaceId && user) {
+            const memberExists = await this.workspaceMemberModel.exists({
+                workspaceId,
+                userId: user._id
+            });
+
+            if (!memberExists) {
+                await this.workspaceMemberModel.create({
+                    workspaceId,
+                    userId: user._id,
+                    roles: ['PLAYER'],
+                    status: 'ACTIVE',
+                    nickname: userName
+                });
+            }
+        }
+
+        return user;
     }
 
     /**

@@ -46,7 +46,7 @@ export class DashboardService {
             this.workspaceService.getStats(),
             this.chatService.getStats(),
             workspaceId ? this.ledgerRepository.sumWorkspaceCashbox(workspaceId) : Promise.resolve(0),
-            this.getRecentGames(5),
+            this.getRecentGames(5, workspaceId),
             this.getRecentDebts(5, workspaceId),
             this.getMonthlyRevenue(6, workspaceId),
             this.calculateRevenueGrowth(workspaceId),
@@ -93,8 +93,14 @@ export class DashboardService {
     /**
      * Obtém jogos recentes
      */
-    private async getRecentGames(limit: number = 5): Promise<RecentGame[]> {
+    private async getRecentGames(limit: number = 5, workspaceId?: string): Promise<RecentGame[]> {
+        // If no workspaceId provided, return empty array or fetch from first available workspace
+        if (!workspaceId) {
+            return [];
+        }
+
         const result = await this.gameService.listGames({
+            workspaceId,
             page: 1,
             limit,
         });

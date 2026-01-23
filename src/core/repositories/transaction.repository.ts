@@ -326,6 +326,28 @@ export class TransactionRepository {
 
         return result || { income: 0, expense: 0, balance: 0 };
     }
+
+    /**
+     * Busca genérica (utilitário para flexibilidade)
+     */
+    async find(query: any): Promise<ITransaction[]> {
+        return this.model.find(query).exec();
+    }
+
+    /**
+     * Marca transação como paga (Wrapper para updateTransaction)
+     */
+    async markAsPaid(
+        transactionId: string,
+        paidAt: Date,
+        method: "pix" | "dinheiro" | "transf" | "ajuste"
+    ): Promise<ITransaction | null> {
+        return this.updateTransaction(transactionId, {
+            status: TransactionStatus.COMPLETED,
+            paidAt,
+            method
+        });
+    }
 }
 
 export const TRANSACTION_REPOSITORY_TOKEN = "TRANSACTION_REPOSITORY_TOKEN";

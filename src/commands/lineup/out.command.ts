@@ -29,10 +29,6 @@ export class OutCommand implements Command {
 
         if (!game) return;
 
-        if (!game.roster) (game as any).roster = { goalieSlots: 2, players: [], waitlist: [], outlist: [] };
-        const players = Array.isArray(game.roster.players) ? game.roster.players : (game.roster.players = []);
-        const outlist = Array.isArray(game.roster.outlist) ? game.roster.outlist : (game.roster.outlist = []);
-
         const user = await this.userService.resolveUserFromMessage(message, workspace._id);
         const userName = await getUserNameFromMessage(message);
         const phone = user.phoneE164 || user.lid!;

@@ -295,13 +295,14 @@ export class GameService {
               }
 
               // NOVA LÓGICA: Verificar se é mensalista ACTIVE
+              // IMPORTANTE: Convidados SEMPRE pagam, mesmo se vindos de mensalistas
               const membership = await this.membershipRepo.findByUserId(
                 targetUserId,
                 game.workspaceId.toString()
               );
 
-              if (membership && membership.status === MembershipStatus.ACTIVE) {
-                // Mensalista ACTIVE: NÃO cobrar
+              if (membership && membership.status === MembershipStatus.ACTIVE && !player.guest) {
+                // Mensalista ACTIVE (jogando ele mesmo): NÃO cobrar
                 return {
                   success: true,
                   playerName,
@@ -311,27 +312,27 @@ export class GameService {
                 };
               }
 
-              // Jogador é avulso/convidado ou membership não ACTIVE
-              // Criar Transaction ao invés de Ledger
               let transactionId: string | undefined;
               let ledgerOk = false;
 
               const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
 
               if (finalAmount > 0) {
+                const isPaid = player.paid || false;
                 const transaction = await this.transactionRepo.createTransaction({
                   workspaceId: game.workspaceId.toString(),
                   userId: targetUserId,
                   gameId: game._id.toString(),
                   type: TransactionType.INCOME,
                   category: TransactionCategory.GAME_FEE,
-                  status: TransactionStatus.PENDING,
+                  status: isPaid ? TransactionStatus.COMPLETED : TransactionStatus.PENDING,
                   amount: finalAmount,
                   dueDate: game.date,
+                  paidAt: isPaid ? new Date() : undefined,
                   description: player.guest
                     ? `Jogo ${game.title} - ${formatDateBR(game.date)} (convidado: ${player.name})`
                     : `Jogo ${game.title} - ${formatDateBR(game.date)}`,
-                  method: 'pix',
+                  method: isPaid ? 'dinheiro' : 'pix', // Default to cash if marked paid manually, user can update later
                 });
 
                 transactionId = transaction._id.toString();
@@ -442,22 +443,7 @@ export class GameService {
       throw new ApiError(404, 'Jogo não encontrado');
     }
 
-    if (data.guestName) {
-      if (!data.name) {
-        throw new ApiError(400, 'Nome de quem convida é obrigatório ao adicionar convidado');
-      }
 
-      await this.addGuestPlayer(
-        game,
-        data.phone,
-        data.name,
-        data.guestName,
-        { asGoalie: data.isGoalkeeper || false }
-      );
-
-      await game.save();
-      return;
-    }
 
     let user = await this.userModel.findOne({ phoneE164: data.phone }).exec();
     if (!user) {
@@ -468,6 +454,57 @@ export class GameService {
         phoneE164: data.phone,
         name: data.name,
       });
+    }
+
+    // ========== EARLY ACCESS VALIDATION (REGRA DE OURO) ==========
+    // Check membership status for early access and suspension rules
+    const membership = await this.membershipRepo.findByUserId(
+      user._id.toString(),
+      game.workspaceId.toString()
+    );
+
+
+    // Get game date and today's date (start of day for fair comparison)
+    const gameDate = new Date(game.date);
+    gameDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Verificação 1: Bloqueio de Caloteiro (SUSPENDED members cannot join at all)
+    if (membership?.status === MembershipStatus.SUSPENDED) {
+      throw new ApiError(
+        403,
+        '🚫 Ação bloqueada. Sua mensalidade está suspensa. Regularize para jogar.'
+      );
+    }
+
+    // Verificação 2: Early Access (only ACTIVE members can join future games)
+    const isFutureGame = gameDate > today;
+    const isActiveMember = membership?.status === MembershipStatus.ACTIVE;
+
+    if (isFutureGame && !isActiveMember) {
+      throw new ApiError(
+        403,
+        '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo.'
+      );
+    }
+    // ========== END EARLY ACCESS VALIDATION ==========
+
+    if (data.guestName) {
+      if (!data.name) {
+        throw new ApiError(400, 'Nome de quem convida é obrigatório ao adicionar convidado');
+      }
+
+      this.addGuestWithInviter(
+        game,
+        data.guestName,
+        { _id: user._id, name: user.name ?? '' },
+        { asGoalie: data.isGoalkeeper || false }
+      );
+
+      await game.save();
+      return;
     }
 
     const isInMainRoster = game.roster.players.some(p =>
@@ -486,9 +523,9 @@ export class GameService {
     }
 
     if (data.isGoalkeeper) {
-      await this.addGoalkeeper(game, user);
+      await this.addGoalkeeper(game, user, isActiveMember);
     } else {
-      await this.addOutfieldPlayer(game, user);
+      await this.addOutfieldPlayer(game, user, game.maxPlayers, isActiveMember);
     }
   }
 
@@ -509,7 +546,8 @@ export class GameService {
   async addOutfieldPlayer(
     game: IGame,
     user: IUser,
-    maxPlayers = 16
+    maxPlayers = 16,
+    paid = false
   ): Promise<{ added: boolean; suplentePos?: number }> {
     game.roster.players = game.roster.players ?? [];
     game.roster.waitlist = game.roster.waitlist ?? [];
@@ -524,18 +562,18 @@ export class GameService {
 
     for (let slot = firstOutfieldSlot; slot <= maxPlayers; slot++) {
       if (!used.has(slot)) {
-        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164 || user.lid, slot, name: user.name, paid: false, organizzeId: null });
-        game.save();
+        game.roster.players.push({ userId: user._id, phoneE164: user.phoneE164 || user.lid, slot, name: user.name, paid, organizzeId: null });
+        await game.save();
         return { added: true };
       }
     }
 
     game.roster.waitlist.push({ userId: user._id, phoneE164: user.phoneE164 || user.lid, name: user.name, createdAt: new Date() });
-    game.save();
+    await game.save();
     return { added: false, suplentePos: game.roster.waitlist.length };
   }
 
-  async addGoalkeeper(game: IGame, user: IUser): Promise<{ added: boolean; suplentePos?: number }> {
+  async addGoalkeeper(game: IGame, user: IUser, paid = false): Promise<{ added: boolean; suplentePos?: number }> {
     const usedSlots = new Set<number>(
       game.roster.players.map(p => p.slot).filter((s): s is number => typeof s === "number")
     );
@@ -548,7 +586,7 @@ export class GameService {
           userId: user._id,
           name: user.name,
           phoneE164: user.phoneE164 || user.lid,
-          paid: false,
+          paid,
         });
         placed = true;
         break;
@@ -887,11 +925,7 @@ export class GameService {
     const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
     const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
 
-    const pendingDebit = await this.ledgerRepo.findPendingDebitByUserAndGame(
-      game.workspaceId.toString(),
-      inviterId,
-      game._id.toString()
-    );
+
 
     const updatedPlayer = {
       name: player.name,
@@ -908,86 +942,66 @@ export class GameService {
     game.roster.players[idx] = updatedPlayer;
     game.markModified("roster");
 
-    let creditError: string | undefined;
+    // 2. Handle Financial Transaction
+    const validMethod = (payMethod === 'dinheiro' || payMethod === 'pix' || payMethod === 'transf') ? payMethod : 'pix';
+
+    if (game.status === 'closed' || game.status === 'finished') {
+      const transactions = await this.transactionRepo.find({
+        gameId: game._id.toString(),
+        userId: inviterId,
+        status: TransactionStatus.PENDING,
+        type: TransactionType.INCOME
+      });
+
+      let targetTx = null;
+      // Try precise match on description if possible
+      const searchName = player.name;
+
+      if (player.guest) {
+        targetTx = transactions.find(t => t.description && t.description.includes(searchName));
+      } else {
+        targetTx = transactions.find(t => t.description && !t.description.includes('(convidado:'));
+      }
+
+      if (targetTx) {
+        await this.transactionRepo.markAsPaid(targetTx._id.toString(), now, validMethod);
+      } else if (finalAmount > 0) {
+        // No pending transaction found (maybe was deleted or logic skipped), but we are paying now.
+        // Create new COMPLETED transaction.
+        await this.transactionRepo.createTransaction({
+          workspaceId: game.workspaceId.toString(),
+          userId: inviterId,
+          gameId: game._id.toString(),
+          type: TransactionType.INCOME,
+          category: TransactionCategory.GAME_FEE,
+          status: TransactionStatus.COMPLETED,
+          amount: finalAmount,
+          dueDate: game.date,
+          paidAt: now,
+          description: player.guest
+            ? `Pagamento Avulso - Jogo ${game.title} (convidado: ${player.name})`
+            : `Pagamento Avulso - Jogo ${game.title}`,
+          method: validMethod,
+        });
+      }
+    }
+
+    const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
+    const allPaidAfter = game.roster.players
+      .filter(p => (p.slot ?? 0) > goalieSlots)
+      .every(p => !!p.paid);
+
+    if (allPaidAfter && game.status === 'closed') {
+      game.status = "finished";
+    }
 
     try {
-      if (pendingDebit) {
-        await this.ledgerRepo.confirmDebit(pendingDebit._id.toString());
-
-        const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
-
-        await this.ledgerRepo.addCredit({
-          workspaceId: game.workspaceId.toString(),
-          userId: inviterId,
-          amountCents: finalAmount,
-          gameId: game._id.toString(),
-          note,
-          method: payMethod,
-          category: "player-payment",
-        });
-      } else {
-        await this.ledgerRepo.addDebit({
-          workspaceId: game.workspaceId.toString(),
-          userId: inviterId,
-          amountCents: finalAmount,
-          gameId: game._id.toString(),
-          note: player.guest
-            ? `Débito (convidado) — ${player.name} — jogo ${formatDateBR(game.date)}`
-            : `Débito referente ao jogo ${player.name} - ${formatDateBR(game.date)}`,
-          category: "player-debt",
-          status: "confirmado",
-          confirmedAt: now
-        });
-
-        const note = `Pagamento ${player.guest ? "de convidado" : ""} - ${player.name} - Jogo ${formatDateBR(game.date)}`;
-
-        await this.ledgerRepo.addCredit({
-          workspaceId: game.workspaceId.toString(),
-          userId: inviterId,
-          amountCents: finalAmount,
-          gameId: game._id.toString(),
-          note,
-          method: payMethod,
-          category: "player-payment",
-        });
-      }
-
-      const res = await this.updateMovimentacaoOrganizze(game, slot);
-      if (!res.added) {
-        this.loggerService.log(`[ORGANIZZE] Falha ao atualizar movimentação para slot ${slot}`);
-      }
-
-      const goalieSlots = Math.max(0, game.roster.goalieSlots ?? 2);
-      const allPaidAfter = game.roster.players
-        .filter(p => (p.slot ?? 0) > goalieSlots)
-        .every(p => !!p.paid);
-
-      if (allPaidAfter) {
-        game.status = "finished";
-      }
-
-      if (await game.save()) {
-        return { updated: true, game };
-      }
-
-    } catch (e: any) {
-      creditError = e?.message ?? String(e);
-      this.loggerService.log(`[MARK-AS-PAID] Falha ao processar pagamento: ${creditError}`);
-
-      game.roster.players[idx].paid = false;
-      game.roster.players[idx].paidAt = undefined;
       await game.save();
-
-      return { updated: false, reason: `Erro ao processar pagamento: ${creditError}`, game };
+    } catch (e: any) {
+      return { updated: false, reason: `Falha ao salvar jogo: ${e.message}`, game };
     }
 
-    await game.save();
-
-    if (creditError) {
-      return { updated: true, game, reason: `Crédito não lançado: ${creditError}` };
-    }
-
-    return { updated: true, game: game };
+    return { updated: true, game };
   }
 
 
@@ -1314,7 +1328,7 @@ export class GameService {
     const chat = await ChatModel.findOne({ chatId: game.chatId, workspaceId: game.workspaceId });
 
     const titulo = game?.title ?? "⚽ CAMPO DO VIANA";
-    const pix = chat?.schedule?.pix ?? "fcjogasimples@gmail.com";
+    const pix = chat?.financials?.pixKey ?? "fcjogasimples@gmail.com";
     const valor = `${Utils.formatCentsToReal(game?.priceCents ?? 0)}`;
 
     const maxPlayers = game.maxPlayers ?? 16;
@@ -1383,7 +1397,7 @@ export class GameService {
     const weekday = chat.schedule.weekday ?? 2;
     const timeStr = chat.schedule.time || "20:30";
     const title = chat.schedule.title || workspace.settings?.title || "⚽ Jogo";
-    const priceCents = chat.schedule.priceCents ?? workspace.settings?.pricePerGameCents ?? 1400;
+    const priceCents = chat.financials?.defaultPriceCents ?? workspace.settings?.pricePerGameCents ?? 1400;
 
     const base = new Date();
     const gameDate = applyTime(getNextWeekday(base, weekday), timeStr);
@@ -1411,7 +1425,7 @@ export class GameService {
       if (game.isModified()) await game.save();
     }
 
-    return { game, priceCents, pix: chat.schedule.pix };
+    return { game, priceCents, pix: chat.financials?.pixKey };
   }
 
   async initListAt(workspace: WorkspaceDoc, targetDate: Date, opts?: { title?: string; priceCents?: number; }) {

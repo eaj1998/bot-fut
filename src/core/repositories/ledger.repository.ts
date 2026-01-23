@@ -364,10 +364,10 @@ export class LedgerRepository {
     if (chatIds.length > 0) {
       const { ChatModel } = await import('../models/chat.model');
       const chats = await ChatModel.find({ chatId: { $in: chatIds } })
-        .select('chatId schedule.pix')
+        .select('chatId financials.pixKey')
         .lean();
 
-      const chatMap = new Map(chats.map(c => [c.chatId, c.schedule?.pix]));
+      const chatMap = new Map(chats.map(c => [c.chatId, c.financials?.pixKey]));
 
       return ledgers.map(ledger => ({
         ...ledger,

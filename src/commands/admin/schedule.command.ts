@@ -21,7 +21,7 @@ export class ScheduleCommand {
 
     async handle(message: Message) {
         const groupId = message.from;
-        const [, ...rawArgs] = message.body.trim().split(/\s+/);
+        const rawArgs = message.body.trim().split(/\s+/).slice(1); // Fix slicing command
         const argsStr = rawArgs.join(" ");
 
         const { workspace, chatId } = await this.workspaceSvc.resolveWorkspaceFromMessage(message);
@@ -30,21 +30,24 @@ export class ScheduleCommand {
 
         if (!argsStr) {
             const chat = await this.chatSvc.findByWorkspaceAndChat(workspace._id, chatId);
-            if (!chat?.schedule) {
-                await this.server.sendMessage(groupId, "ℹ️ Sem schedule configurado.\nUse: /schedule weekday=2 time=20:30 price=14,00 pix=seu@pix title=\"⚽ CAMPO VIANA\"");
+            if (!chat) {
+                await this.server.sendMessage(groupId, "ℹ️ Chat não encontrado.");
                 return;
             }
 
-            const s = chat.schedule;
-            const price = s.priceCents != null ? Utils.formatCentsToReal(s.priceCents) : "-";
-            const wd = Utils.weekdayName(s.weekday);
+            const s = chat.schedule || {};
+            const f = chat.financials || {};
+
+            const price = f.defaultPriceCents != null ? Utils.formatCentsToReal(f.defaultPriceCents) : "-";
+            const wd = s.weekday != null ? Utils.weekdayName(s.weekday) : "-";
+
             await this.server.sendMessage(groupId,
                 `📅 *Schedule atual*\n` +
-                `• Dia: ${wd} (${s.weekday})\n` +
+                `• Dia: ${wd} (${s.weekday ?? "-"})\n` +
                 `• Hora: ${s.time ?? "-"}\n` +
                 `• Título: ${s.title ?? "-"}\n` +
                 `• Preço: ${price}\n` +
-                `• Pix: ${s.pix ?? "-"}`
+                `• Pix: ${f.pixKey ?? "-"}`
             );
             return;
         }
@@ -70,15 +73,15 @@ export class ScheduleCommand {
         if (kv.priceCents != null) {
             const cents = Number(kv.priceCents);
             if (!Number.isInteger(cents) || cents < 0) { await this.server.sendMessage(groupId, "❌ priceCents inválido."); return; }
-            patch["schedule.priceCents"] = cents;
+            patch["financials.defaultPriceCents"] = cents;
         } else if (kv.price != null) {
             const cents = Utils.parsePriceToCents(String(kv.price));
             if (cents == null) { await this.server.sendMessage(groupId, "❌ price inválido. Exemplos: 14,00 | 14.00 | R$14 | 1400c"); return; }
-            patch["schedule.priceCents"] = cents;
+            patch["financials.defaultPriceCents"] = cents;
         }
 
         if (kv.pix != null) {
-            patch["schedule.pix"] = String(kv.pix);
+            patch["financials.pixKey"] = String(kv.pix);
         }
 
         if (Object.keys(patch).length === 0) {
@@ -90,15 +93,18 @@ export class ScheduleCommand {
 
         const updated = await this.chatRepo.findByWorkspaceAndChat(workspace._id, groupId);
         const s = updated?.schedule ?? {};
-        const price = s.priceCents != null ? Utils.formatCentsBRL(s.priceCents) : "-";
-        const wd = Utils.weekdayName(s.weekday);
+        const f = updated?.financials;
+
+        const price = f?.defaultPriceCents != null ? Utils.formatCentsToReal(f.defaultPriceCents) : "-";
+        const wd = s.weekday != null ? Utils.weekdayName(s.weekday) : "-";
+
         await this.server.sendMessage(groupId,
             `✅ *Schedule atualizado*\n` +
             `• Dia: ${wd} (${s.weekday ?? "-"})\n` +
             `• Hora: ${s.time ?? "-"}\n` +
             `• Título: ${s.title ?? "-"}\n` +
             `• Preço: ${price}\n` +
-            `• Pix: ${s.pix ?? "-"}`
+            `• Pix: ${f?.pixKey ?? "-"}`
         );
     }
 }

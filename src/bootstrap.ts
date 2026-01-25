@@ -6,7 +6,7 @@ import { connectMongo } from './infra/database/mongoose.connection';
 import { ConfigService } from './config/config.service';
 import { USER_MODEL_TOKEN, UserModel } from './core/models/user.model';
 import { GAME_MODEL_TOKEN, GameModel } from './core/models/game.model';
-import { LEDGER_MODEL_TOKEN, LedgerModel } from './core/models/ledger.model';
+
 import { WORKSPACE_MODEL_TOKEN, WorkspaceModel } from './core/models/workspace.model';
 import { CHAT_MODEL_TOKEN, ChatModel } from './core/models/chat.model';
 import { OTP_MODEL_TOKEN, OtpModel } from './core/models/otp.model';
@@ -14,10 +14,8 @@ import { ApiServer } from './server/api.server';
 import { LoggerService } from './logger/logger.service';
 import { WORKSPACE_MEMBER_MODEL_TOKEN, WorkspaceMemberModel } from './core/models/workspace-member.model';
 import { UserRepository } from './core/repositories/user.repository';
-import { LedgerRepository, LEDGER_REPOSITORY_TOKEN } from './core/repositories/ledger.repository';
 import { GameRepository, GAME_REPOSITORY_TOKEN } from './core/repositories/game.respository';
 import { PlayersService, PLAYERS_SERVICE_TOKEN } from './services/players.service';
-import { DebtsService, DEBTS_SERVICE_TOKEN } from './services/debts.service';
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from './services/workspace.service';
 import { ChatService, CHATS_SERVICE_TOKEN } from './services/chat.service';
 import { DashboardService, DASHBOARD_SERVICE_TOKEN } from './services/dashboard.service';
@@ -44,7 +42,6 @@ const main = async () => {
   container.register(USER_MODEL_TOKEN, { useValue: UserModel });
   container.register(WORKSPACE_MEMBER_MODEL_TOKEN, { useValue: WorkspaceMemberModel });
   container.register(GAME_MODEL_TOKEN, { useValue: GameModel });
-  container.register(LEDGER_MODEL_TOKEN, { useValue: LedgerModel });
   container.register(WORKSPACE_MODEL_TOKEN, { useValue: WorkspaceModel });
   container.register(CHAT_MODEL_TOKEN, { useValue: ChatModel });
   container.register(OTP_MODEL_TOKEN, { useValue: OtpModel });
@@ -54,7 +51,6 @@ const main = async () => {
 
   // Register repositories
   container.register('USER_REPOSITORY_TOKEN', { useClass: UserRepository });
-  container.register(LEDGER_REPOSITORY_TOKEN, { useClass: LedgerRepository });
   container.register(GAME_REPOSITORY_TOKEN, { useClass: GameRepository });
   container.register(BBQ_REPOSITORY_TOKEN, { useClass: BBQRepository });
   container.register(TRANSACTION_REPOSITORY_TOKEN, { useClass: TransactionRepository });
@@ -63,7 +59,6 @@ const main = async () => {
   // Register services
   container.register(USER_SERVICE_TOKEN, { useClass: UserService });
   container.register(PLAYERS_SERVICE_TOKEN, { useClass: PlayersService });
-  container.register(DEBTS_SERVICE_TOKEN, { useClass: DebtsService });
   container.register(WORKSPACES_SERVICE_TOKEN, { useClass: WorkspaceService });
   container.register(CHATS_SERVICE_TOKEN, { useClass: ChatService });
   container.register(DASHBOARD_SERVICE_TOKEN, { useClass: DashboardService });

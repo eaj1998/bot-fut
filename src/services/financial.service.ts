@@ -9,13 +9,14 @@ import { ApiError } from '../api/middleware/error.middleware';
 
 interface CreateManualTransactionInput {
     workspaceId: string;
-    userId: string;
-    amount: number; // em reais
+    userId?: string;
+    amount: number; // em centavos
     type: TransactionType;
     category: TransactionCategory;
     description: string;
     dueDate?: Date;
     method?: 'pix' | 'dinheiro' | 'transf' | 'ajuste';
+    status?: TransactionStatus;
 }
 
 interface UserBalanceResult {
@@ -44,18 +45,16 @@ export class FinancialService {
             throw new ApiError(400, 'workspaceId é obrigatório');
         }
 
-        if (!data.userId) {
-            throw new ApiError(400, 'userId é obrigatório');
-        }
-
         if (data.amount <= 0) {
             throw new ApiError(400, 'Valor deve ser maior que zero');
         }
 
-        // Verificar se usuário existe
-        const user = await this.userRepo.findById(data.userId);
-        if (!user) {
-            throw new ApiError(404, 'Usuário não encontrado');
+        // Verificar se usuário existe se fornecido
+        if (data.userId) {
+            const user = await this.userRepo.findById(data.userId);
+            if (!user) {
+                throw new ApiError(404, 'Usuário não encontrado');
+            }
         }
 
         // Verificar se workspace existe
@@ -64,17 +63,14 @@ export class FinancialService {
             throw new ApiError(404, 'Workspace não encontrado');
         }
 
-        // Convert to cents
-        const amountCents = Math.round(data.amount * 100);
-
-        // Create transaction (note: parameter is 'amount' in cents, not 'amountCents')
+        // Create transaction
         const transaction = await this.transactionRepo.createTransaction({
             workspaceId: data.workspaceId,
             userId: data.userId,
             type: data.type,
             category: data.category,
-            status: TransactionStatus.PENDING,
-            amount: amountCents, // Repository expects 'amount' in cents
+            status: data.status || TransactionStatus.PENDING,
+            amount: data.amount, // Já está em centavos
             dueDate: data.dueDate || new Date(),
             description: data.description,
             method: data.method || 'pix',
@@ -115,6 +111,69 @@ export class FinancialService {
             totalOverdue,
             totalDebt,
             transactions: [...pending, ...overdue].map(t => this.toResponseDto(t)),
+        };
+    }
+
+    /**
+     * Retorna estatísticas financeiras do workspace
+     */
+    async getWorkspaceStats(workspaceId: string): Promise<{
+        revenue: number;
+        expenses: number;
+        balance: number;
+        pending: number;
+    }> {
+        const stats = await this.transactionRepo.calculateWorkspaceBalance(workspaceId);
+
+        // Calcular pendências (receitas futuras)
+        const pendingTxs = await this.transactionRepo.findPendingTransactions(workspaceId, {
+            type: TransactionType.INCOME
+        });
+
+        const pending = pendingTxs.reduce((sum, t) => sum + (t.amount || 0), 0) / 100;
+
+        return {
+            revenue: stats.income / 100,
+            expenses: stats.expense / 100,
+            balance: stats.balance / 100,
+            pending
+        };
+    }
+
+    /**
+     * Retorna dados agregados para gráficos
+     */
+    async getChartData(workspaceId: string, days = 30): Promise<any[]> {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        return this.transactionRepo.getAggregatedChartData(workspaceId, startDate, endDate);
+    }
+
+    /**
+     * Lista todas as transações com paginação e filtros
+     */
+    async getAllTransactions(
+        workspaceId: string,
+        page: number = 1,
+        limit: number = 20,
+        filters?: { type?: TransactionType; search?: string }
+    ): Promise<{ transactions: TransactionResponseDto[]; total: number; pages: number }> {
+        if (!workspaceId) {
+            throw new ApiError(400, 'workspaceId é obrigatório');
+        }
+
+        const repoFilters: any = {};
+        if (filters?.type) repoFilters.type = filters.type;
+        if (filters?.search) repoFilters.search = filters.search;
+
+        const result = await this.transactionRepo.findAll(workspaceId, page, limit, repoFilters);
+
+        return {
+            transactions: result.transactions.map(t => this.toResponseDto(t)),
+            total: result.total,
+            pages: result.pages
         };
     }
 

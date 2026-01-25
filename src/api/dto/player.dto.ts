@@ -8,6 +8,10 @@ export interface CreatePlayerDto {
     nick?: string;
     isGoalie?: boolean;
     role?: 'admin' | 'user';
+    position?: 'GOALKEEPER' | 'DEFENDER' | 'MIDFIELDER' | 'STRIKER';
+    type: 'MENSALISTA' | 'AVULSO';
+    stars?: number; // 1-5 rating
+    workspaceId: string;
 }
 
 export interface UpdatePlayerDto {
@@ -19,6 +23,7 @@ export interface UpdatePlayerDto {
     isGoalie?: boolean;
     role?: 'admin' | 'user';
     status?: 'active' | 'inactive';
+    workspaceId?: string;
 }
 
 export interface PlayerResponseDto {

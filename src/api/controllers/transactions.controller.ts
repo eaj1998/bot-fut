@@ -1,14 +1,80 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { FinancialService, FINANCIAL_SERVICE_TOKEN } from '../../services/financial.service';
+import { GameService } from '../../services/game.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error.middleware';
 
 @injectable()
 export class TransactionsController {
     constructor(
-        @inject(FINANCIAL_SERVICE_TOKEN) private financialService: FinancialService
+        @inject(FINANCIAL_SERVICE_TOKEN) private financialService: FinancialService,
+        @inject(GameService) private gameService: GameService
     ) { }
+
+    /**
+     * GET /api/transactions
+     * Retorna todas as transações do workspace (para admin)
+     */
+    getAll = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const workspaceId = req.query.workspaceId as string;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const type = req.query.type as any;
+        const search = req.query.search as string;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Workspace ID é obrigatório'
+            });
+        }
+
+        const filters: any = {};
+        if (type) filters.type = type;
+        if (search) filters.search = search;
+
+        const result = await this.financialService.getAllTransactions(workspaceId, page, limit, filters);
+
+        res.json(result);
+    });
+
+    /**
+     * GET /api/transactions/stats
+     * Retorna estatísticas financeiras do workspace
+     */
+    getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const workspaceId = req.query.workspaceId as string;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Workspace ID é obrigatório'
+            });
+        }
+
+        const stats = await this.financialService.getWorkspaceStats(workspaceId);
+        res.json(stats);
+    });
+
+    /**
+     * GET /api/transactions/chart
+     * Retorna dados para gráficos
+     */
+    getChartData = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const workspaceId = req.query.workspaceId as string;
+        const days = parseInt(req.query.days as string) || 30;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Workspace ID é obrigatório'
+            });
+        }
+
+        const data = await this.financialService.getChartData(workspaceId, days);
+        res.json(data);
+    });
 
     /**
      * GET /api/transactions/balance
@@ -36,15 +102,10 @@ export class TransactionsController {
     /**
      * GET /api/transactions/my
      * Retorna transações do usuário (com filtros)
-     * (Requer implementação no FinancialService se não houver)
-     * Por enquanto vou usar o getBalance que já retorna o histórico pendente.
-     * Se precisar de histórico completo (pagos), precisaria de outro método no service.
      */
     getMyTransactions = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
         const workspaceId = req.query.workspaceId as string;
-        // TODO: Implementar listagem completa com paginação no FinancialService
-        // Por enquanto retornamos o que tem no balance para não quebrar
         const stats = await this.financialService.getBalance(userId, workspaceId);
         res.json({
             transactions: stats.transactions,
@@ -58,22 +119,100 @@ export class TransactionsController {
      */
     payTransaction = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
-        // TODO: Implementar lógica de pagamento no FinancialService
-        // O FinancialService atual não tem o método payTransaction exposto claramente na interface que li,
-        // mas tem toResponseDto. Vou verificar se tem um método de update ou pay.
-        // Se não tiver, vou simular sucesso por enquanto ou implementar.
+        const { method = 'pix' } = req.body;
 
-        // Verificando FinancialService novamente...
-        // Ele tem createManualTransaction e getBalance. Não vi payTransaction.
-        // Mas o DebtService tinha markAsPaid.
-        // Vou assumir que ainda precisa implementar o método de pagar no Service.
-        // Como o usuário pediu REFACTOR FRONTEND, e o backend "foi refatorado", talvez o pay esteja em outro lugar?
-        // Mas se não estiver, vou retornar 501.
+        // Buscar a transaction
+        const transaction = await this.financialService['transactionRepo'].findById(id);
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transação não encontrada'
+            });
+        }
 
-        // Na verdade, vou criar um método stub que retorna sucesso para não bloquear o frontend.
+        // Verificar se já está paga
+        if (transaction.status === 'COMPLETED') {
+            return res.status(400).json({
+                success: false,
+                message: 'Transação já foi paga'
+            });
+        }
+
+        // Marcar como paga
+        await this.financialService['transactionRepo'].markAsPaid(
+            id,
+            new Date(),
+            method as 'pix' | 'dinheiro' | 'transf' | 'ajuste'
+        );
+
+        // Se for transaction de jogo, marcar jogador como pago no roster
+        if (transaction.gameId && transaction.userId) {
+            try {
+                const game = await this.gameService.getGameById(transaction.gameId.toString());
+
+                if (game) {
+                    const transactionUserId = transaction.userId.toString();
+
+                    // Encontrar o slot do jogador no roster
+                    // Para jogadores normais: transaction.userId = player.userId
+                    // Para convidados: transaction.userId = player.invitedByUserId (quem convidou paga)
+                    const player = game.roster.players.find(p => {
+                        const playerUserId = p.userId?.toString();
+                        const invitedBy = p.invitedByUserId?.toString();
+
+                        return playerUserId === transactionUserId || invitedBy === transactionUserId;
+                    });
+
+                    if (player && typeof player.slot === 'number') {
+                        await this.gameService.markAsPaid(
+                            game._id,
+                            player.slot,
+                            { method: method as 'pix' | 'dinheiro' | 'transf' | 'ajuste' }
+                        );
+                    } else {
+                        // Player not found in roster
+                    }
+                } else {
+                    // Game not found
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar roster do jogo:', error);
+                // Não falha a operação se não conseguir atualizar o roster
+            }
+        }
+
         res.json({
             success: true,
-            message: 'Pagamento registrado (Mock)'
+            message: 'Pagamento registrado com sucesso'
         });
+    });
+
+    /**
+     * POST /api/transactions
+     * Cria uma nova transação (receita ou despesa)
+     */
+    create = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const { workspaceId, userId, amount, type, category, description, dueDate, method, status } = req.body;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Workspace ID é obrigatório'
+            });
+        }
+
+        const transaction = await this.financialService.createManualTransaction({
+            workspaceId,
+            userId, // Optional
+            amount, // Expected in CENTS
+            type,
+            category,
+            description,
+            dueDate: dueDate ? new Date(dueDate) : undefined,
+            method,
+            status
+        });
+
+        res.status(201).json(transaction);
     });
 }

@@ -271,6 +271,7 @@ router.post('/', requireAdmin, controller.createBBQ);
  *         description: Sem permissão de admin
  */
 router.put('/:id', requireAdmin, controller.updateBBQ);
+router.patch('/:id', requireAdmin, controller.updateBBQ);
 
 /**
  * @swagger

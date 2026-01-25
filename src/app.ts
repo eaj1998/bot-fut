@@ -71,6 +71,7 @@ export class App {
 
       const isAdmin = await this.authService.isAdmin(message);
 
+
       if (handler.role === IRole.ADMIN && !isAdmin) {
         return;
       }

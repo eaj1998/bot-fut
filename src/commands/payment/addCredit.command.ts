@@ -4,7 +4,8 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
 import { Message } from "whatsapp-web.js";
 import { UserRepository } from "../../core/repositories/user.repository";
-import { DebtsService, DEBTS_SERVICE_TOKEN } from "../../services/debts.service";
+import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from "../../core/repositories/transaction.repository";
+import { TransactionType, TransactionCategory, TransactionStatus } from "../../core/models/transaction.model";
 import { LoggerService } from "../../logger/logger.service";
 import Utils from "../../utils/utils";
 import { OrganizzeService } from "../../services/organizze.service";
@@ -18,7 +19,7 @@ export class AddCreditCommand implements Command {
         @inject(LoggerService) private readonly loggerService: LoggerService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
-        @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
+        @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
         @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
 
@@ -48,12 +49,17 @@ export class AddCreditCommand implements Command {
 
             if (amountCents != null && amountCents > 0) {
                 try {
-                    await this.debtsService.createDebt({
-                        playerId: user._id.toString(),
+                    await this.transactionRepo.createTransaction({
                         workspaceId: workspace._id.toString(),
-                        amount: -(amountCents / 100),
-                        notes: "Crédito adicionado via grupo",
-                        category: "general"
+                        userId: user._id.toString(),
+                        type: TransactionType.INCOME,
+                        category: TransactionCategory.OTHER,
+                        status: TransactionStatus.COMPLETED,
+                        amount: amountCents,
+                        description: "Crédito adicionado via grupo",
+                        dueDate: new Date(),
+                        paidAt: new Date(),
+                        method: "pix" // Default or could be inferred
                     });
 
                     const organizzeResult = await this.organizzeService.createTransaction({
@@ -64,9 +70,9 @@ export class AddCreditCommand implements Command {
                     });
 
                     if (organizzeResult.added) {
-                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado com sucesso no ledger e Organizze!`);
+                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado com sucesso em Transações e Organizze!`);
                     } else {
-                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
+                        message.reply(`Credito de ${Utils.formatCentsToReal(amountCents)} adicionado em Transações. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
                     }
 
                 } catch (e: any) {

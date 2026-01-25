@@ -26,6 +26,7 @@ interface AdminMembershipListResponse {
     summary: {
         totalActive: number;
         totalSuspended: number;
+        totalPending: number;
         mrr: number; // Monthly Recurring Revenue in cents
     };
     pagination: {
@@ -41,19 +42,22 @@ interface ManualPaymentInput {
     description?: string;
 }
 
+import { Model } from 'mongoose';
+import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
+
 @injectable()
 export class MembershipService {
     constructor(
         @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
-        @inject(USER_REPOSITORY_TOKEN) private readonly userRepo: UserRepository
+        @inject(USER_REPOSITORY_TOKEN) private readonly userRepo: UserRepository,
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
     ) { }
 
     /**
      * Lista todas as memberships para admin (paginado)
      */
-    async getAdminList(workspaceId: string, page: number = 1, limit: number = 20, filter?: string): Promise<AdminMembershipListResponse> {
-        // Determinar status filter
+    async getAdminList(workspaceId: string, page: number = 1, limit: number = 20, filter?: string, search?: string): Promise<AdminMembershipListResponse> {
         let statusFilter: MembershipStatus | undefined;
 
         switch (filter) {
@@ -66,24 +70,22 @@ export class MembershipService {
             case 'cancelled':
                 statusFilter = MembershipStatus.INACTIVE;
                 break;
-            case 'all':
-            default:
+            case 'all': default:
                 statusFilter = undefined;
         }
 
-        // Buscar memberships
-        const memberships = await this.membershipRepo.findByWorkspace(workspaceId, statusFilter);
+        const { memberships, total } = await this.membershipRepo.findByWorkspace(workspaceId, statusFilter, search, page, limit);
 
-        // Calcular summary
+        const allMemberships = await this.membershipRepo.findByWorkspace(workspaceId, undefined, undefined, 1, 1000); // Limit 1000 para stats aproximados
         const summary = {
-            totalActive: memberships.filter(m => m.status === MembershipStatus.ACTIVE).length,
-            totalSuspended: memberships.filter(m => m.status === MembershipStatus.SUSPENDED).length,
-            mrr: memberships
-                .filter(m => m.status === MembershipStatus.ACTIVE)
-                .reduce((sum, m) => sum + m.planValue, 0)
+            totalActive: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.ACTIVE).length,
+            totalSuspended: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.SUSPENDED).length,
+            totalPending: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.PENDING).length,
+            mrr: allMemberships.memberships
+                .filter((m: any) => m.status === MembershipStatus.ACTIVE)
+                .reduce((sum: number, m: any) => sum + (m.planValue || 0), 0)
         };
 
-        // Mapear para response format
         const mappedMemberships: AdminMembershipListItem[] = memberships.map(m => ({
             id: m._id.toString(),
             user: {
@@ -93,24 +95,19 @@ export class MembershipService {
             },
             status: m.status,
             planValue: m.planValue / 100, // converter para reais
-            billingDay: 10, // TODO: adicionar ao model
+            billingDay: 10,
             nextDueDate: m.nextDueDate,
-            lastPaymentDate: undefined, // TODO: buscar da última transaction
+            lastPaymentDate: undefined,
             startDate: m.startDate
         }));
 
-        // Aplicar paginação
-        const start = (page - 1) * limit;
-        const end = start + limit;
-        const paginatedMemberships = mappedMemberships.slice(start, end);
-
         return {
-            memberships: paginatedMemberships,
+            memberships: mappedMemberships,
             summary,
             pagination: {
                 page,
                 limit,
-                total: mappedMemberships.length
+                total
             }
         };
     }
@@ -151,28 +148,96 @@ export class MembershipService {
             throw new ApiError(404, 'Membership não encontrado');
         }
 
-        // Criar Transaction tipo INCOME, categoria MEMBERSHIP, status COMPLETED
-        const amountCents = Math.round(input.amount * 100);
+        const paidAmountCents = Math.round(input.amount * 100);
 
-        const transaction = await this.transactionRepo.createTransaction({
-            workspaceId: membership.workspaceId.toString(),
-            userId: membership.userId.toString(),
-            membershipId: membership._id.toString(),
-            type: TransactionType.INCOME,
-            category: TransactionCategory.MEMBERSHIP,
-            status: TransactionStatus.COMPLETED,
-            amount: amountCents,
-            dueDate: new Date(),
-            paidAt: new Date(),
-            description: input.description || `Pagamento manual de mensalidade - ${input.method}`,
-            method: input.method
-        });
+        const membershipTransactions = await this.transactionRepo.findByMembershipId(membershipId);
 
-        // Reativar membership se estava SUSPENDED
-        if (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING) {
+        const pendingTransaction = membershipTransactions.find((t: any) => t.status === TransactionStatus.PENDING);
+
+        let transaction;
+        let shouldActivate = false;
+
+        if (pendingTransaction) {
+            const pendingAmount = pendingTransaction.amount;
+
+            if (paidAmountCents >= pendingAmount) {
+                transaction = await this.transactionRepo.updateTransaction(pendingTransaction._id.toString(), {
+                    status: TransactionStatus.COMPLETED,
+                    paidAt: new Date(),
+                    method: input.method,
+                    description: input.description || pendingTransaction.description || `Pagamento manual de mensalidade - ${input.method}`
+                });
+                shouldActivate = true;
+            } else {
+                // Pagamento Parcial (< dívida)
+                // 1. Criar transação separada para o valor PAGO (Receita que entrou)
+                transaction = await this.transactionRepo.createTransaction({
+                    workspaceId: membership.workspaceId.toString(),
+                    userId: membership.userId.toString(),
+                    membershipId: membership._id.toString(),
+                    type: TransactionType.INCOME,
+                    category: TransactionCategory.MEMBERSHIP,
+                    status: TransactionStatus.COMPLETED, // Dinheiro entrou
+                    amount: paidAmountCents,
+                    dueDate: new Date(),
+                    paidAt: new Date(),
+                    description: (input.description || `Pagamento parcial - ${input.method}`) + ` (Abatido da dívida)`,
+                    method: input.method
+                });
+
+                const remainingAmount = pendingAmount - paidAmountCents;
+                await this.transactionRepo.updateTransaction(pendingTransaction._id.toString(), {
+                    amount: remainingAmount,
+                    description: (pendingTransaction.description || 'Mensalidade') + ' (Restante após parcial)'
+                });
+
+                shouldActivate = false;
+            }
+        } else {
+            const planValue = membership.planValue;
+
+            transaction = await this.transactionRepo.createTransaction({
+                workspaceId: membership.workspaceId.toString(),
+                userId: membership.userId.toString(),
+                membershipId: membership._id.toString(),
+                type: TransactionType.INCOME,
+                category: TransactionCategory.MEMBERSHIP,
+                status: TransactionStatus.COMPLETED,
+                amount: paidAmountCents,
+                dueDate: new Date(),
+                paidAt: new Date(),
+                description: input.description || `Pagamento manual de mensalidade - ${input.method}`,
+                method: input.method
+            });
+
+            if (paidAmountCents >= planValue) {
+                shouldActivate = true;
+            } else {
+                if (membership.status !== MembershipStatus.ACTIVE) {
+                    const remaining = planValue - paidAmountCents;
+                    if (remaining > 0) {
+                        await this.transactionRepo.createTransaction({
+                            workspaceId: membership.workspaceId.toString(),
+                            userId: membership.userId.toString(),
+                            membershipId: membership._id.toString(),
+                            type: TransactionType.INCOME,
+                            category: TransactionCategory.MEMBERSHIP,
+                            status: TransactionStatus.PENDING,
+                            amount: remaining,
+                            dueDate: new Date(),
+                            description: `Restante da mensalidade (Parcial pago)`
+                        });
+                    }
+                    shouldActivate = false;
+                } else {
+                    shouldActivate = true;
+                }
+            }
+        }
+
+        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING)) {
             await this.membershipRepo.reactivateMembership(membershipId);
 
-            // Calcular próxima data de vencimento
             const nextDueDate = MembershipRepository.calculateNextDueDate();
             await this.membershipRepo.updateNextDueDate(membershipId, nextDueDate);
         }
@@ -201,24 +266,53 @@ export class MembershipService {
             throw new ApiError(500, 'Erro ao suspender membership');
         }
 
-        // TODO: Registrar motivo em notes ou criar log
         if (reason) {
+            const timestamp = new Date().toLocaleString('pt-BR');
+            const newNote = `[${timestamp}] Suspenso: ${reason}`;
+            const updatedNotes = membership.notes
+                ? `${membership.notes}\n${newNote}`
+                : newNote;
+
             await this.membershipRepo.updateMembership(membershipId, {
-                notes: `Suspenso: ${reason}`
+                notes: updatedNotes
             });
         }
 
         return updated;
     }
 
+    async findById(id: string): Promise<IMembership | null> {
+        return this.membershipRepo.findById(id);
+    }
+
     /**
      * Cancelar membership
      */
-    async cancelMembership(membershipId: string, immediate: boolean = false): Promise<IMembership> {
+    async cancelMembership(membershipId: string, immediate: boolean = false, requesterId?: string, requesterRole?: string): Promise<IMembership> {
         const membership = await this.membershipRepo.findById(membershipId);
 
         if (!membership) {
             throw new ApiError(404, 'Membership não encontrado');
+        }
+
+        if (requesterId) {
+            const isGlobalAdmin = requesterRole === 'admin';
+            const isOwner = membership.userId.toString() === requesterId;
+
+            if (!isGlobalAdmin && !isOwner) {
+                // Check if requester is Workspace Admin
+                const member = await this.workspaceMemberModel.findOne({
+                    workspaceId: membership.workspaceId,
+                    userId: requesterId,
+                    status: 'ACTIVE'
+                });
+
+                const isWorkspaceAdmin = member?.roles?.some(r => ['admin', 'owner'].includes(r.toLowerCase()));
+
+                if (!isWorkspaceAdmin) {
+                    throw new ApiError(403, 'Você não tem permissão para cancelar esta assinatura');
+                }
+            }
         }
 
         const updated = await this.membershipRepo.cancelMembership(membershipId, immediate);
@@ -234,14 +328,33 @@ export class MembershipService {
      * Criar membership (admin ou user)
      */
     async createMembership(input: CreateMembershipInput): Promise<IMembership> {
-        // Verificar se já existe membership ativo para este usuário/workspace
         const existing = await this.membershipRepo.findByUserId(input.userId, input.workspaceId);
 
         if (existing && existing.status !== MembershipStatus.INACTIVE) {
             throw new ApiError(400, 'Usuário já possui uma assinatura ativa');
         }
 
-        return this.membershipRepo.createMembership(input);
+        const user = await this.userRepo.findById(input.userId);
+
+        const membership = await this.membershipRepo.createMembership(input);
+
+        if (input.planValue > 0) {
+            await this.transactionRepo.createTransaction({
+                workspaceId: input.workspaceId,
+                userId: input.userId,
+                membershipId: membership._id.toString(),
+                type: TransactionType.INCOME,
+                category: TransactionCategory.MEMBERSHIP,
+                status: TransactionStatus.PENDING,
+                amount: input.planValue,
+                dueDate: new Date(), // Pay immediately
+                paidAt: undefined,
+                description: `Mensalidade Inicial de ${user?.name ?? input.userId}`,
+                method: undefined
+            });
+        }
+
+        return membership;
     }
 
     /**

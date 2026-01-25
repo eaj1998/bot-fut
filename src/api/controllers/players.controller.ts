@@ -45,13 +45,19 @@ export class PlayersController {
     createPlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data: CreatePlayerDto = req.body;
+
+            // WorkspaceId deve vir no body do request
+            if (!data.workspaceId) {
+                return next(new ApiError(400, 'Workspace ID é obrigatório'));
+            }
+
             const player = await this.playersService.createPlayer(data);
             res.status(201).json(player);
         } catch (error) {
             if (error instanceof Error) {
-                if (error.message.includes('Já existe')) {
+                if (error.message.includes('Já existe') || error.message.includes('já cadastrado')) {
                     next(new ApiError(409, error.message));
-                } else if (error.message.includes('obrigatório')) {
+                } else if (error.message.includes('obrigatório') || error.message.includes('inválido')) {
                     next(new ApiError(400, error.message));
                 } else {
                     next(error);

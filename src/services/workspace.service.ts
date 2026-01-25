@@ -60,8 +60,13 @@ export class WorkspaceService {
             throw new Error('Access denied: User is not a member of this workspace');
         }
 
-        if (requiredRoles && !member.roles.some(r => requiredRoles.includes(r))) {
-            throw new Error('Access denied: Insufficient permissions');
+        if (requiredRoles && requiredRoles.length > 0) {
+            const memberRoles = member.roles.map(r => r.toUpperCase());
+            const required = requiredRoles.map(r => r.toUpperCase());
+
+            if (!memberRoles.some(r => required.includes(r))) {
+                throw new Error('Access denied: Insufficient permissions');
+            }
         }
     }
 
@@ -96,6 +101,10 @@ export class WorkspaceService {
                 commandsEnabled: workspace.settings?.commandsEnabled || [],
                 pix: workspace.settings?.pix,
                 title: workspace.settings?.title,
+                logoUrl: workspace.settings?.logoUrl,
+                courtCostCents: workspace.settings?.courtCostCents || 0,
+                refereeCostCents: workspace.settings?.refereeCostCents || 0,
+                monthlyFeeCents: workspace.settings?.monthlyFeeCents || 0,
             },
             organizzeConfig: workspace.organizzeConfig ? {
                 email: workspace.organizzeConfig.email ?

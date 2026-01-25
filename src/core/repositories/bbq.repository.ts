@@ -31,7 +31,11 @@ export class BBQRepository {
       date: date,
       createdAt: new Date(),
       participants: [],
-      valuePerPerson: null
+      financials: {
+        meatCost: 0,
+        cookCost: 0,
+        ticketPrice: 0
+      }
     });
 
     return bbq.save();
@@ -62,10 +66,24 @@ export class BBQRepository {
     ).exec();
   }
 
-  async setValue(bbqId: string, value: number): Promise<IBBQ | null> {
+  /**
+   * Encontra BBQs onde o usuário participou em um determinado intervalo de datas.
+   * Usado para verificar a regra de "1 grátis por mês".
+   */
+  async findByParticipant(workspaceId: string, userId: string, startDate: Date, endDate: Date): Promise<IBBQ[]> {
+    return this.model.find({
+      workspaceId,
+      status: { $in: ['closed', 'finished'] },
+      date: { $gte: startDate, $lte: endDate },
+      'participants.userId': userId,
+      'participants.isFree': true
+    }).exec();
+  }
+
+  async setFinancials(bbqId: string, financials: { meatCost: number, cookCost: number, ticketPrice: number }): Promise<IBBQ | null> {
     return this.model.findByIdAndUpdate(
       bbqId,
-      { valuePerPerson: value },
+      { financials },
       { new: true }
     ).exec();
   }

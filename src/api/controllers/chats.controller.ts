@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { ChatService, CHATS_SERVICE_TOKEN } from '../../services/chat.service';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 @injectable()
 export class ChatsController {
@@ -9,12 +10,23 @@ export class ChatsController {
     ) { }
 
     /**
-     * Lista todos os chats
+     * Lista todos os chats do workspace
      */
-    listChats = async (req: Request, res: Response) => {
+    listChats = async (req: AuthRequest, res: Response) => {
         try {
+            // Enforce workspaceId from header or query, prioritizing header for security context
+            const workspaceId = req.headers['x-workspace-id'] as string || req.query.workspaceId as string;
+
+            if (!workspaceId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Workspace ID é obrigatório (header x-workspace-id)',
+                    statusCode: 400,
+                });
+            }
+
             const filters = {
-                workspaceId: req.query.workspaceId as string,
+                workspaceId,
                 status: req.query.status as any,
                 search: req.query.search as string,
                 page: req.query.page ? parseInt(req.query.page as string) : undefined,

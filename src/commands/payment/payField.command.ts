@@ -1,9 +1,9 @@
 import { inject, injectable } from "tsyringe";
 import { Command, IRole } from "../type";
-import { BOT_CLIENT_TOKEN, IBotServerPort } from "../../server/type";
 import { WorkspaceService } from "../../services/workspace.service";
 import { GameRepository } from "../../core/repositories/game.respository";
-import { LedgerRepository } from "../../core/repositories/ledger.repository";
+import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from "../../core/repositories/transaction.repository";
+import { TransactionType, TransactionCategory, TransactionStatus } from "../../core/models/transaction.model";
 import { Message } from "whatsapp-web.js";
 import Utils from "../../utils/utils";
 import { buildUtcCalendarDay } from "../../utils/date";
@@ -25,7 +25,7 @@ export class PayFieldCommand implements Command {
     constructor(
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(GameRepository) private readonly gameRepo: GameRepository,
-        @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
         @inject(LoggerService) private readonly logService: LoggerService,
         @inject(OrganizzeService) private readonly organizzeService: OrganizzeService,
     ) { }
@@ -70,14 +70,17 @@ export class PayFieldCommand implements Command {
         }
 
         try {
-            await this.ledgerRepo.addDebit({
-                workspaceId: ws._id.toString(), userId: "",
-                amountCents: cents,
+            await this.transactionRepo.createTransaction({
+                workspaceId: ws._id.toString(),
+                type: TransactionType.EXPENSE,
+                category: TransactionCategory.FIELD_RENTAL,
+                status: TransactionStatus.COMPLETED,
+                amount: cents,
                 gameId: game._id.toString(),
-                note: `Pagamento ao campo do jogo ${rawDate} (${game.title ?? "Jogo"})`,
-                category: "field-payment",
-
-
+                description: `Pagamento ao campo do jogo ${rawDate} (${game.title ?? "Jogo"})`,
+                dueDate: new Date(),
+                paidAt: new Date(),
+                method: "pix" // Defaulting to pix for simplicity, could parse arg
             });
 
             // Create Organizze transaction
@@ -89,19 +92,15 @@ export class PayFieldCommand implements Command {
             });
 
             if (organizzeResult.added) {
-                await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}) no ledger e Organizze.`);
+                await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}) em Transações e Organizze.`);
             } else {
-                await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}) no ledger. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
+                await message.reply(`Ok! Registrado pagamento ao campo de ${Utils.formatCentsToReal(cents)} (${rawDate}) em Transações. ⚠️ Organizze: ${organizzeResult.error || "falha"}.`);
             }
 
         } catch (e) {
-            this.logService.log(`Ocorreu um erro ao registrar debito do jogo: `, e);
-            await message.reply(`Não foi possível registrar o debito, tente novamente mais tarde`);
+            this.logService.log(`Ocorreu um erro ao registrar pagamento do campo: `, e);
+            await message.reply(`Não foi possível registrar o pagamento, tente novamente mais tarde`);
         }
-
-
-
-
     }
 }
 

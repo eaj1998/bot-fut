@@ -39,14 +39,12 @@ export class HttpServer extends IBotServerPort {
   // }
 
   async sendMessage(chatId: string, message: string): Promise<any> {
-    console.log(`[HTTP Mock] Sending message to ${chatId}: ${message}`);
-    if(this.socket)
+    if (this.socket)
       this.socket.emit('message', { chat: chatId, message });
     return Promise.resolve({ id: 'mock-message-id', body: message });
   }
 
   async getContactById(contactId: string): Promise<any> {
-    console.log(`[HTTP Mock] Getting contact: ${contactId}`);
     return Promise.resolve({
       id: contactId,
       name: 'Mock Contact',
@@ -55,7 +53,6 @@ export class HttpServer extends IBotServerPort {
   }
 
   private async dispatchAsyncMessage(input: string, user: any) {
-    console.log(`Received message from ${user.name} - ${user.groupId}: ${input}`);
 
     try {
       if (!this.events.message) return;

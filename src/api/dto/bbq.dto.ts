@@ -18,9 +18,9 @@ export class CreateBBQDto {
     @IsOptional()
     date?: string;
 
-    @IsNumber()
+    @IsString()
     @IsOptional()
-    valuePerPerson?: number;
+    description?: string;
 }
 
 export class UpdateBBQDto {
@@ -28,9 +28,16 @@ export class UpdateBBQDto {
     @IsOptional()
     date?: string;
 
-    @IsNumber()
+    @IsString()
     @IsOptional()
-    valuePerPerson?: number;
+    description?: string;
+
+    @IsOptional()
+    financials?: {
+        meatCost?: number;
+        cookCost?: number;
+        ticketPrice?: number;
+    };
 
     @IsEnum(BBQStatus)
     @IsOptional()
@@ -49,20 +56,27 @@ export class BBQParticipantDto {
     invitedByName?: string | null;
     isPaid!: boolean;
     isGuest!: boolean;
+    isFree!: boolean;
     debtId?: string;
+    transactionId?: string;
 }
 
 export class BBQResponseDto {
     id!: string;
     chatId!: string;
     workspaceId!: string;
+    description?: string;
     status!: BBQStatus;
     date!: string;
     createdAt!: string;
     closedAt?: string;
     finishedAt?: string;
     participants!: BBQParticipantDto[];
-    valuePerPerson!: number | null;
+    financials!: {
+        meatCost: number;
+        cookCost: number;
+        ticketPrice: number;
+    };
     participantCount!: number;
 }
 

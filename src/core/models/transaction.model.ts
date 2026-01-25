@@ -10,7 +10,10 @@ export enum TransactionCategory {
     GAME_FEE = "GAME_FEE",
     FIELD_RENTAL = "FIELD_RENTAL",
     REFEREE = "REFEREE",
-    OTHER = "OTHER"
+    OTHER = "OTHER",
+    EQUIPMENT = "EQUIPMENT",
+    BBQ_REVENUE = "BBQ_REVENUE",
+    BBQ_COST = "BBQ_COST"
 }
 
 export enum TransactionStatus {

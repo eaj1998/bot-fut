@@ -12,6 +12,10 @@ export interface CreateWorkspaceDto {
         commandsEnabled?: string[];
         pix?: string;
         title?: string;
+        logoUrl?: string;
+        courtCostCents?: number;
+        refereeCostCents?: number;
+        monthlyFeeCents?: number;
     };
 }
 
@@ -25,6 +29,10 @@ export interface UpdateWorkspaceDto {
         commandsEnabled?: string[];
         pix?: string;
         title?: string;
+        logoUrl?: string;
+        courtCostCents?: number;
+        refereeCostCents?: number;
+        monthlyFeeCents?: number;
     };
 }
 
@@ -45,6 +53,10 @@ export interface WorkspaceResponseDto {
         commandsEnabled: string[];
         pix?: string;
         title?: string;
+        logoUrl?: string;
+        courtCostCents?: number;
+        refereeCostCents?: number;
+        monthlyFeeCents?: number;
     };
     organizzeConfig?: {
         email: string;

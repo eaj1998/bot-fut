@@ -9,6 +9,9 @@ export interface IUser extends Document {
     isGoalie: boolean;
     role?: 'admin' | 'user';
     status?: 'active' | 'inactive';
+    position?: 'GOALKEEPER' | 'DEFENDER' | 'MIDFIELDER' | 'STRIKER';
+    playerType?: 'MENSALISTA' | 'AVULSO';
+    stars?: number; // 1-5 technical rating
     /** @deprecated Use WorkspaceMember instead */
     workspaceId?: Types.ObjectId;
     lastAccessedWorkspaceId?: Types.ObjectId;
@@ -24,6 +27,9 @@ const UserSchema = new Schema({
     nick: String,
     isGoalie: { type: Boolean, default: false },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    position: { type: String, enum: ['GOALKEEPER', 'DEFENDER', 'MIDFIELDER', 'STRIKER'] },
+    playerType: { type: String, enum: ['MENSALISTA', 'AVULSO'] },
+    stars: { type: Number, min: 1, max: 5 },
     workspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace' }, // Deprecated
     lastAccessedWorkspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace' },
 }, { timestamps: true });

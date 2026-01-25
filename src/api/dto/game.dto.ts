@@ -85,6 +85,7 @@ export class GameResponseDto {
   status!: GameStatus;
   createdAt!: string;
   workspaceId?: string;
+  players?: PlayerInGameDto[];
 }
 
 export class PlayerInGameDto {

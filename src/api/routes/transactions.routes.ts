@@ -13,6 +13,22 @@ router.use(authenticate);
 // Retorna o saldo do usuário (Total Pending) e histórico de transações pendentes/vencidas
 router.get('/balance', controller.getMyBalance);
 
+// GET /api/transactions/stats
+// Retorna estatísticas financeiras do workspace (Revenue, Expenses, Balance, Pending)
+router.get('/stats', controller.getStats);
+
+// GET /api/transactions/chart
+// Retorna dados agregados para gráficos (receitas vs despesas por dia)
+router.get('/chart', controller.getChartData);
+
+// GET /api/transactions
+// Retorna todas as transações (para admin)
+router.get('/', controller.getAll);
+
+// POST /api/transactions
+// Cria uma nova transação (receita ou despesa)
+router.post('/', controller.create);
+
 // GET /api/transactions/my
 // Retorna lista de transações (filtros e paginação podem ser implementados no futuro)
 router.get('/my', controller.getMyTransactions);

@@ -36,7 +36,12 @@ export class PriceBBQCommand implements Command {
             return;
         }
 
-        const result = await this.bbqService.setBBQValue(workspace._id.toString(), chatId, value);
+        const bbq = await this.bbqService.getOrCreateBBQForGameDay(workspace._id.toString(), chatId);
+
+        const currentFinancials = bbq.financials || { meatCost: 0, cookCost: 0, ticketPrice: 0 };
+        const newFinancials = { ...currentFinancials, ticketPrice: value };
+
+        const result = await this.bbqService.setFinancials(workspace._id.toString(), chatId, newFinancials);
         await message.reply(result.message);
     }
 }

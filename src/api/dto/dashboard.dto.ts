@@ -6,23 +6,20 @@
  * DTO de resposta do Dashboard
  */
 export interface DashboardStatsDto {
-    totalPlayers: number;
-    activePlayers: number;
-    inactivePlayers: number;
+    // Financeiro
+    totalRevenue: number;        // Total Recebido (Transactions INCOME + COMPLETED)
+    totalExpenses: number;       // Total Gasto (Transactions EXPENSE + COMPLETED)
+    netBalance: number;          // Revenue - Expenses
+    pendingRevenue: number;      // A Receber (Transactions INCOME + PENDING/OVERDUE)
+
+    // Membros
+    totalMembers: number;
+    activeMembers: number;       // Status ACTIVE
+    suspendedMembers: number;    // Status SUSPENDED (Inadimplentes)
+
+    // Operacional
     totalGames: number;
-    upcomingGames: number;
-    completedGames: number;
-    totalDebt: number;           // Em centavos
-    totalPending: number;
-    totalOverdue: number;
-    paidThisMonth: number;       // Em centavos
-    revenue: number;             // Em centavos
-    balance: number;             // Em centavos (créditos - débitos)
-    receivables: number;         // Em centavos (débitos pendentes)
-    revenueGrowth: number;       // Percentual
-    totalWorkspaces: number;
-    activeWorkspaces: number;
-    totalChats: number;
+    nextGameDate: Date | string | null;
 }
 
 /**
@@ -47,6 +44,7 @@ export interface RecentDebt {
     amount: number;              // Em centavos
     status: string;
     createdAt: string;
+    description?: string;
 }
 
 /**

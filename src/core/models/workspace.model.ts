@@ -11,6 +11,10 @@ export interface WorkspaceDoc extends Document {
         commandsEnabled: string[];
         pix?: string;
         title?: string;
+        logoUrl?: string;
+        courtCostCents?: number;
+        refereeCostCents?: number;
+        monthlyFeeCents?: number;
     };
     organizzeConfig?: {
         email: string;           // Encrypted
@@ -35,6 +39,10 @@ const WorkspaceSchema = new Schema({
         commandsEnabled: { type: [String], default: ["/lista", "/entrar", "/sair", "/pagar", "/devedores"] },
         pix: { type: String },
         title: { type: String },
+        logoUrl: { type: String },
+        courtCostCents: { type: Number, default: 0 },
+        refereeCostCents: { type: Number, default: 0 },
+        monthlyFeeCents: { type: Number, default: 0 },
         default: { type: Object, default: {} }
     },
     organizzeConfig: {

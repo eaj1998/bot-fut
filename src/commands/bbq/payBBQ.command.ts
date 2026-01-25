@@ -4,7 +4,9 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { WorkspaceService } from '../../services/workspace.service';
 import { UserRepository } from '../../core/repositories/user.repository';
-import { LedgerRepository } from '../../core/repositories/ledger.repository';
+
+import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from '../../core/repositories/transaction.repository';
+import { TransactionStatus, TransactionCategory, TransactionType } from '../../core/models/transaction.model';
 import { WorkspaceRepository } from '../../core/repositories/workspace.repository';
 import { LoggerService } from '../../logger/logger.service';
 import Utils from '../../utils/utils';
@@ -19,7 +21,7 @@ export class PayBBQCommand implements Command {
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
-        @inject(LedgerRepository) private readonly ledgerRepo: LedgerRepository,
+        @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
         @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
         @inject(LoggerService) private readonly loggerService: LoggerService,
         @inject(Utils) private util: Utils
@@ -69,61 +71,27 @@ export class PayBBQCommand implements Command {
         }
         const date = dateResult.start;
 
-        const debt = await this.ledgerRepo.findPendingBBQDebtByUserAndDate(
-            workspace._id.toString(),
-            user._id.toString(),
-            date
-        );
+        // 1. Try to find debt in Transactions (Primary System)
+        // We need a method to find by user and date/category
+        const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
 
-        if (!debt) {
-            await message.reply("❌ Nenhum débito de churrasco pendente encontrado para este usuário nesta data");
+        const transactions = await this.transactionRepo['model'].find({
+            workspaceId: workspace._id,
+            userId: user._id,
+            type: TransactionType.INCOME,
+            category: TransactionCategory.BBQ_REVENUE,
+            status: TransactionStatus.PENDING,
+            dueDate: { $gte: startOfDay, $lte: endOfDay }
+        });
+
+        if (transactions.length > 0) {
+            const tx = transactions[0];
+            await this.transactionRepo.markAsPaid(tx._id.toString(), new Date(), 'pix');
+            await message.reply(`✅ Pagamento confirmado para ${user.name} (Transaction ID: ${tx._id})`);
             return;
         }
 
-        if (debt.status === "confirmado") {
-            await message.reply("⚠️ Este débito já foi confirmado");
-            return;
-        }
-
-        try {
-            await this.ledgerRepo.confirmDebit(debt._id.toString());
-
-            const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
-            await this.ledgerRepo.addCredit({
-                workspaceId: workspace._id.toString(),
-                userId: user._id.toString(),
-                amountCents: debt.amountCents || 0,
-                method: "pix",
-                note: `Pagamento de churrasco - ${user.name} - ${dateStr}`,
-                category: "player-payment",
-            });
-
-            if (debt.organizzeId) {
-                const organizzeConfig = await this.workspaceRepo.getDecryptedOrganizzeConfig(workspace._id.toString());
-
-                if (organizzeConfig?.email && organizzeConfig?.apiKey) {
-                    try {
-                        await axios.put(
-                            `https://api.organizze.com.br/rest/v2/transactions/${debt.organizzeId}`,
-                            { paid: true },
-                            {
-                                auth: {
-                                    username: organizzeConfig.email,
-                                    password: organizzeConfig.apiKey
-                                }
-                            }
-                        );
-                    } catch (error: any) {
-                        this.loggerService.log(`[ORGANIZZE] Failed to update BBQ transaction: ${error?.message}`);
-                    }
-                }
-            }
-
-            await message.reply(`✅ Pagamento de churrasco confirmado para ${user.name} (${dateStr})`);
-
-        } catch (error: any) {
-            this.loggerService.log(`[PAY-BBQ] Error confirming payment: ${error?.message}`);
-            await message.reply(`❌ Erro ao processar pagamento: ${error?.message || 'Erro desconhecido'}`);
-        }
+        await message.reply("❌ Nenhum débito de churrasco pendente encontrado para este usuário nesta data");
     }
 }

@@ -1,104 +1,178 @@
 import { injectable, inject } from 'tsyringe';
-import { PlayersService, PLAYERS_SERVICE_TOKEN } from './players.service';
+import { Model, Types } from 'mongoose';
 import { GameService } from './game.service';
-import { DebtsService, DEBTS_SERVICE_TOKEN } from './debts.service';
-import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from './workspace.service';
-import { ChatService, CHATS_SERVICE_TOKEN } from './chat.service';
-import { LedgerRepository, LEDGER_REPOSITORY_TOKEN } from '../core/repositories/ledger.repository';
 import {
-    DashboardResponseDto,
     DashboardStatsDto,
+    DashboardResponseDto,
     RecentGame,
     RecentDebt,
-    MonthlyRevenue,
+    MonthlyRevenue
 } from '../api/dto/dashboard.dto';
+import {
+    TRANSACTION_MODEL_TOKEN,
+    ITransaction,
+    TransactionType,
+    TransactionStatus
+} from '../core/models/transaction.model';
+import {
+    MEMBERSHIP_MODEL_TOKEN,
+    IMembership,
+    MembershipStatus
+} from '../core/models/membership.model';
+import { GAME_MODEL_TOKEN, IGame } from '../core/models/game.model';
 
 @injectable()
 export class DashboardService {
     constructor(
-        @inject(PLAYERS_SERVICE_TOKEN) private readonly playersService: PlayersService,
-        @inject(GameService) private readonly gameService: GameService,
-        @inject(DEBTS_SERVICE_TOKEN) private readonly debtsService: DebtsService,
-        @inject(WORKSPACES_SERVICE_TOKEN) private readonly workspaceService: WorkspaceService,
-        @inject(CHATS_SERVICE_TOKEN) private readonly chatService: ChatService,
-        @inject(LEDGER_REPOSITORY_TOKEN) private readonly ledgerRepository: LedgerRepository
+        @inject(TRANSACTION_MODEL_TOKEN) private readonly transactionModel: Model<ITransaction>,
+        @inject(MEMBERSHIP_MODEL_TOKEN) private readonly membershipModel: Model<IMembership>,
+        @inject(GAME_MODEL_TOKEN) private readonly gameModel: Model<IGame>,
+        @inject(GameService) private readonly gameService: GameService
     ) { }
 
     /**
-     * Obtém estatísticas completas do dashboard
+     * Obtém estatísticas completas do dashboard para um workspace
      */
-    async getDashboardStats(workspaceId?: string): Promise<DashboardResponseDto> {
-        const [
-            playersStats,
-            gamesStats,
-            debtsStats,
-            workspacesStats,
-            chatsStats,
-            balance,
-            recentGames,
-            recentDebts,
-            monthlyRevenue,
-            revenueGrowth,
-        ] = await Promise.all([
-            this.playersService.getStats(),
-            this.gameService.getStats(),
-            this.debtsService.getStats(workspaceId),
-            this.workspaceService.getStats(),
-            this.chatService.getStats(),
-            workspaceId ? this.ledgerRepository.sumWorkspaceCashbox(workspaceId) : Promise.resolve(0),
-            this.getRecentGames(5, workspaceId),
-            this.getRecentDebts(5, workspaceId),
-            this.getMonthlyRevenue(6, workspaceId),
-            this.calculateRevenueGrowth(workspaceId),
+    async getStats(workspaceId: string): Promise<DashboardStatsDto> {
+        if (!workspaceId) {
+            throw new Error('Workspace ID is required for dashboard stats');
+        }
+
+        const wsId = new Types.ObjectId(workspaceId);
+
+        const [financeStats, memberStats, gameStats] = await Promise.all([
+            this.calculateFinanceStats(wsId),
+            this.calculateMemberStats(wsId),
+            this.calculateGameStats(wsId)
         ]);
 
-        const receivables = workspaceId ? debtsStats.totalPendingAmount : 0;
-
-        const stats: DashboardStatsDto = {
-            totalPlayers: playersStats.total,
-            activePlayers: playersStats.active,
-            inactivePlayers: playersStats.inactive,
-            totalGames: gamesStats.total,
-            upcomingGames: gamesStats.upcoming,
-            completedGames: gamesStats.finished,
-            totalDebt: debtsStats.totalPendingAmount,
-            totalPending: debtsStats.totalPending,
-            totalOverdue: debtsStats.totalOverdue,
-            paidThisMonth: debtsStats.thisMonthAmount,
-            revenue: debtsStats.totalPaidAmount,
-            balance,
-            receivables,
-            revenueGrowth,
-            totalWorkspaces: workspacesStats.totalWorkspaces,
-            activeWorkspaces: workspacesStats.activeWorkspaces,
-            totalChats: chatsStats.totalChats,
+        return {
+            ...financeStats,
+            ...memberStats,
+            ...gameStats
         };
+    }
+
+    /**
+     * Support legacy full dashboard call if needed, constructing response
+     */
+    async getDashboardStats(workspaceId?: string): Promise<DashboardResponseDto> {
+        if (!workspaceId) throw new Error("Workspace ID required");
+
+        const stats = await this.getStats(workspaceId);
+
+        const recentGames = await this.getRecentGames(5, workspaceId);
+        const recentDebts = await this.getRecentDebts(5, workspaceId);
 
         return {
             stats,
             recentGames,
             recentDebts,
-            monthlyRevenue,
+            monthlyRevenue: []
         };
     }
 
-    /**
-     * Obtém apenas as estatísticas (sem dados adicionais)
-     */
-    async getStats(workspaceId?: string): Promise<DashboardStatsDto> {
-        const dashboard = await this.getDashboardStats(workspaceId);
-        return dashboard.stats;
+    private async calculateFinanceStats(workspaceId: Types.ObjectId) {
+        const [result] = await this.transactionModel.aggregate([
+            { $match: { workspaceId } },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $eq: ["$type", TransactionType.INCOME] }, { $eq: ["$status", TransactionStatus.COMPLETED] }] },
+                                "$amount",
+                                0
+                            ]
+                        }
+                    },
+                    totalExpenses: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $eq: ["$type", TransactionType.EXPENSE] }, { $eq: ["$status", TransactionStatus.COMPLETED] }] },
+                                "$amount",
+                                0
+                            ]
+                        }
+                    },
+                    pendingRevenue: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $eq: ["$type", TransactionType.INCOME] },
+                                        { $eq: ["$status", TransactionStatus.PENDING] }
+                                    ]
+                                },
+                                "$amount",
+                                0
+                            ]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        const totalRevenue = result?.totalRevenue || 0;
+        const totalExpenses = result?.totalExpenses || 0;
+        const pendingRevenue = result?.pendingRevenue || 0;
+
+        return {
+            totalRevenue,
+            totalExpenses,
+            netBalance: totalRevenue - totalExpenses,
+            pendingRevenue
+        };
     }
 
-    /**
-     * Obtém jogos recentes
-     */
-    private async getRecentGames(limit: number = 5, workspaceId?: string): Promise<RecentGame[]> {
-        // If no workspaceId provided, return empty array or fetch from first available workspace
-        if (!workspaceId) {
-            return [];
-        }
+    private async calculateMemberStats(workspaceId: Types.ObjectId) {
+        const stats = await this.membershipModel.aggregate([
+            { $match: { workspaceId } },
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
 
+        let totalMembers = 0;
+        let activeMembers = 0;
+        let suspendedMembers = 0;
+
+        stats.forEach(s => {
+            totalMembers += s.count;
+            if (s._id === MembershipStatus.ACTIVE) activeMembers = s.count;
+            if (s._id === MembershipStatus.SUSPENDED) suspendedMembers = s.count;
+        });
+
+        return {
+            totalMembers,
+            activeMembers,
+            suspendedMembers
+        };
+    }
+
+    private async calculateGameStats(workspaceId: Types.ObjectId) {
+        const now = new Date();
+
+        const [totalGames, nextGame] = await Promise.all([
+            this.gameModel.countDocuments({ workspaceId }),
+            this.gameModel.findOne({
+                workspaceId,
+                date: { $gte: now },
+                status: 'open'
+            }).sort({ date: 1 }).select('date').lean()
+        ]);
+
+        return {
+            totalGames,
+            nextGameDate: nextGame?.date || null
+        };
+    }
+
+    private async getRecentGames(limit: number, workspaceId: string): Promise<RecentGame[]> {
         const result = await this.gameService.listGames({
             workspaceId,
             page: 1,
@@ -116,69 +190,26 @@ export class DashboardService {
         }));
     }
 
-    /**
-     * Obtém débitos recentes
-     */
-    private async getRecentDebts(limit: number = 5, workspaceId?: string): Promise<RecentDebt[]> {
-        const result = await this.debtsService.listDebts({
+    private async getRecentDebts(limit: number, workspaceId: string): Promise<RecentDebt[]> {
+        const debts = await this.transactionModel.find({
             workspaceId,
-            status: 'all',
-            page: 1,
-            limit,
-        });
+            type: TransactionType.INCOME,
+            status: TransactionStatus.PENDING,
+            userId: { $exists: true, $ne: null }
+        })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .populate('userId', 'name')
+            .lean();
 
-        return result.debts.map(debt => ({
-            id: debt.id,
-            playerName: debt.playerName,
-            notes: debt.notes,
-            category: debt.category,
-            amount: debt.amountCents,
-            status: debt.status,
-            createdAt: debt.createdAt,
+        return debts.map(d => ({
+            id: d._id.toString(),
+            playerName: (d.userId as any)?.name || 'Usuário Desconhecido',
+            amount: d.amount,
+            status: d.status,
+            createdAt: d.createdAt.toISOString(),
+            description: d.description || ''
         }));
-    }
-
-    /**
-     * Obtém receita mensal dos últimos N meses
-     */
-    private async getMonthlyRevenue(months: number = 6, workspaceId?: string): Promise<MonthlyRevenue[]> {
-        const monthlyData: MonthlyRevenue[] = [];
-        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-
-        for (let i = months - 1; i >= 0; i--) {
-            const date = new Date();
-            date.setMonth(date.getMonth() - i);
-
-            const month = monthNames[date.getMonth()];
-
-            // TODO: Implementar cálculo real de receita por mês
-            // Por enquanto, retorna dados mockados em centavos
-            const valueInReais = 12000 + Math.random() * 4000;
-            const valueInCents = Math.round(valueInReais * 100);
-
-            monthlyData.push({
-                month,
-                value: valueInCents,  // Valor em centavos
-            });
-        }
-
-        return monthlyData;
-    }
-
-    /**
-     * Calcula crescimento de receita em relação ao mês anterior
-     */
-    private async calculateRevenueGrowth(workspaceId?: string): Promise<number> {
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-        // TODO: Implementar cálculo real de crescimento baseado em dados do banco
-        // Por enquanto, retorna um valor mockado
-        return 12.5;
     }
 }
 

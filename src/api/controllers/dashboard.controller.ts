@@ -10,7 +10,10 @@ export class DashboardController {
 
     getDashboard = async (req: Request, res: Response) => {
         try {
-            const workspaceId = req.params.workspaceId;
+            const workspaceId = (req.params.workspaceId || req.query.workspaceId) as string;
+            if (!workspaceId) {
+                return res.status(400).json({ success: false, message: 'Workspace ID required' });
+            }
             const dashboard = await this.dashboardService.getDashboardStats(workspaceId);
             res.json(dashboard);
         } catch (error: any) {
@@ -24,7 +27,10 @@ export class DashboardController {
 
     getStats = async (req: Request, res: Response) => {
         try {
-            const workspaceId = req.params.workspaceId;
+            const workspaceId = (req.params.workspaceId || req.query.workspaceId) as string;
+            if (!workspaceId) {
+                return res.status(400).json({ success: false, message: 'Workspace ID required' });
+            }
             const stats = await this.dashboardService.getStats(workspaceId);
             res.json(stats);
         } catch (error: any) {

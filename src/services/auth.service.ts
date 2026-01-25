@@ -158,13 +158,44 @@ export class AuthService {
             throw new ApiError(404, 'User not found');
         }
 
+        this.loggerService.info(`[getMe] Fetching workspaces for user: ${userId}`);
+
+        const members = await this.workspaceMemberModel.find({
+            userId: user._id,
+            status: 'ACTIVE'
+        }).populate('workspaceId').exec();
+
+        this.loggerService.info(`[getMe] Found ${members.length} membership records`);
+
+        const workspaces = members
+            .filter(m => {
+                if (!m.workspaceId) {
+                    this.loggerService.warn(`[getMe] Membership ${m._id} has null workspaceId`);
+                    return false;
+                }
+                return true;
+            })
+            .map(m => {
+                const w = m.workspaceId as any;
+                this.loggerService.info(`[getMe] Mapping workspace: ${w._id}`);
+                return {
+                    id: w._id.toString(),
+                    name: w.name,
+                    role: m.roles && m.roles.length > 0 ? m.roles[0] : 'PLAYER',
+                    settings: w.settings
+                };
+            });
+
+        this.loggerService.info(`[getMe] User belongs to ${workspaces.length} workspaces: ${workspaces.map(w => w.name).join(', ')}`);
+
         return {
             id: user._id.toString(),
             name: user.name,
             phone: user.phoneE164 || user.lid || '',
             role: user.role || 'user',
             status: user.status,
-            createdAt: user.createdAt
+            createdAt: user.createdAt,
+            workspaces
         };
     }
 
@@ -198,7 +229,7 @@ export class AuthService {
         const members = await this.workspaceMemberModel.find({
             userId: user._id,
             status: 'ACTIVE'
-        }).populate('workspaceId', 'name').exec();
+        }).populate('workspaceId', 'name settings').exec();
 
         this.loggerService.info(`Found ${members.length} workspace members for user ${user._id}`);
 
@@ -216,7 +247,8 @@ export class AuthService {
                 return {
                     id: w._id.toString(),
                     name: w.name,
-                    role: m.roles && m.roles.length > 0 ? m.roles[0] : 'PLAYER'
+                    role: m.roles && m.roles.length > 0 ? m.roles[0] : 'PLAYER',
+                    settings: w.settings
                 };
             });
 
@@ -262,13 +294,16 @@ export class AuthService {
                 return true;
             }
 
-            const membership = await this.workspaceMemberModel.findOne({
+            const memberships = await this.workspaceMemberModel.find({
                 userId: user._id,
-                roles: { $in: ['ADMIN', 'OWNER'] },
                 status: 'ACTIVE'
             }).exec();
 
-            return !!membership;
+            const hasAdminRole = memberships.some(m =>
+                m.roles && m.roles.some(r => ['admin', 'owner'].includes(r.toLowerCase()))
+            );
+
+            return hasAdminRole;
         } catch (error) {
             this.loggerService.error('[isAdmin] Error checking admin status:', error);
             return false;

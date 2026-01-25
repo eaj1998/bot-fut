@@ -6,25 +6,33 @@ export interface IBBQParticipant {
     invitedBy: string | null;
     isPaid: boolean;
     isGuest: boolean;
+    isFree: boolean;
     debtId?: string;
+    transactionId?: string;
 }
 
 export interface IBBQ {
     _id: Types.ObjectId;
     chatId: string;
     workspaceId: string;
+    description?: string;
     status: 'open' | 'closed' | 'finished' | 'cancelled';
     date: Date;
     createdAt: Date;
     closedAt?: Date;
     finishedAt?: Date;
     participants: IBBQParticipant[];
-    valuePerPerson: number | null;
+    financials: {
+        meatCost: number;
+        cookCost: number;
+        ticketPrice: number;
+    };
 }
 
 const BBQSchema = new Schema<IBBQ>({
     chatId: { type: String, required: true },
     workspaceId: { type: String, required: true },
+    description: { type: String, default: '' },
     status: { type: String, enum: ['open', 'closed', 'finished', 'cancelled'], default: 'open' },
     date: {
         type: Date, required: true, default: () => {
@@ -41,9 +49,15 @@ const BBQSchema = new Schema<IBBQ>({
         invitedBy: { type: String, default: null },
         isPaid: { type: Boolean, default: false },
         isGuest: { type: Boolean, default: false },
-        debtId: { type: String }
+        isFree: { type: Boolean, default: false },
+        debtId: { type: String },
+        transactionId: { type: String }
     }],
-    valuePerPerson: { type: Number, default: null }
+    financials: {
+        meatCost: { type: Number, default: 0 },
+        cookCost: { type: Number, default: 0 },
+        ticketPrice: { type: Number, default: 0 }
+    }
 });
 
 BBQSchema.index({ chatId: 1, createdAt: 1 });

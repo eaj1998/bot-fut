@@ -1,7 +1,12 @@
 import { injectable, inject } from 'tsyringe';
 import { UserRepository } from '../core/repositories/user.repository';
-import { LedgerRepository, LEDGER_REPOSITORY_TOKEN } from '../core/repositories/ledger.repository';
+
 import { GameRepository, GAME_REPOSITORY_TOKEN } from '../core/repositories/game.respository';
+import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from '../core/repositories/transaction.repository';
+import { MembershipRepository, MEMBERSHIP_REPOSITORY_TOKEN } from '../core/repositories/membership.repository';
+import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
+import { Model } from 'mongoose';
+import { TransactionType, TransactionStatus, TransactionCategory } from '../core/models/transaction.model';
 import {
     CreatePlayerDto,
     UpdatePlayerDto,
@@ -15,19 +20,25 @@ import {
 export class PlayersService {
     constructor(
         @inject('USER_REPOSITORY_TOKEN') private readonly userRepository: UserRepository,
-        @inject(LEDGER_REPOSITORY_TOKEN) private readonly ledgerRepository: LedgerRepository,
-        @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository
+        @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository,
+        @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepository: TransactionRepository,
+        @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
     ) { }
 
     /**
      * Converte documento do usuário para DTO de resposta
      */
     private async toResponseDto(user: any): Promise<PlayerResponseDto> {
-        const balance = await this.ledgerRepository.getBalance(user._id);
-        const debts = await this.ledgerRepository.findDebtsByUserId(user._id);
-        const totalDebt = debts
-            .filter(d => d.type === 'debit' && d.status === 'pendente')
-            .reduce((sum, d) => sum + d.amountCents, 0);
+        // Balance defaulted to 0 as Ledger is removed
+        const balance = 0;
+
+        // Usar TransactionRepository para calcular débitos pendentes (Income Pending)
+        const debts = await this.transactionRepository.findByUserId(user._id.toString(), undefined, {
+            status: TransactionStatus.PENDING,
+            type: TransactionType.INCOME
+        });
+        const totalDebt = debts.reduce((sum, d) => sum + d.amount, 0);
 
         return {
             id: user._id.toString(),
@@ -64,7 +75,10 @@ export class PlayersService {
         let withDebtsCount = 0;
 
         for (const user of allUsers.users) {
-            const debts = await this.ledgerRepository.findDebtsByUserId(user._id);
+            const debts = await this.transactionRepository.findByUserId(user._id.toString(), undefined, {
+                status: TransactionStatus.PENDING,
+                type: TransactionType.INCOME
+            });
 
             if (debts.length > 0) {
                 withDebtsCount++;
@@ -95,25 +109,83 @@ export class PlayersService {
     }
 
     /**
-     * Cria um novo jogador
+     * Cria um novo jogador com suporte multi-tenant
      */
     async createPlayer(data: CreatePlayerDto): Promise<PlayerResponseDto> {
         if (!data.name || !data.phoneE164) {
             throw new Error('Nome e telefone são obrigatórios');
         }
 
-        const exists = await this.userRepository.exists(data.phoneE164);
-        if (exists) {
-            throw new Error('Já existe um jogador com este telefone');
+        if (!data.type) {
+            throw new Error('Tipo de jogador (MENSALISTA/AVULSO) é obrigatório');
         }
 
-        const user = await this.userRepository.create({
-            name: data.name,
-            phoneE164: data.phoneE164,
-            nick: data.nick,
-            isGoalie: data.isGoalie || false,
-            role: data.role || 'user',
-        });
+        if (!data.workspaceId) {
+            throw new Error('Workspace ID é obrigatório');
+        }
+
+        // Normalizar telefone
+        const { normalizePhone, isValidBrazilianPhone } = require('../utils/phone.util');
+        const normalizedPhone = normalizePhone(data.phoneE164);
+
+        if (!normalizedPhone || !isValidBrazilianPhone(data.phoneE164)) {
+            throw new Error('Formato de telefone inválido');
+        }
+
+        // Verificar duplicidade de telefone no workspace
+        // Como User não tem workspaceId direto, vamos verificar se existe o telefone
+        // e depois verificar se tem membership neste workspace
+        const existingUser = await this.userRepository['model'].findOne({ phoneE164: normalizedPhone });
+        if (existingUser) {
+            // Verificar se já tem membership neste workspace
+            const existingMembership = await this.membershipRepo.findByUserId(
+                existingUser._id.toString(),
+                data.workspaceId
+            );
+            if (existingMembership) {
+                throw new Error('Já existe um jogador com este telefone neste workspace');
+            }
+        }
+
+        // Criar ou atualizar usuário
+        let user = existingUser;
+        if (!user) {
+            user = await this.userRepository.create({
+                name: data.name,
+                phoneE164: normalizedPhone,
+                nick: data.nick,
+                isGoalie: data.isGoalie || data.position === 'GOALKEEPER',
+                role: data.role || 'user',
+                position: data.position,
+                playerType: data.type,
+                stars: data.stars,
+            });
+        } else {
+            // Atualizar dados se usuário já existe
+            user.name = data.name;
+            user.nick = data.nick || user.nick;
+            user.position = data.position || user.position;
+            user.playerType = data.type;
+            user.stars = data.stars || user.stars;
+            if (data.isGoalie !== undefined) user.isGoalie = data.isGoalie;
+            await user.save();
+        }
+
+        // Se for MENSALISTA, criar membership automaticamente
+        if (data.type === 'MENSALISTA') {
+            const today = new Date();
+            const nextDueDate = MembershipRepository.calculateNextDueDate(today);
+
+            await this.membershipRepo.createMembership({
+                workspaceId: data.workspaceId,
+                userId: user._id.toString(),
+                planValue: 5000, // R$50 padrão (pode vir de workspace settings)
+                startDate: today,
+                nextDueDate: nextDueDate,
+                status: 'ACTIVE' as any,
+                notes: 'Criado automaticamente via cadastro de jogador'
+            });
+        }
 
         return this.toResponseDto(user);
     }
@@ -133,9 +205,41 @@ export class PlayersService {
                 throw new Error('Já existe um jogador com este telefone');
             }
         }
-        const updated = await this.userRepository.update(id, data);
+
+        // Separate workspaceId from user update data to avoid type errors
+        const { workspaceId, ...userData } = data;
+
+        const updated = await this.userRepository.update(id, userData);
         if (!updated) {
             throw new Error('Erro ao atualizar jogador');
+        }
+
+        // Update Workspace Member Role if provided
+        if (workspaceId && data.role) {
+            const member = await this.workspaceMemberModel.findOne({
+                workspaceId: workspaceId,
+                userId: user._id
+            });
+
+            if (member) {
+                // Determine roles based on input
+                // If admin, add ADMIN role. If user, ensure NO ADMIN role.
+                let newRoles = member.roles || [];
+
+                // Remove legacy mixed case if needed, but let's just handle the target state
+                // Clean up existing admin roles
+                newRoles = newRoles.filter(r => !['admin', 'ADMIN', 'owner', 'OWNER'].includes(r));
+
+                if (data.role === 'admin') {
+                    newRoles.push('ADMIN');
+                } else {
+                    newRoles.push('PLAYER'); // Default role
+                }
+
+                // Deduplicate
+                member.roles = [...new Set(newRoles)];
+                await member.save();
+            }
         }
 
         return this.toResponseDto(updated);
@@ -150,8 +254,11 @@ export class PlayersService {
             throw new Error('Jogador não encontrado');
         }
 
-        const debts = await this.ledgerRepository.findByUserId(user._id);
-        const hasPendingDebts = debts.some(d => d.type === 'debit' && d.status === 'pendente');
+        const debts = await this.transactionRepository.findByUserId(user._id.toString(), undefined, {
+            status: TransactionStatus.PENDING,
+            type: TransactionType.INCOME
+        });
+        const hasPendingDebts = debts.length > 0;
 
         if (hasPendingDebts) {
             throw new Error('Não é possível deletar jogador com débitos pendentes');
@@ -188,17 +295,17 @@ export class PlayersService {
     async getStats(): Promise<PlayersStatsDto> {
         const stats = await this.userRepository.getStats();
 
-        const debtStats = await this.ledgerRepository['model'].aggregate([
+        const debtStats = await this.transactionRepository['model'].aggregate([
             {
                 $match: {
-                    type: 'debit',
-                    status: 'pendente'
+                    type: TransactionType.INCOME,
+                    status: TransactionStatus.PENDING
                 }
             },
             {
                 $group: {
                     _id: '$userId',
-                    totalDebt: { $sum: '$amountCents' }
+                    totalDebt: { $sum: '$amount' }
                 }
             },
             {
@@ -236,7 +343,11 @@ export class PlayersService {
             throw new Error('Jogador não encontrado');
         }
 
-        return this.ledgerRepository.findDebtsByUserId(user._id);
+        // Retorna Transactions pendentes
+        return this.transactionRepository.findByUserId(user._id.toString(), undefined, {
+            status: TransactionStatus.PENDING,
+            type: TransactionType.INCOME
+        });
     }
 
     /**
@@ -286,7 +397,21 @@ export class PlayersService {
             throw new Error('Jogador não encontrado');
         }
 
-        return this.ledgerRepository.findByUserIdPaginated(user._id, page, limit);
+        const transactions = await this.transactionRepository.findByUserId(user._id.toString());
+
+        // Manual pagination
+        const total = transactions.length;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+        const paged = transactions.slice(start, end);
+
+        return {
+            ledgers: paged,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+            limit
+        };
     }
 
     /**
@@ -304,13 +429,17 @@ export class PlayersService {
             throw new Error('Jogador não encontrado');
         }
 
-        await this.ledgerRepository.addCredit({
+        await this.transactionRepository.createTransaction({
             workspaceId: data.workspaceId,
             userId: user._id.toString(),
-            amountCents: data.amountCents,
-            note: data.note,
-            method: data.method,
-            category: data.category || 'player-payment'
+            type: TransactionType.INCOME,
+            category: (data.category as any) || TransactionCategory.OTHER,
+            status: TransactionStatus.COMPLETED,
+            amount: data.amountCents,
+            dueDate: new Date(),
+            paidAt: new Date(),
+            description: data.note || 'Crédito adicionado',
+            method: data.method as any
         });
 
         return this.toResponseDto(user);

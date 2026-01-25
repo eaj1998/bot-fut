@@ -30,6 +30,7 @@ export interface UpdateTransactionInput {
     paidAt?: Date;
     description?: string;
     method?: "pix" | "dinheiro" | "transf" | "ajuste";
+    amount?: number;
 }
 
 export interface FindTransactionsFilters {
@@ -38,6 +39,7 @@ export interface FindTransactionsFilters {
     status?: TransactionStatus;
     dateFrom?: Date;
     dateTo?: Date;
+    search?: string;
 }
 
 @singleton()
@@ -278,6 +280,107 @@ export class TransactionRepository {
         ]);
 
         return result || { income: 0, expense: 0, balance: 0 };
+    }
+
+    /**
+     * Busca todas as transações de um workspace com paginação
+     */
+    async findAll(
+        workspaceId: string,
+        page: number = 1,
+        limit: number = 20,
+        filters?: FindTransactionsFilters
+    ): Promise<{ transactions: ITransaction[]; total: number; pages: number }> {
+        const query: any = { workspaceId: new Types.ObjectId(workspaceId) };
+
+        if (filters?.type) {
+            query.type = filters.type;
+        }
+
+        if (filters?.category) {
+            query.category = filters.category;
+        }
+
+        if (filters?.status) {
+            query.status = filters.status;
+        }
+
+        if (filters?.search) {
+            query.description = { $regex: filters.search, $options: 'i' };
+        }
+
+        if (filters?.dateFrom || filters?.dateTo) {
+            query.dueDate = {};
+            if (filters.dateFrom) {
+                query.dueDate.$gte = filters.dateFrom;
+            }
+            if (filters.dateTo) {
+                query.dueDate.$lte = filters.dateTo;
+            }
+        }
+
+        const skip = (page - 1) * limit;
+
+        const [transactions, total] = await Promise.all([
+            this.model
+                .find(query)
+                .sort({ dueDate: -1, createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate('userId', 'name phone')
+                .lean()
+                .exec(),
+            this.model.countDocuments(query)
+        ]);
+
+        return {
+            transactions: transactions as unknown as ITransaction[],
+            total,
+            pages: Math.ceil(total / limit)
+        };
+    }
+
+    /**
+     * Agrega dados para gráficos por dia
+     */
+    async getAggregatedChartData(
+        workspaceId: string,
+        startDate: Date,
+        endDate: Date
+    ): Promise<any[]> {
+        return this.model.aggregate([
+            {
+                $match: {
+                    workspaceId: new Types.ObjectId(workspaceId),
+                    status: TransactionStatus.COMPLETED,
+                    paidAt: { $gte: startDate, $lte: endDate }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+                    income: {
+                        $sum: {
+                            $cond: [{ $eq: ["$type", TransactionType.INCOME] }, "$amount", 0]
+                        }
+                    },
+                    expense: {
+                        $sum: {
+                            $cond: [{ $eq: ["$type", TransactionType.EXPENSE] }, "$amount", 0]
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    date: "$_id",
+                    income: { $divide: ["$income", 100] }, // Conver to Reais
+                    expense: { $divide: ["$expense", 100] }, // Convert to Reais
+                    _id: 0
+                }
+            },
+            { $sort: { date: 1 } }
+        ]);
     }
 
     /**

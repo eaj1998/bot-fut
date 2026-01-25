@@ -6,6 +6,7 @@ import { requireAdmin } from '../middleware/role.middleware';
 
 const router = Router();
 const controller = container.resolve(WorkspacesController);
+router.use(authenticate);
 
 /**
  * @swagger
@@ -191,7 +192,7 @@ router.get('/:id/chats', controller.getWorkspaceChats);
 router.get('/:id/stats', controller.getWorkspaceStats);
 
 // Rotas protegidas (requerem autenticação)
-router.use(authenticate);
+// router.use(authenticate); // Moved to top
 
 /**
  * @swagger

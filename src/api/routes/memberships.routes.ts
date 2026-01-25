@@ -14,10 +14,13 @@ router.get('/my', controller.getMyMembership);
 router.post('/', controller.createMembership);
 
 // Admin endpoints
+router.post('/admin/create', requireAdmin, controller.createMembershipAdmin);
 router.get('/admin/list', requireAdmin, controller.getAdminList);
 router.put('/:id', requireAdmin, controller.updateMembership);
 router.post('/:id/manual-payment', requireAdmin, controller.registerManualPayment);
 router.post('/:id/suspend', requireAdmin, controller.suspendMembership);
-router.post('/:id/cancel', requireAdmin, controller.cancelMembership);
+
+// User/Admin endpoints (Controller checks permissions)
+router.post('/:id/cancel', controller.cancelMembership);
 
 export default router;

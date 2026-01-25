@@ -4,7 +4,7 @@ import { swaggerSpec } from '../../config/swagger.config';
 import authRoutes from './auth.routes';
 import gamesRoutes from './games.routes';
 import playersRoutes from './players.routes';
-import debtsRoutes from './debts.routes';
+
 import workspacesRoutes from './workspaces.routes';
 import chatsRoutes from './chats.routes';
 import dashboardRoutes from './dashboard.routes';
@@ -25,7 +25,7 @@ router.get('/api-docs', swaggerUi.setup(swaggerSpec, {
 router.use('/auth', authRoutes);
 router.use('/games', gamesRoutes);
 router.use('/players', playersRoutes);
-router.use('/debts', debtsRoutes);
+
 router.use('/workspaces', workspacesRoutes);
 router.use('/chats', chatsRoutes);
 router.use('/dashboard', dashboardRoutes);

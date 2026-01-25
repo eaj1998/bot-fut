@@ -171,24 +171,92 @@ export class MembershipRepository {
     /**
      * Busca todas as assinaturas de um workspace (com filtros opcionais)
      */
+    /**
+     * Busca todas as assinaturas de um workspace (com filtros e busca)
+     */
     async findByWorkspace(
         workspaceId: string,
-        status?: MembershipStatus
-    ): Promise<any[]> {
-        const query: any = {
-            workspaceId: new Types.ObjectId(workspaceId)
-        };
+        status?: MembershipStatus,
+        search?: string,
+        page: number = 1,
+        limit: number = 20
+    ): Promise<{ memberships: any[]; total: number }> {
+        const pipeline: any[] = [
+            { $match: { workspaceId: new Types.ObjectId(workspaceId) } }
+        ];
 
+        // Filtro de Status
         if (status) {
-            query.status = status;
+            pipeline.push({ $match: { status } });
         }
 
-        return this.model
-            .find(query)
-            .populate("userId", "name phoneE164")
-            .sort({ createdAt: -1 })
-            .lean()
-            .exec();
+        // Lookup Usuário
+        pipeline.push({
+            $lookup: {
+                from: "users",
+                localField: "userId",
+                foreignField: "_id",
+                as: "user"
+            }
+        });
+        pipeline.push({ $unwind: "$user" });
+
+        // Busca por Nome ou Telefone
+        if (search) {
+            const regex = new RegExp(search, 'i');
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { "user.name": regex },
+                        { "user.phoneE164": regex }
+                    ]
+                }
+            });
+        }
+
+        // Ordenação
+        pipeline.push({ $sort: { createdAt: -1 } });
+
+        // Facet para paginação e contagem total
+        const result = await this.model.aggregate([
+            ...pipeline,
+            {
+                $facet: {
+                    memberships: [
+                        { $skip: (page - 1) * limit },
+                        { $limit: limit },
+                        // Projetar campos para manter compatibilidade com interface
+                        {
+                            $project: {
+                                _id: 1,
+                                status: 1,
+                                planValue: 1,
+                                billingDay: { $literal: 10 }, // TODO
+                                nextDueDate: 1,
+                                lastPaymentDate: 1, // TODO
+                                startDate: 1,
+                                user: {
+                                    _id: 1,
+                                    name: 1,
+                                    phoneE164: 1
+                                }
+                            }
+                        }
+                    ],
+                    totalCount: [
+                        { $count: "count" }
+                    ]
+                }
+            }
+        ]);
+
+        const memberships = result[0].memberships.map((m: any) => ({
+            ...m,
+            userId: m.user // Adapta para manter estrutura esperada onde userId é o objeto populado
+        }));
+        const total = result[0].totalCount[0]?.count || 0;
+
+        return { memberships, total };
     }
 
     /**

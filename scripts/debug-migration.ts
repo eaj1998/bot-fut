@@ -24,7 +24,7 @@ async function run() {
         const count = await UserModel.countDocuments();
         console.log("Total Users (via model):", count);
 
-        // Check specific collections
+        // Check specific collectionss
         const userColl = collections.find(c => c.name === 'User');
         if (userColl) {
             const c = await mongoose.connection.db.collection('User').countDocuments();

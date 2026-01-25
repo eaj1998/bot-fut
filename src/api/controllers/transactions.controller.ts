@@ -122,7 +122,7 @@ export class TransactionsController {
         const { method = 'pix' } = req.body;
 
         // Buscar a transaction
-        const transaction = await this.financialService['transactionRepo'].findById(id);
+        const transaction = await this.financialService['transactionRepo'].findById(id as string);
         if (!transaction) {
             return res.status(404).json({
                 success: false,
@@ -140,7 +140,7 @@ export class TransactionsController {
 
         // Marcar como paga
         await this.financialService['transactionRepo'].markAsPaid(
-            id,
+            id as string,
             new Date(),
             method as 'pix' | 'dinheiro' | 'transf' | 'ajuste'
         );

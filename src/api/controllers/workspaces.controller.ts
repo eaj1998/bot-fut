@@ -58,7 +58,7 @@ export class WorkspacesController {
         try {
             const userId = req.user!.id;
             const { id } = req.params;
-            const workspace = await this.workspaceService.getWorkspaceById(userId, id);
+            const workspace = await this.workspaceService.getWorkspaceById(userId, id as string);
             res.json(workspace);
         } catch (error: any) {
             const statusCode = error.message.includes('Access denied') ? 403 :
@@ -78,7 +78,7 @@ export class WorkspacesController {
         try {
             const userId = req.user!.id;
             const { id } = req.params;
-            const chats = await this.workspaceService.getWorkspaceChats(userId, id);
+            const chats = await this.workspaceService.getWorkspaceChats(userId, id as string);
             res.json(chats);
         } catch (error: any) {
             const statusCode = error.message.includes('Access denied') ? 403 :
@@ -98,7 +98,7 @@ export class WorkspacesController {
         try {
             const userId = req.user!.id;
             const { id } = req.params;
-            const stats = await this.workspaceService.getWorkspaceStats(userId, id);
+            const stats = await this.workspaceService.getWorkspaceStats(userId, id as string);
             res.json(stats);
         } catch (error: any) {
             const statusCode = error.message.includes('Access denied') ? 403 :
@@ -136,7 +136,7 @@ export class WorkspacesController {
         try {
             const userId = req.user!.id;
             const { id } = req.params;
-            const workspace = await this.workspaceService.updateWorkspace(userId, id, req.body);
+            const workspace = await this.workspaceService.updateWorkspace(userId, id as string, req.body);
             res.json(workspace);
         } catch (error: any) {
             let statusCode = 500;
@@ -159,7 +159,7 @@ export class WorkspacesController {
         try {
             const userId = req.user!.id;
             const { id } = req.params;
-            await this.workspaceService.deleteWorkspace(userId, id);
+            await this.workspaceService.deleteWorkspace(userId, id as string);
             res.status(204).send();
         } catch (error: any) {
             let statusCode = 500;
@@ -203,7 +203,7 @@ export class WorkspacesController {
                 });
             }
 
-            const workspace = await this.workspaceService.updateOrganizzeSettings(userId, id, {
+            const workspace = await this.workspaceService.updateOrganizzeSettings(userId, id as string, {
                 email,
                 apiKey,
                 accountId,
@@ -232,7 +232,7 @@ export class WorkspacesController {
         try {
             const userId = req.user!.id;
             const { id } = req.params;
-            const workspace = await this.workspaceService.deleteOrganizzeSettings(userId, id);
+            const workspace = await this.workspaceService.deleteOrganizzeSettings(userId, id as string);
             res.json(workspace);
         } catch (error: any) {
             let statusCode = 500;

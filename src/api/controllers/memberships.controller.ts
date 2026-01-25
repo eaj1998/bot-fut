@@ -162,7 +162,7 @@ export class MembershipsController {
         const { id } = req.params;
         const dto: UpdateMembershipDto = req.body;
 
-        const membership = await this.membershipService.updateMembership(id, dto);
+        const membership = await this.membershipService.updateMembership(id as string, dto);
 
         res.json({
             success: true,
@@ -179,7 +179,7 @@ export class MembershipsController {
         const { id } = req.params;
         const dto: ManualPaymentDto = req.body;
 
-        const result = await this.membershipService.registerManualPayment(id, dto);
+        const result = await this.membershipService.registerManualPayment(id as string, dto);
 
         res.json({
             success: true,
@@ -196,7 +196,7 @@ export class MembershipsController {
         const { id } = req.params;
         const { reason }: SuspendMembershipDto = req.body;
 
-        const membership = await this.membershipService.suspendMembership(id, reason);
+        const membership = await this.membershipService.suspendMembership(id as string, reason);
 
         res.json({
             success: true,
@@ -216,7 +216,7 @@ export class MembershipsController {
         const role = req.user!.role;
 
         // Verify ownership/permissions
-        const membership = await this.membershipService.findById(id); // Need to expose findById or check ownership via service
+        const membership = await this.membershipService.findById(id as string); // Need to expose findById or check ownership via service
         // Actually, let's use a service method that checks or just fetch it here.
         // Since `findById` is not exposed in service public API in snippet above, 
         // I should probably use `getMyMembership` logic or assume service has findById (it does, likely).
@@ -258,7 +258,7 @@ export class MembershipsController {
         // I will use `this.membershipService.cancelMembership(id, immediate, userId, role)`
         // and update the service signature in the next step.
 
-        const result = await this.membershipService.cancelMembership(id, immediate, userId, role);
+        const result = await this.membershipService.cancelMembership(id as string, immediate, userId, role);
 
         res.json({
             success: true,

@@ -68,7 +68,7 @@ export class ChatsController {
     getChatById = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const chat = await this.chatService.getChatById(id);
+            const chat = await this.chatService.getChatById(id as string);
             res.json(chat);
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;
@@ -86,7 +86,7 @@ export class ChatsController {
     getSchedule = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const schedule = await this.chatService.getSchedule(id);
+            const schedule = await this.chatService.getSchedule(id as string);
             res.json(schedule || {});
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;
@@ -121,7 +121,7 @@ export class ChatsController {
     updateChat = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const chat = await this.chatService.updateChat(id, req.body);
+            const chat = await this.chatService.updateChat(id as string, req.body);
             res.json(chat);
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;
@@ -139,7 +139,7 @@ export class ChatsController {
     deleteChat = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            await this.chatService.deleteChat(id);
+            await this.chatService.deleteChat(id as string);
             res.status(204).send();
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;
@@ -157,7 +157,7 @@ export class ChatsController {
     updateSchedule = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const chat = await this.chatService.updateSchedule(id, req.body);
+            const chat = await this.chatService.updateSchedule(id as string, req.body);
             res.json(chat);
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;
@@ -175,7 +175,7 @@ export class ChatsController {
     activateChat = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const chat = await this.chatService.activateChat(id);
+            const chat = await this.chatService.activateChat(id as string);
             res.json(chat);
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;
@@ -193,7 +193,7 @@ export class ChatsController {
     deactivateChat = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const chat = await this.chatService.deactivateChat(id);
+            const chat = await this.chatService.deactivateChat(id as string);
             res.json(chat);
         } catch (error: any) {
             const statusCode = error.message === 'Chat não encontrado' ? 404 : 500;

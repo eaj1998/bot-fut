@@ -59,7 +59,7 @@ export const validateObjectId = (paramName: string = 'id') => {
         }
 
         const objectIdRegex = /^[a-f\d]{24}$/i;
-        if (!objectIdRegex.test(id)) {
+        if (!objectIdRegex.test(id as string)) {
             throw new ApiError(400, `Invalid ${paramName} format`);
         }
 

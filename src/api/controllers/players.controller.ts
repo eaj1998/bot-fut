@@ -31,7 +31,7 @@ export class PlayersController {
     getPlayerById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const player = await this.playersService.getPlayerById(id);
+            const player = await this.playersService.getPlayerById(id as string);
             res.json(player);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -72,7 +72,7 @@ export class PlayersController {
         try {
             const { id } = req.params;
             const data: UpdatePlayerDto = req.body;
-            const player = await this.playersService.updatePlayer(id, data);
+            const player = await this.playersService.updatePlayer(id as string, data);
             res.json(player);
         } catch (error) {
             if (error instanceof Error) {
@@ -92,7 +92,7 @@ export class PlayersController {
     deletePlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            await this.playersService.deletePlayer(id);
+            await this.playersService.deletePlayer(id as string);
             res.status(204).send();
         } catch (error) {
             if (error instanceof Error) {
@@ -112,7 +112,7 @@ export class PlayersController {
     suspendPlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const player = await this.playersService.suspendPlayer(id);
+            const player = await this.playersService.suspendPlayer(id as string);
             res.json(player);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -126,7 +126,7 @@ export class PlayersController {
     activatePlayer = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const player = await this.playersService.activatePlayer(id);
+            const player = await this.playersService.activatePlayer(id as string);
             res.json(player);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -149,7 +149,7 @@ export class PlayersController {
     getPlayerDebts = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const debts = await this.playersService.getPlayerDebts(id);
+            const debts = await this.playersService.getPlayerDebts(id as string);
             res.json(debts);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -163,7 +163,7 @@ export class PlayersController {
     getPlayerGames = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const games = await this.playersService.getPlayerGames(id);
+            const games = await this.playersService.getPlayerGames(id as string);
             res.json(games);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -180,7 +180,7 @@ export class PlayersController {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
 
-            const result = await this.playersService.getPlayerTransactions(id, page, limit);
+            const result = await this.playersService.getPlayerTransactions(id as string, page, limit);
             res.json(result);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -236,7 +236,7 @@ export class PlayersController {
                 throw new Error('workspaceId e amountCents são obrigatórios');
             }
 
-            const player = await this.playersService.addCredit(id, {
+            const player = await this.playersService.addCredit(id as string, {
                 workspaceId,
                 amountCents,
                 note,

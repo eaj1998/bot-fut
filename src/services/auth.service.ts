@@ -218,12 +218,12 @@ export class AuthService {
             role: user.role || 'user',
         };
 
-        const accessToken = jwt.sign(payload, this.config.jwt.secret, {
-            expiresIn: this.config.jwt.expiresIn,
+        const accessToken = jwt.sign(payload, this.config.jwt.secret as jwt.Secret, {
+            expiresIn: this.config.jwt.expiresIn as any,
         });
 
-        const refreshToken = jwt.sign({ id: user._id.toString() }, this.config.jwt.secret, {
-            expiresIn: this.config.jwt.refreshExpiresIn,
+        const refreshToken = jwt.sign({ id: user._id.toString() }, this.config.jwt.secret as jwt.Secret, {
+            expiresIn: this.config.jwt.refreshExpiresIn as any,
         });
 
         const members = await this.workspaceMemberModel.find({

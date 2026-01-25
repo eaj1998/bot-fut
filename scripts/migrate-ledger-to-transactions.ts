@@ -1,201 +1,183 @@
-import 'reflect-metadata';
-import dotenv from 'dotenv';
-import { connectMongo } from '../src/infra/database/mongoose.connection';
-import { LedgerModel, LedgerDoc } from '../src/core/models/ledger.model';
-import { TransactionModel, TransactionType, TransactionCategory, TransactionStatus } from '../src/core/models/transaction.model';
-import { container } from 'tsyringe';
-import { ConfigService } from '../src/config/config.service';
-import * as readline from 'readline';
+
+import "reflect-metadata";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import { LedgerModel } from "../src/core/models/ledger.model";
+import { TransactionModel, TransactionStatus, TransactionType, TransactionCategory } from "../src/core/models/transaction.model";
+import { WorkspaceModel } from "../src/core/models/workspace.model";
 
 dotenv.config();
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+// Hardcode or ensure DB name exists. The env var lacks it.
+const MONGODB_URI = process.env.MONGO_URI?.includes('botFutHml') && !process.env.MONGO_URI.includes('.net/botFutHml')
+    ? process.env.MONGO_URI.replace('.net/?', '.net/botFutHml?')
+    : (process.env.MONGO_URI || "mongodb://localhost:27017/bot-fut");
 
-function prompt(question: string): Promise<string> {
-    return new Promise((resolve) => {
-        rl.question(question, resolve);
-    });
-}
-
-function mapCategory(ledgerCategory: string): TransactionCategory {
-    const mapping: Record<string, TransactionCategory> = {
-        'player-debt': TransactionCategory.GAME_FEE,
-        'player-payment': TransactionCategory.GAME_FEE,
-        'field-payment': TransactionCategory.FIELD_RENTAL,
-        'equipment': TransactionCategory.OTHER,
-        'rental-goalkeeper': TransactionCategory.OTHER,
-        'churrasco': TransactionCategory.OTHER,
-        'general': TransactionCategory.OTHER,
-    };
-
-    return mapping[ledgerCategory] || TransactionCategory.OTHER;
+async function connectDB() {
+    try {
+        await mongoose.connect(MONGODB_URI);
+        console.log("Connected to MongoDB");
+    } catch (error) {
+        console.error("Error connecting to MongoDB", error);
+        process.exit(1);
+    }
 }
 
 function mapStatus(ledgerStatus: string): TransactionStatus {
-    const mapping: Record<string, TransactionStatus> = {
-        'pendente': TransactionStatus.PENDING,
-        'confirmado': TransactionStatus.COMPLETED,
-        'estornado': TransactionStatus.CANCELLED,
-    };
-
-    return mapping[ledgerStatus] || TransactionStatus.PENDING;
+    switch (ledgerStatus) {
+        case "confirmado": return TransactionStatus.COMPLETED;
+        case "estornado": return TransactionStatus.CANCELLED;
+        case "pendente": default: return TransactionStatus.PENDING;
+    }
 }
 
-function mapType(ledger: LedgerDoc): TransactionType {
-    // Pagamentos de quadra são despesas
-    if (ledger.category === 'field-payment') {
-        return TransactionType.EXPENSE;
-    }
-
-    // Tudo mais é receita (player-debt, player-payment, etc)
-    return TransactionType.INCOME;
+function mapType(ledgerType: string): TransactionType {
+    return ledgerType === "credit" ? TransactionType.INCOME : TransactionType.EXPENSE;
 }
 
-async function migrateLedgerToTransactions() {
-    console.log('🔄 MIGRATION: Ledger → Transaction');
-    console.log('=====================================\n');
-
-    console.log('⚠️  ATENÇÃO: Este script irá migrar dados da collection Ledger para Transaction.\n');
-    console.log('📋 Recomendações ANTES de executar:');
-    console.log('   1. Faça backup do banco de dados');
-    console.log('   2. Execute primeiro em ambiente de DEV/STAGING');
-    console.log('   3. Valide os dados migrados\n');
-    console.log('💾 Para fazer backup (MongoDB):');
-    console.log('   mongodump --uri="<YOUR_MONGO_URI>" --out=./backup\n');
-
-    const answer = await prompt('Deseja continuar? (yes/no): ');
-
-    if (answer.toLowerCase() !== 'yes') {
-        console.log('❌ Migração cancelada pelo usuário.');
-        rl.close();
-        process.exit(0);
+function mapCategory(ledgerCategory: string, ledgerType: string): TransactionCategory {
+    switch (ledgerCategory) {
+        case "field-payment": return TransactionCategory.FIELD_RENTAL;
+        case "player-payment": return TransactionCategory.GAME_FEE;
+        case "player-debt": return TransactionCategory.GAME_FEE;
+        case "equipment": return TransactionCategory.EQUIPMENT;
+        case "rental-goalkeeper": return TransactionCategory.OTHER; // Or maybe REFEREE? Assuming Other for now
+        case "churrasco": return TransactionCategory.OTHER;
+        default: return TransactionCategory.OTHER;
     }
+}
 
-    const config = container.resolve(ConfigService);
+async function migrateLedgers() {
+    console.log("Starting Ledger migration...");
 
-    try {
-        console.log('\n📡 Conectando ao MongoDB...');
-        await connectMongo(config.database.mongoUri, config.database.mongoDb);
-        console.log('✅ Conectado com sucesso!\n');
+    const ledgers = await LedgerModel.find({});
+    console.log(`Found ${ledgers.length} ledgers to migrate.`);
 
-        // Buscar todos os Ledgers
-        console.log('🔍 Buscando registros Ledger...');
-        const ledgers = await LedgerModel.find({}).exec();
-        console.log(`📊 Total de registros encontrados: ${ledgers.length}\n`);
+    let migratedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
 
-        if (ledgers.length === 0) {
-            console.log('ℹ️  Nenhum registro para migrar.');
-            rl.close();
-            process.exit(0);
-        }
-
-        let migrated = 0;
-        let skipped = 0;
-        let errors = 0;
-        const errorDetails: any[] = [];
-
-        console.log('🚀 Iniciando migração...\n');
-
-        for (const [index, ledger] of ledgers.entries()) {
-            const progress = `[${index + 1}/${ledgers.length}]`;
-
-            try {
-                // Verificar se já foi migrado (idempotência)
-                const existing = await TransactionModel.findOne({ legacyLedgerId: ledger._id });
-
-                if (existing) {
-                    console.log(`${progress} ⏭️  Já migrado: ${ledger._id}`);
-                    skipped++;
-                    continue;
-                }
-
-                // Determinar data de vencimento e pagamento
-                let dueDate: Date;
-                let paidAt: Date | undefined;
-
-                if (ledger.status === 'confirmado' && ledger.confirmedAt) {
-                    dueDate = ledger.confirmedAt;
-                    paidAt = ledger.confirmedAt;
-                } else {
-                    dueDate = ledger.createdAt;
-                    paidAt = undefined;
-                }
-
-                // Criar Transaction
-                const transaction = await TransactionModel.create({
-                    legacyLedgerId: ledger._id,
-                    workspaceId: ledger.workspaceId,
-                    userId: ledger.userId,
-                    gameId: ledger.gameId,
-                    type: mapType(ledger),
-                    category: mapCategory(ledger.category),
-                    status: mapStatus(ledger.status),
-                    amount: ledger.amountCents,
-                    dueDate,
-                    paidAt,
-                    description: ledger.note || `Migrado de Ledger: ${ledger.category}`,
-                    method: ledger.method,
-                    organizzeId: ledger.organizzeId,
-                });
-
-                console.log(`${progress} ✅ Migrado: ${ledger._id} → ${transaction._id} (${ledger.category})`);
-                migrated++;
-
-            } catch (error: any) {
-                console.error(`${progress} ❌ Erro ao migrar ${ledger._id}: ${error.message}`);
-                errors++;
-                errorDetails.push({
-                    ledgerId: ledger._id,
-                    error: error.message,
-                    ledger: {
-                        type: ledger.type,
-                        category: ledger.category,
-                        status: ledger.status,
-                        amount: ledger.amountCents
-                    }
-                });
+    for (const ledger of ledgers) {
+        try {
+            // Check for existing transaction (Idempotency)
+            const existing = await TransactionModel.findOne({ legacyLedgerId: ledger._id });
+            if (existing) {
+                // console.log(`Skipping Ledger ${ledger._id}, already migrated as Transaction ${existing._id}`);
+                skippedCount++;
+                continue;
             }
-        }
 
-        console.log('\n=====================================');
-        console.log('📊 RESUMO DA MIGRAÇÃO');
-        console.log('=====================================');
-        console.log(`✅ Migrados com sucesso: ${migrated}`);
-        console.log(`⏭️  Pulados (já existentes): ${skipped}`);
-        console.log(`❌ Erros: ${errors}`);
-        console.log(`📋 Total processado: ${ledgers.length}`);
-        console.log('=====================================\n');
+            // Description logic
+            let description = ledger.note || "";
+            if (ledger.category === "churrasco") description = `[CHURRASCO] ${description}`;
+            if (ledger.category === "rental-goalkeeper") description = `[GOLEIRO] ${description}`;
+            if (!description) description = `Migrado de Ledger (${ledger.category})`;
 
-        if (errors > 0) {
-            console.log('⚠️  Houve erros durante a migração. Detalhes:\n');
-            errorDetails.forEach((detail, index) => {
-                console.log(`${index + 1}. Ledger ID: ${detail.ledgerId}`);
-                console.log(`   Erro: ${detail.error}`);
-                console.log(`   Dados: ${JSON.stringify(detail.ledger)}\n`);
+            // Create Transaction
+            const transaction = new TransactionModel({
+                workspaceId: ledger.workspaceId,
+                legacyLedgerId: ledger._id, // Store linkage
+
+                userId: ledger.userId,
+                gameId: ledger.gameId,
+                membershipId: undefined, // Ledger didn't have memberships usually
+
+                type: mapType(ledger.type),
+                category: mapCategory(ledger.category, ledger.type),
+                status: mapStatus(ledger.status),
+
+                amount: ledger.amountCents, // Transaction uses cents too
+
+                dueDate: ledger.createdAt, // Default due date to creation
+                paidAt: ledger.confirmedAt,
+
+                description: description.trim(),
+                method: ledger.method,
+                organizzeId: ledger.organizzeId,
+
+                createdAt: ledger.createdAt,
+                updatedAt: ledger.updatedAt
             });
-        } else {
-            console.log('🎉 Migração concluída com sucesso!');
+
+            await transaction.save();
+            migratedCount++;
+
+            if (migratedCount % 100 === 0) {
+                console.log(`Migrated ${migratedCount} ledgers...`);
+            }
+
+        } catch (error) {
+            console.error(`Error migrating ledger ${ledger._id}:`, error);
+            errorCount++;
         }
-
-        // Validação final
-        console.log('🔍 Validando migração...');
-        const ledgerCount = await LedgerModel.countDocuments();
-        const transactionCount = await TransactionModel.countDocuments({ legacyLedgerId: { $exists: true } });
-
-        console.log(`   Ledgers no banco: ${ledgerCount}`);
-        console.log(`   Transactions migradas: ${transactionCount}`);
-        console.log(`   Taxa de sucesso: ${((transactionCount / ledgerCount) * 100).toFixed(2)}%\n`);
-
-    } catch (error) {
-        console.error('\n❌ Erro fatal durante migração:', error);
-        process.exit(1);
-    } finally {
-        rl.close();
-        process.exit(0);
     }
+
+    console.log(`Migration finished.`);
+    console.log(`Total: ${ledgers.length}`);
+    console.log(`Migrated: ${migratedCount}`);
+    console.log(`Skipped: ${skippedCount}`);
+    console.log(`Errors: ${errorCount}`);
 }
 
-migrateLedgerToTransactions();
+import { UserModel } from "../src/core/models/user.model";
+import { WorkspaceMemberModel } from "../src/core/models/workspace-member.model";
+
+// ... existing imports
+
+async function migrateWorkspaceMembers() {
+    console.log("Starting Workspace Member migration...");
+
+    // Find users with legacy workspaceId
+    const users = await UserModel.find();
+    console.log(`Found ${users.length} users with legacy workspaceId.`);
+
+    let migratedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
+    for (const user of users) {
+        try {
+            if (!user.workspaceId) continue;
+
+            // Check if member exists
+            const existing = await WorkspaceMemberModel.findOne({
+                userId: user._id,
+                workspaceId: user.workspaceId
+            });
+
+            if (existing) {
+                skippedCount++;
+                continue;
+            }
+
+            // Create Member
+            const member = new WorkspaceMemberModel({
+                userId: user._id,
+                workspaceId: user.workspaceId,
+                roles: user.role ? [user.role] : ['user'],
+                status: 'ACTIVE',
+                joinedAt: user.createdAt || new Date()
+            });
+
+            await member.save();
+            migratedCount++;
+        } catch (error) {
+            console.error(`Error migrating user ${user._id}:`, error);
+            errorCount++;
+        }
+    }
+
+    console.log(`Workspace Member Migration finished.`);
+    console.log(`Migrated: ${migratedCount}`);
+    console.log(`Skipped: ${skippedCount}`);
+    console.log(`Errors: ${errorCount}`);
+}
+
+async function run() {
+    await connectDB();
+    await migrateWorkspaceMembers();
+    await migrateLedgers();
+    await mongoose.disconnect();
+}
+
+run();

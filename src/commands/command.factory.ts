@@ -17,8 +17,6 @@ import { CloseCommand } from './lineup/close.command';
 import { ScheduleCommand } from './admin/schedule.command';
 import { CancelCommand } from './lineup/cancel.command';
 import { WorkspaceBalanceCommand } from './payment/workspaceBalance.command';
-import { PayFieldCommand } from './payment/payField.command';
-import { AddCreditCommand } from './payment/addCredit.command';
 import { CreateBBQCommand } from './bbq/createBBQ.command';
 import { JoinBBQCommand } from './bbq/joinBBQ.command';
 import { GiveupBBQCommand } from './bbq/giveupBBQ.command';
@@ -28,6 +26,7 @@ import { CloseBBQCommand } from './bbq/closeBBQ.command';
 import { PayBBQCommand } from './bbq/payBBQ.command';
 import { CancelBBQCommand } from './bbq/cancelBBQ.command';
 import { RandomizeTeamsCommand } from './lineup/randomizeTeams.command';
+import { DebtsCommand } from './payment/debts.command';
 
 @injectable()
 export class CommandFactory {
@@ -40,8 +39,6 @@ export class CommandFactory {
       case '/desistir': return container.resolve(GiveUpCommand);
       case '/convidado': return container.resolve(GuestCommand);
       case '/fora': return container.resolve(OutCommand);
-      case '/pagar-campo': return container.resolve(PayFieldCommand);
-      case '/adicionar-credito': return container.resolve(AddCreditCommand);
       case '/pago': return container.resolve(PaymentCommand);
       case '/desmarcar': return container.resolve(UncheckPaymentCommand);
       case '/saldo': return container.resolve(WorkspaceBalanceCommand);
@@ -53,6 +50,7 @@ export class CommandFactory {
       case '/bind': return container.resolve(BindCommand);
       case '/fechar': return container.resolve(CloseCommand);
       case '/cancelar': return container.resolve(CancelCommand);
+      case '/debitos': return container.resolve(DebtsCommand);
       //churras
       case '/lista-churras': return container.resolve(CreateBBQCommand);
       case '/churras': return container.resolve(JoinBBQCommand);

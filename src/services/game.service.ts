@@ -20,7 +20,7 @@ import { WorkspaceRepository } from '../core/repositories/workspace.repository';
 import { ChatModel } from '../core/models/chat.model';
 import { WorkspaceDoc } from '../core/models/workspace.model';
 import Utils from '../utils/utils';
-import { getNextWeekday, applyTime, formatHorario, todayISOyyyy_mm_dd, formatDateBR } from '../utils/date';
+import { getNextWeekday, applyTime, formatHorario, todayISOyyyy_mm_dd, formatDateBR, getNowInSPAsUTC } from '../utils/date';
 import { isOutfield } from '../utils/lineup';
 import axios from 'axios';
 import { GameModel, GameRoster, GamePlayer } from '../core/models/game.model';
@@ -1348,8 +1348,8 @@ export class GameService {
     if (!game) return "Erro: jogo não encontrado.";
 
     const d = new Date(game.date);
-    const dia = String(d.getDate()).padStart(2, "0");
-    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const dia = String(d.getUTCDate()).padStart(2, "0");
+    const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
     const horario = formatHorario(d);
 
     const chat = await ChatModel.findOne({ chatId: game.chatId, workspaceId: game.workspaceId });
@@ -1426,7 +1426,7 @@ export class GameService {
     const title = chat.schedule.title || workspace.settings?.title || "⚽ Jogo";
     const priceCents = chat.financials?.defaultPriceCents ?? workspace.settings?.pricePerGameCents ?? 1400;
 
-    const base = new Date();
+    const base = getNowInSPAsUTC();
     const gameDate = applyTime(getNextWeekday(base, weekday), timeStr);
 
     let game = await GameModel.findOne({
@@ -1456,8 +1456,8 @@ export class GameService {
   }
 
   async initListAt(workspace: WorkspaceDoc, targetDate: Date, opts?: { title?: string; priceCents?: number; }) {
-    const start = new Date(targetDate); start.setHours(0, 0, 0, 0);
-    const end = new Date(targetDate); end.setHours(23, 59, 59, 999);
+    const start = new Date(targetDate); start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(targetDate); end.setUTCHours(23, 59, 59, 999);
 
     let game = await GameModel.findOne({ workspaceId: workspace._id, date: { $gte: start, $lte: end } });
 
@@ -1812,7 +1812,7 @@ export class GameService {
       id: game._id.toString(),
       name: game.title ?? '',
       date: game.date.toISOString(),
-      time: game.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+      time: String(game.date.getUTCHours()).padStart(2, "0") + ":" + String(game.date.getUTCMinutes()).padStart(2, "0"),
       location: game.location,
       maxPlayers: game.maxPlayers ?? 16,
       currentPlayers: game.roster.players.length,
@@ -1835,9 +1835,9 @@ export class GameService {
    * Obtém estatísticas gerais de jogos
    */
   async getStats(): Promise<any> {
-    const now = new Date();
-    const next7Days = new Date();
-    next7Days.setDate(now.getDate() + 7);
+    const now = getNowInSPAsUTC();
+    const next7Days = getNowInSPAsUTC();
+    next7Days.setUTCDate(now.getUTCDate() + 7);
 
     const [stats] = await this.gameModel.aggregate([
       {

@@ -6,7 +6,7 @@ import { MEMBERSHIP_REPOSITORY_TOKEN, MembershipRepository } from '../core/repos
 import { MembershipStatus } from '../core/models/membership.model';
 import { TransactionType, TransactionCategory, TransactionStatus } from '../core/models/transaction.model';
 import { ChatModel } from '../core/models/chat.model';
-import { getNextWeekday } from '../utils/date';
+import { getNextWeekday, getNowInSPAsUTC } from '../utils/date';
 import { formatDateBR } from '../utils/date';
 
 @injectable()
@@ -25,7 +25,7 @@ export class BBQService {
     }
 
     const weekday = chat.schedule.weekday ?? 2; // Default to Tuesday
-    const base = new Date();
+    const base = getNowInSPAsUTC();
     return getNextWeekday(base, weekday);
   }
 
@@ -68,10 +68,13 @@ export class BBQService {
 
     if (membership && membership.status === MembershipStatus.ACTIVE) {
       // Verificar se já usou o benefício no mês do churrasco
-      const bbqMonth = bbq.date.getMonth();
-      const bbqYear = bbq.date.getFullYear();
-      const startOfMonth = new Date(bbqYear, bbqMonth, 1);
-      const endOfMonth = new Date(bbqYear, bbqMonth + 1, 0);
+      const bbqMonth = bbq.date.getUTCMonth();
+      const bbqYear = bbq.date.getUTCFullYear();
+
+      // Construct start/end dates in UTC Wall Time to match stored dates
+      const startOfMonth = new Date(Date.UTC(bbqYear, bbqMonth, 1, 0, 0, 0, 0));
+      // End of month: Day 0 of next month
+      const endOfMonth = new Date(Date.UTC(bbqYear, bbqMonth + 1, 0, 23, 59, 59, 999));
 
       const participatedBBQs = await this.bbqRepository.findByParticipant(workspaceId, userId, startOfMonth, endOfMonth);
 
@@ -334,8 +337,8 @@ export class BBQService {
     }
 
     const d = new Date(bbq.date);
-    const dia = String(d.getDate()).padStart(2, '0');
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getUTCDate()).padStart(2, '0');
+    const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
 
     let message = `🍖 *CHURRASCO*\n`;
     message += `📅 Data: ${dia}/${mes}\n`;

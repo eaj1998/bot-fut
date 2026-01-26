@@ -27,12 +27,14 @@ import { PayBBQCommand } from './bbq/payBBQ.command';
 import { CancelBBQCommand } from './bbq/cancelBBQ.command';
 import { RandomizeTeamsCommand } from './lineup/randomizeTeams.command';
 import { DebtsCommand } from './payment/debts.command';
+import { SignupCommand } from './admin/signup.command';
 
 @injectable()
 export class CommandFactory {
   public create(command: string): Command | undefined {
     switch (command) {
 
+      case '/signup': return container.resolve(SignupCommand);
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);

@@ -6,7 +6,7 @@ import { WorkspaceService } from "../../services/workspace.service";
 import { UserService } from "../../services/user.service";
 
 @injectable()
-export class ScheduleCommand {
+export class SignupCommand {
     role = IRole.ADMIN;
 
     constructor(

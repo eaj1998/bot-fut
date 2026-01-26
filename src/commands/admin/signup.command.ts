@@ -7,7 +7,7 @@ import { UserService } from "../../services/user.service";
 
 @injectable()
 export class SignupCommand {
-    role = IRole.ADMIN;
+    role = IRole.USER;
 
     constructor(
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,

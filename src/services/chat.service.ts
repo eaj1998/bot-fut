@@ -39,6 +39,7 @@ export class ChatService {
             chatId: chat.chatId,
             platform: chat.platform || PlatformType.WHATSAPP,
             status: chat.status || ChatStatus.ACTIVE,
+            label: chat.label,
 
             settings: {
                 language: settings.language || 'pt-BR',
@@ -141,6 +142,7 @@ export class ChatService {
             chatId: data.chatId,
             platform: data.platform || PlatformType.WHATSAPP,
             status: ChatStatus.ACTIVE, // Start as active simply
+            label: data.label || data.name, // Use provided label or name as internal label
             settings: data.settings || {}, // Mongoose defaults will trigger
             financials: data.financials || {},
             schedule: data.schedule || {}
@@ -157,6 +159,7 @@ export class ChatService {
 
         // Update root fields
         if (data.status) chat.status = data.status as ChatStatus;
+        if (data.label !== undefined) chat.label = data.label;
 
         // Nested updates - merge with existing
         if (data.settings) {

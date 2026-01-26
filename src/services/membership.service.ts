@@ -86,6 +86,9 @@ export class MembershipService {
                 .reduce((sum: number, m: any) => sum + (m.planValue || 0), 0)
         };
 
+        const membershipIds = memberships.map(m => m._id.toString());
+        const lastPaymentsMap = await this.transactionRepo.findLastPaymentsForMemberships(membershipIds);
+
         const mappedMemberships: AdminMembershipListItem[] = memberships.map(m => ({
             id: m._id.toString(),
             user: {
@@ -97,7 +100,7 @@ export class MembershipService {
             planValue: m.planValue / 100, // converter para reais
             billingDay: 10,
             nextDueDate: m.nextDueDate,
-            lastPaymentDate: undefined,
+            lastPaymentDate: lastPaymentsMap.get(m._id.toString()),
             startDate: m.startDate
         }));
 
@@ -360,8 +363,15 @@ export class MembershipService {
     /**
      * Buscar membership do usuário logado
      */
-    async getMyMembership(userId: string, workspaceId: string): Promise<IMembership | null> {
-        return this.membershipRepo.findByUserId(userId, workspaceId);
+    async getMyMembership(userId: string, workspaceId: string): Promise<any | null> {
+        const membership = await this.membershipRepo.findByUserId(userId, workspaceId);
+        if (!membership) return null;
+
+        return {
+            ...membership.toObject(),
+            planValue: membership.planValue / 100, // Converte para Reais
+            planValueCents: membership.planValue // Mantém original em centavos
+        };
     }
 }
 

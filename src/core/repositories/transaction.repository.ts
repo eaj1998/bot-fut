@@ -451,6 +451,35 @@ export class TransactionRepository {
             method
         });
     }
+
+    /**
+     * Busca a data do último pagamento para uma lista de memberships
+     * Retorna um Map<membershipId, lastPaymentDate>
+     */
+    async findLastPaymentsForMemberships(membershipIds: string[]): Promise<Map<string, Date>> {
+        const result = await this.model.aggregate([
+            {
+                $match: {
+                    membershipId: { $in: membershipIds.map(id => new Types.ObjectId(id)) },
+                    status: TransactionStatus.COMPLETED
+                }
+            },
+            {
+                $group: {
+                    _id: "$membershipId",
+                    lastPayment: { $max: "$paidAt" }
+                }
+            }
+        ]);
+
+        const map = new Map<string, Date>();
+        result.forEach(item => {
+            if (item._id && item.lastPayment) {
+                map.set(item._id.toString(), item.lastPayment);
+            }
+        });
+        return map;
+    }
 }
 
 export const TRANSACTION_REPOSITORY_TOKEN = "TRANSACTION_REPOSITORY_TOKEN";

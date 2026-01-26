@@ -43,6 +43,7 @@ export interface ChatDoc extends Document {
   chatId: string;
   platform: PlatformType;
   status: ChatStatus;
+  label?: string;
 
   // Nested configurations
   settings: ChatSettings;
@@ -83,6 +84,9 @@ const ChatSchema = new Schema<ChatDoc>({
   chatId: { type: String, required: true }, // WhatsApp Group ID
   platform: { type: String, enum: Object.values(PlatformType), default: PlatformType.WHATSAPP },
   status: { type: String, enum: Object.values(ChatStatus), default: ChatStatus.ACTIVE },
+
+  // Metadata
+  label: { type: String }, // Internal name manually set
 
   settings: { type: ChatSettingsSchema, default: () => ({}) },
   financials: { type: ChatFinancialsSchema, default: () => ({}) },

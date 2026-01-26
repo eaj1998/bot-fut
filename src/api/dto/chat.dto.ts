@@ -30,6 +30,8 @@ export interface ChatScheduleDto {
 export interface CreateChatDto {
     workspaceId: string;
     chatId: string;
+    name?: string;
+    label?: string;
     platform?: 'WHATSAPP' | 'TELEGRAM';
     settings?: ChatSettingsDto;
     financials?: ChatFinancialsDto;
@@ -38,6 +40,7 @@ export interface CreateChatDto {
 
 export interface UpdateChatDto {
     status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | 'SETUP_REQUIRED';
+    label?: string;
     settings?: ChatSettingsDto;
     financials?: ChatFinancialsDto;
     schedule?: ChatScheduleDto;
@@ -59,6 +62,7 @@ export interface ChatResponseDto {
     chatId: string;
     platform: string;
     status: string;
+    label?: string;
 
     // Nested objects
     settings: {

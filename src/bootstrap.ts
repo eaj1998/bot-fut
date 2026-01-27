@@ -36,20 +36,6 @@ const main = async () => {
   const config = container.resolve(ConfigService);
   const logger = container.resolve(LoggerService);
 
-  // FORCE CLEAN SESSION
-  if (process.env.FORCE_CLEAN_SESSION === 'true') {
-    const fs = require('fs');
-    const path = require('path');
-    const sessionPath = path.resolve(process.cwd(), '.wwebjs_auth');
-    if (fs.existsSync(sessionPath)) {
-      logger.log('🧹 Force cleaning session directory...');
-      fs.rmSync(sessionPath, { recursive: true, force: true });
-      logger.log('✅ Session directory deleted.');
-    } else {
-      logger.log('ℹ️ Session directory not found, skipping clean.');
-    }
-  }
-
   //BD
   await connectMongo(config.database.mongoUri, config.database.mongoDb);
 

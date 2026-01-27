@@ -1,9 +1,0 @@
-# nixpacks.toml
-
-[phases.setup]
-# Usamos 'cmds' para rodar os comandos exatos de instalação das dependências
-# de sistema que o Puppeteer (Chrome) precisa para funcionar no Linux do Railway.
-cmds = [
-  "apt-get update",
-  "apt-get install -y --no-install-recommends libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgbm1 libasound2t64 libpangocairo-1.0-0 libxshmfence1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libx11-xcb1 libxtst6 libdrm2 libxkbcommon0 lsb-release ffmpeg"
-]

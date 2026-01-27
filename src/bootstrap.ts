@@ -35,7 +35,6 @@ dotenv.config();
 const main = async () => {
   const config = container.resolve(ConfigService);
   const logger = container.resolve(LoggerService);
-
   //BD
   await connectMongo(config.database.mongoUri, config.database.mongoDb);
 

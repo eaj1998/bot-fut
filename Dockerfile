@@ -1,6 +1,5 @@
 FROM node:18-bullseye
 
-# Instala Chromium + mesmas libs que você usava no Nixpacks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     libnss3 \
@@ -24,7 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     xdg-utils \
     ca-certificates \
-    --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -34,7 +32,6 @@ RUN npm install
 
 COPY . .
 
-# Diz pro Puppeteer onde está o Chromium do sistema
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 CMD ["npm", "start"]

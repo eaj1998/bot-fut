@@ -65,7 +65,10 @@ export class TagCommand implements Command {
                     user = await this.userRepo.findByLid(phoneE164);
                 }
 
-                if (!user) continue;
+                if (!user) {
+                    mentions.push(serializedId);
+                    continue;
+                }
 
                 if (user && user.status === 'inactive') continue;
 

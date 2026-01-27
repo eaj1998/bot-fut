@@ -22,7 +22,7 @@ export class StickerCommand implements Command {
         const sticker = MessageMedia.fromFilePath(stickerPath);
         this.server.sendMessage(message.from, sticker, { sendMediaAsSticker: true });
       } catch (error) {
-        message.reply(`Desculpe, não consegui encontrar a figurinha para o comando ${message.body}.`);
+        message.reply(`Desculpe, não consegui encontrar a figurinha para o comando ${message.body}`);
       }
     }
   }

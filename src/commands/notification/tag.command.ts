@@ -67,6 +67,7 @@ export class TagCommand implements Command {
 
                 if (!user) {
                     mentions.push(serializedId);
+                    text += `@${participant.id.user} `;
                     continue;
                 }
 

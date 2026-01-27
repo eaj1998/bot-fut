@@ -504,7 +504,7 @@ export class GameService {
     const isFutureGame = gameDate > today;
     const isActiveMember = membership?.status === MembershipStatus.ACTIVE;
 
-    if (isFutureGame && !isActiveMember) {
+    if (isFutureGame && !isActiveMember && !game.allowCasualsEarly) {
       throw new ApiError(
         403,
         '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo.'
@@ -1150,24 +1150,23 @@ export class GameService {
     }
   }
 
-  async updateGame(gameId: string, data: UpdateGameDto): Promise<GameResponseDto> {
+  async updateGame(gameId: string, dto: UpdateGameDto): Promise<GameResponseDto> {
     const game = await this.gameModel.findById(gameId).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
 
-    if (data.name) game.title = data.name;
-    if (data.date || data.time) {
-      const dateStr = data.date || game.date.toISOString().split('T')[0];
-      const timeStr = data.time || game.date.toTimeString().slice(0, 5);
-      game.date = new Date(dateStr + 'T' + timeStr);
+    if (dto.name) game.title = dto.name;
+    if (dto.date && dto.time) game.date = new Date(dto.date + 'T' + dto.time);
+    if (dto.location) game.location = dto.location;
+    if (dto.maxPlayers) game.maxPlayers = dto.maxPlayers;
+    if (dto.pricePerPlayer) game.priceCents = dto.pricePerPlayer;
+    if (dto.status) game.status = dto.status;
+    if (typeof dto.allowCasualsEarly === 'boolean') {
+      game.allowCasualsEarly = dto.allowCasualsEarly;
     }
-    if (data.location) game.location = data.location;
-    if (data.maxPlayers) game.maxPlayers = data.maxPlayers;
-    if (data.pricePerPlayer) game.priceCents = data.pricePerPlayer * 100;
-    if (data.status) game.status = data.status;
 
-    await game.save();
+    await this.gameRepo.save(game);
     return this.mapToGameResponse(game);
   }
 
@@ -1828,6 +1827,7 @@ export class GameService {
         isGoalkeeper: (p.slot ?? 0) <= (game.roster.goalieSlots ?? 2) && (p.slot ?? 0) > 0,
         isPaid: p.paid || false
       })) || [],
+      allowCasualsEarly: game.allowCasualsEarly,
     };
   }
 

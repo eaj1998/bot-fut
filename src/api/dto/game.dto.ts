@@ -71,6 +71,10 @@ export class UpdateGameDto {
   @IsEnum(GameStatus)
   @IsOptional()
   status?: GameStatus;
+
+  @IsBoolean()
+  @IsOptional()
+  allowCasualsEarly?: boolean;
 }
 
 export class GameResponseDto {
@@ -86,6 +90,7 @@ export class GameResponseDto {
   createdAt!: string;
   workspaceId?: string;
   players?: PlayerInGameDto[];
+  allowCasualsEarly?: boolean;
 }
 
 export class PlayerInGameDto {

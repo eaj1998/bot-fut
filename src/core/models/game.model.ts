@@ -57,6 +57,7 @@ export interface IGame extends Document {
   maxPlayers?: number;
   status: "open" | "closed" | "cancelled" | "finished" | "scheduled"
   roster: GameRoster;
+  allowCasualsEarly?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -128,6 +129,7 @@ const GameSchema = new Schema<IGame>(
       type: RosterSchema,
       default: () => ({ goalieSlots: 2, players: [], waitlist: [], outlist: [] }),
     },
+    allowCasualsEarly: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

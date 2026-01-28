@@ -33,6 +33,7 @@ import { FinancialService, FINANCIAL_SERVICE_TOKEN } from './services/financial.
 dotenv.config();
 
 const main = async () => {
+  console.log('🚀 [BOOTSTRAP] Starting application...');
   const config = container.resolve(ConfigService);
   const logger = container.resolve(LoggerService);
 

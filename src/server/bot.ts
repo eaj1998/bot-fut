@@ -110,11 +110,16 @@ export class BotServer extends IBotServerPort {
       }
     });
 
-    this.client.initialize().catch((error) => {
+    this.loggerService.log('[BotServer] Initializing client...');
+    this.client.initialize().then(() => {
+      this.loggerService.log('[BotServer] Client.initialize() promise resolved');
+    }).catch((error) => {
       this.loggerService.error('Failed to initialize WhatsApp client:', error);
       if (error.message && error.message.includes('auth timeout')) {
         this.loggerService.error('Authentication timeout - QR code was not scanned in time. Please restart the application.');
       }
     });
+
+    this.loggerService.log('[BotServer] Initialization triggered');
   }
 }

@@ -47,7 +47,7 @@ export class App {
 
     this.server.onQRCode((qr: string) => {
       this.latestQr = qr;
-      console.clear();
+      // console.clear(); // Removed to preserve logs in Railway
       qrcode.generate(qr, { small: true }, (ascii) => {
         process.stdout.write('\n' + ascii + '\n');
       });

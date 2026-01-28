@@ -44,25 +44,21 @@ export class BotServer extends IBotServerPort {
   async setup(): Promise<void> {
     this.client = new Client({
       authStrategy: new LocalAuth({
-        dataPath: `${this.configService.whatsApp.sessionPath}/wwebjs_auth`,
+        dataPath: '/app/.wwebjs_auth'
       }),
       puppeteer: {
-        headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--no-first-run',
           '--no-zygote',
           '--single-process'
         ],
-        timeout: 120000,
-      },
-      /* webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-      }, */
+      }
     });
   }
 

@@ -1,5 +1,6 @@
 FROM node:18-bullseye
 
+# Instala dependências necessárias pro Chromium rodar em ambiente headless
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     libnss3 \
@@ -27,15 +28,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Copia apenas os arquivos de dependência primeiro (cache de build)
 COPY package*.json ./
 
 ENV HUSKY=0
 RUN npm install
 
-
+# Copia o restante do projeto
 COPY . .
+
+# Build do projeto (se usar TypeScript ou bundler)
 RUN npm run build
 
+# 🔥 Caminho do Chromium para o Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# 🔥 Pasta onde a sessão do WhatsApp será salva
+RUN mkdir -p /app/.wwebjs_auth
+
+# Porta padrão (Railway define automaticamente, mas não atrapalha)
+EXPOSE 3000
 
 CMD ["npm", "start"]

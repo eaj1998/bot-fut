@@ -95,7 +95,16 @@ export class BotServer extends IBotServerPort {
       this.loggerService.warn('WhatsApp client disconnected:', reason);
     });
 
+    this.client.on('loading_screen', (percent, message) => {
+      this.loggerService.log(`WhatsApp loading: ${percent}% - ${message}`);
+    });
+
+    this.client.on('change_state', (state) => {
+      this.loggerService.log(`WhatsApp state changed to: ${state}`);
+    });
+
     this.client.on('message', async (message) => {
+      this.loggerService.log(`[BotServer] Raw message received from ${message.from}`); // DEBUG
       if (this.events.message) {
         this.events.message(message);
       }

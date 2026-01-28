@@ -5,7 +5,6 @@ wwebjs_auth
 bruno-collection
 docs
 interface
-scripts
 .env
 coverage
 npm-debug.log

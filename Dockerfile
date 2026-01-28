@@ -28,7 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY package*.json ./
+
+ENV HUSKY=0
 RUN npm install
+
 
 COPY . .
 RUN npm run build

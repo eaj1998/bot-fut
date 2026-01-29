@@ -16,6 +16,8 @@ export class StickerCommand implements Command {
       '/joao': './assets/joao.webp',
       '/pedro': './assets/pedro.webp',
       '/tailon': './assets/tailon.webp',
+      '/andrei': './assets/andrei.webp',
+      '/luan': './assets/luan.webp',
     };
 
     if (stickers[message.body]) {

@@ -60,7 +60,6 @@ export class App {
 
     this.server.onMessage(async (message) => {
       const messageContent = message.body.trim();
-      this.loggerService.log(`Received message: ${messageContent}`); // DEBUG LOG
       if (!messageContent.startsWith('/')) {
         return;
       }
@@ -68,7 +67,6 @@ export class App {
       const matches = /(\/[a-z-]+)/.exec(messageContent);
       const command = matches?.[0];
       if (!command) {
-        this.loggerService.log('No command found in message'); // DEBUG LOG
         return;
       }
 

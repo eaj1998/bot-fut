@@ -46,7 +46,10 @@ export class CommandFactory {
       case '/saldo': return container.resolve(WorkspaceBalanceCommand);
       case '/schedule': return container.resolve(ScheduleCommand);
       case '/marcar': return container.resolve(TagCommand);
-      case '/joao': return container.resolve(StickerCommand);
+      case '/joao':
+      case '/pedro':
+      case '/tailon':
+        return container.resolve(StickerCommand);
       case '/help': return container.resolve(HelpCommand);
       case '/previsao': return container.resolve(WeatherCommand);
       case '/bind': return container.resolve(BindCommand);

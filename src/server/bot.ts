@@ -3,6 +3,8 @@ import WAWebJS, { Client, LocalAuth, Message } from 'whatsapp-web.js';
 import { inject, injectable } from 'tsyringe';
 import { LoggerService } from '../logger/logger.service';
 import { ConfigService } from '../config/config.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @injectable()
 export class BotServer extends IBotServerPort {
@@ -41,7 +43,33 @@ export class BotServer extends IBotServerPort {
     }
   }
 
+
+  private removeLocks(directory: string) {
+    if (!fs.existsSync(directory)) return;
+
+    try {
+      const files = fs.readdirSync(directory);
+      for (const file of files) {
+        const fullPath = path.join(directory, file);
+        const stat = fs.lstatSync(fullPath);
+
+        if (stat.isDirectory()) {
+          this.removeLocks(fullPath);
+        } else if (file === 'SingletonLock') {
+          this.loggerService.log(`[BotServer] Removing found lock file: ${fullPath}`);
+          fs.unlinkSync(fullPath);
+        }
+      }
+    } catch (error) {
+      this.loggerService.error(`[BotServer] Error removing locks: ${error}`);
+    }
+  }
+
   async setup(): Promise<void> {
+    const authPath = '/app/.wwebjs_auth';
+    this.loggerService.log(`[BotServer] Checking for stale locks in ${authPath}...`);
+    this.removeLocks(authPath);
+
     this.client = new Client({
       authStrategy: new LocalAuth({
         dataPath: '/app/.wwebjs_auth'

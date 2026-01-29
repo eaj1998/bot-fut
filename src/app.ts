@@ -47,6 +47,11 @@ export class App {
 
     this.server.onQRCode((qr: string) => {
       this.latestQr = qr;
+      this.loggerService.log('\n==================================================================');
+      this.loggerService.log('QR Code received! If the image below is distorted, copy the string below and paste it on https://www.the-qrcode-generator.com/');
+      this.loggerService.log(`QR String: ${qr}`);
+      this.loggerService.log('==================================================================\n');
+
       // console.clear(); // Removed to preserve logs in Railway
       qrcode.generate(qr, { small: true }, (ascii) => {
         process.stdout.write('\n' + ascii + '\n');

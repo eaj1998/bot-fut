@@ -49,6 +49,8 @@ export class CommandFactory {
       case '/joao':
       case '/pedro':
       case '/tailon':
+      case '/andrei':
+      case '/luan':
         return container.resolve(StickerCommand);
       case '/help': return container.resolve(HelpCommand);
       case '/previsao': return container.resolve(WeatherCommand);

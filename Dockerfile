@@ -32,6 +32,9 @@ WORKDIR /app
 COPY package*.json ./
 
 ENV HUSKY=0
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 RUN npm install
 
 # Copia o restante do projeto

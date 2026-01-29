@@ -68,7 +68,7 @@ export class BotServer extends IBotServerPort {
     }
 
     this.client.on('ready', () => {
-      this.loggerService.log('✅ [BotServer] WhatsApp client is READY!!');
+      this.loggerService.log('✅ [BotServer] WhatsApp client is READY!');
       if (this.events.ready) {
         this.events.ready();
       }

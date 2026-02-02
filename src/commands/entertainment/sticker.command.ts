@@ -18,6 +18,7 @@ export class StickerCommand implements Command {
       '/tailon': './assets/tailon.webp',
       '/andrei': './assets/andrei.webp',
       '/luan': './assets/luan.webp',
+      '/cleomar': './assets/cleomar.webp',
     };
 
     if (stickers[message.body]) {

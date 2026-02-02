@@ -353,12 +353,12 @@ export class TransactionRepository {
                 $match: {
                     workspaceId: new Types.ObjectId(workspaceId),
                     status: TransactionStatus.COMPLETED,
-                    paidAt: { $gte: startDate, $lte: endDate }
+                    updatedAt: { $gte: startDate, $lte: endDate }
                 }
             },
             {
                 $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } },
                     income: {
                         $sum: {
                             $cond: [{ $eq: ["$type", TransactionType.INCOME] }, "$amount", 0]

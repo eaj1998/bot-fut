@@ -124,7 +124,7 @@ export class MembershipsController {
      * Criar membership para um usuário específico (admin)
      */
     createMembershipAdmin = asyncHandler(async (req: Request, res: Response) => {
-        const { userId, planValue, workspaceId } = req.body;
+        const { userId, planValue, workspaceId, billingDay } = req.body;
 
         if (!userId || !workspaceId || planValue === undefined) {
             return res.status(400).json({
@@ -134,7 +134,7 @@ export class MembershipsController {
         }
 
         const planValueCents = Math.round(planValue * 100);
-        const nextDueDate = MembershipRepository.calculateNextDueDate();
+        const nextDueDate = MembershipRepository.calculateNextDueDate(undefined, billingDay, false);
 
         const membership = await this.membershipService.createMembership({
             workspaceId,

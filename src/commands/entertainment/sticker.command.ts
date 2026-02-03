@@ -20,6 +20,7 @@ export class StickerCommand implements Command {
       '/luan': './assets/luan.webp',
       '/cleomar': './assets/cleomar.webp',
       '/pedro-lgbt': './assets/pedro-lgbt.webp',
+      '/arthur': './assets/arthur.webp',
     };
 
     if (stickers[message.body]) {

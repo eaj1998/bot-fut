@@ -51,7 +51,7 @@ export class MembershipService {
         @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
         @inject(USER_REPOSITORY_TOKEN) private readonly userRepo: UserRepository,
-        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>,
     ) { }
 
     /**
@@ -161,9 +161,11 @@ export class MembershipService {
         let shouldActivate = false;
 
         if (pendingTransaction) {
+            console.log('Pending transaction found');
             const pendingAmount = pendingTransaction.amount;
 
             if (paidAmountCents >= pendingAmount) {
+                console.log('Pending transaction completed');
                 transaction = await this.transactionRepo.updateTransaction(pendingTransaction._id.toString(), {
                     status: TransactionStatus.COMPLETED,
                     paidAt: new Date(),
@@ -172,6 +174,7 @@ export class MembershipService {
                 });
                 shouldActivate = true;
             } else {
+                console.log('Pending transaction partial');
                 // Pagamento Parcial (< dívida)
                 // 1. Criar transação separada para o valor PAGO (Receita que entrou)
                 transaction = await this.transactionRepo.createTransaction({
@@ -182,7 +185,7 @@ export class MembershipService {
                     category: TransactionCategory.MEMBERSHIP,
                     status: TransactionStatus.COMPLETED, // Dinheiro entrou
                     amount: paidAmountCents,
-                    dueDate: new Date(),
+                    dueDate: MembershipRepository.calculateNextDueDate(undefined, membership.nextDueDate.getDay()),
                     paidAt: new Date(),
                     description: (input.description || `Pagamento parcial - ${input.method}`) + ` (Abatido da dívida)`,
                     method: input.method
@@ -197,6 +200,7 @@ export class MembershipService {
                 shouldActivate = false;
             }
         } else {
+            console.log('No pending transaction found');
             const planValue = membership.planValue;
 
             transaction = await this.transactionRepo.createTransaction({
@@ -207,15 +211,17 @@ export class MembershipService {
                 category: TransactionCategory.MEMBERSHIP,
                 status: TransactionStatus.COMPLETED,
                 amount: paidAmountCents,
-                dueDate: new Date(),
+                dueDate: MembershipRepository.calculateNextDueDate(undefined, membership.nextDueDate.getDay()),
                 paidAt: new Date(),
                 description: input.description || `Pagamento manual de mensalidade - ${input.method}`,
                 method: input.method
             });
 
             if (paidAmountCents >= planValue) {
+                console.log('Pending transaction completed');
                 shouldActivate = true;
             } else {
+                console.log('Pending transaction partial');
                 if (membership.status !== MembershipStatus.ACTIVE) {
                     const remaining = planValue - paidAmountCents;
                     if (remaining > 0) {
@@ -243,6 +249,7 @@ export class MembershipService {
         }
 
         const nextDueDate = MembershipRepository.calculateNextDueDate();
+        console.log('Next due date: ', nextDueDate);
 
         await this.membershipRepo.updateNextDueDate(membershipId, nextDueDate);
 
@@ -400,8 +407,7 @@ export class MembershipService {
                     return tDate.getMonth() === nextDueDate.getMonth() &&
                         tDate.getFullYear() === nextDueDate.getFullYear() &&
                         t.type === TransactionType.INCOME &&
-                        (t.category === TransactionCategory.MEMBERSHIP) &&
-                        t.status === TransactionStatus.COMPLETED;
+                        (t.category === TransactionCategory.MEMBERSHIP)
                 });
 
                 if (alreadyBilled) {

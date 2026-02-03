@@ -280,12 +280,20 @@ export class MembershipRepository {
     /**
      * Calcula a próxima data de vencimento (sempre dia 10)
      */
-    static calculateNextDueDate(currentDate: Date = new Date()): Date {
+    static calculateNextDueDate(
+        currentDate: Date = new Date(),
+        dueDay: number = 10,
+        skipCurrentMonth: boolean = true
+    ): Date {
         const nextDue = new Date(currentDate);
 
-        nextDue.setDate(1);
-        nextDue.setMonth(nextDue.getMonth() + 1);
-        nextDue.setDate(10);
+        if (!skipCurrentMonth && nextDue.getDate() < dueDay) {
+            nextDue.setDate(dueDay);
+        } else {
+            nextDue.setDate(1);
+            nextDue.setMonth(nextDue.getMonth() + 1);
+            nextDue.setDate(dueDay);
+        }
 
         nextDue.setHours(12, 0, 0, 0);
 

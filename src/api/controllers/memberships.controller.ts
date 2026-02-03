@@ -268,4 +268,26 @@ export class MembershipsController {
                 : 'Membership agendado para cancelamento'
         });
     });
+    /**
+     * POST /api/memberships/admin/process-billing
+     * Processa a cobrança mensal de assinaturas ativas
+     */
+    processMonthlyBilling = asyncHandler(async (req: Request, res: Response) => {
+        const { workspaceId } = req.body;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'workspaceId é obrigatório'
+            });
+        }
+
+        const result = await this.membershipService.processMonthlyBilling(workspaceId);
+
+        res.json({
+            success: true,
+            message: `Processamento concluído: ${result.created} cobranças geradas.`,
+            data: result
+        });
+    });
 }

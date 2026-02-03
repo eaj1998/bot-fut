@@ -286,16 +286,10 @@ export class MembershipRepository {
     static calculateNextDueDate(currentDate: Date = new Date()): Date {
         const nextDue = new Date(currentDate);
 
-        // Se hoje é antes do dia 10 deste mês, próximo vencimento é dia 10 deste mês
-        if (currentDate.getDate() < 10) {
-            nextDue.setDate(10);
-        } else {
-            // Caso contrário, próximo vencimento é dia 10 do próximo mês
-            nextDue.setMonth(nextDue.getMonth() + 1);
-            nextDue.setDate(10);
-        }
+        nextDue.setDate(1);
+        nextDue.setMonth(nextDue.getMonth() + 1);
+        nextDue.setDate(10);
 
-        // Zerar horas para meia-noite
         nextDue.setHours(0, 0, 0, 0);
 
         return nextDue;

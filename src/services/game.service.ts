@@ -31,8 +31,8 @@ type ClosePlayerResult = {
   playerName: string;
   ledger: boolean;
   organizze: boolean;
-  isMember?: boolean; // NEW: indica se é mensalista ACTIVE
-  transactionId?: string; // NEW: ID da transaction criada
+  isMember?: boolean;
+  transactionId?: string;
   error?: string;
 };
 
@@ -258,7 +258,6 @@ export class GameService {
     game.status = "cancelled";
     await this.gameRepo.save(game);
 
-    // Enviar mensagem de cancelamento e fixar
     try {
       const sent = await this.whatsappService.sendMessage(game.chatId, "Jogo Cancelado!");
       if (sent && sent.pin) {
@@ -281,7 +280,6 @@ export class GameService {
   }
 
   /**
-   * REFATORADO: Fecha o jogo criando Transactions ao invés de Ledger entries
    * Mensalistas ACTIVE não são cobrados (já pagam mensalidade)
    * Registra despesas automáticas (quadra, árbitro)
    */
@@ -315,15 +313,12 @@ export class GameService {
                 };
               }
 
-              // NOVA LÓGICA: Verificar se é mensalista ACTIVE
-              // IMPORTANTE: Convidados SEMPRE pagam, mesmo se vindos de mensalistas
               const membership = await this.membershipRepo.findByUserId(
                 targetUserId,
                 game.workspaceId.toString()
               );
 
               if (membership && membership.status === MembershipStatus.ACTIVE && !player.guest) {
-                // Mensalista ACTIVE (jogando ele mesmo): NÃO cobrar
                 return {
                   success: true,
                   playerName,
@@ -353,14 +348,13 @@ export class GameService {
                   description: player.guest
                     ? `Jogo ${game.title} - ${formatDateBR(game.date)} (convidado: ${player.name})`
                     : `Jogo ${game.title} - ${formatDateBR(game.date)}`,
-                  method: isPaid ? 'dinheiro' : 'pix', // Default to cash if marked paid manually, user can update later
+                  method: isPaid ? 'dinheiro' : 'pix',
                 });
 
                 transactionId = transaction._id.toString();
                 ledgerOk = true;
               }
 
-              // Tentar sincronizar com Organizze (mantido para compatibilidade)
               let organizzeOk = false;
               try {
                 const org = await this.criarMovimentacaoOrganizze(
@@ -406,9 +400,6 @@ export class GameService {
             }
         );
 
-        // NOVA LÓGICA: Registrar despesas automáticas do jogo
-        // TODO: Adicionar campos defaultFieldCost e defaultRefereeCost ao WorkspaceModel
-        // Por enquanto, usar valores padrão ou fallback para 0
         const fieldCost = (workspace as any)?.defaultFieldCost || 0;
         const refereeCost = (workspace as any)?.defaultRefereeCost || 0;
 
@@ -442,7 +433,6 @@ export class GameService {
           });
         }
 
-        // Atualizar status do jogo
         game.status = "closed";
         if (typeof game.save === "function") {
           await game.save({ session });
@@ -477,22 +467,17 @@ export class GameService {
       });
     }
 
-    // ========== EARLY ACCESS VALIDATION (REGRA DE OURO) ==========
-    // Check membership status for early access and suspension rules
     const membership = await this.membershipRepo.findByUserId(
       user._id.toString(),
       game.workspaceId.toString()
     );
 
-
-    // Get game date and today's date (start of day for fair comparison)
     const gameDate = new Date(game.date);
     gameDate.setHours(0, 0, 0, 0);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Verificação 1: Bloqueio de Caloteiro (SUSPENDED members cannot join at all)
     if (membership?.status === MembershipStatus.SUSPENDED) {
       throw new ApiError(
         403,
@@ -507,10 +492,9 @@ export class GameService {
     if (isFutureGame && !isActiveMember && !game.allowCasualsEarly) {
       throw new ApiError(
         403,
-        '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo.'
+        '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo. Para se tornar mensalista contate o administrador do grupo.'
       );
     }
-    // ========== END EARLY ACCESS VALIDATION ==========
 
     if (data.guestName) {
       if (!data.name) {
@@ -867,18 +851,13 @@ export class GameService {
       return { updated: false, reason: 'User nao encontrado' };
     }
 
-    // Updated for Transaction Service
-    // Was: await this.ledgerRepo.unconfirmDebit(game.workspaceId._id, userId, game._id);
     const transactions = await this.transactionRepo.findByGameId(game._id.toString());
     const tx = transactions.find((t: any) => t.userId?.toString() === userId.toString() && t.type === TransactionType.INCOME);
     if (tx) {
       await this.transactionRepo.updateStatus(tx._id, TransactionStatus.PENDING);
     }
 
-    // Was: await this.ledgerRepo.deleteCredit(game.workspaceId._id, userId, game._id);
-    // We assume 'unconfirming' handles it. If logic removed actual credit, here we might need to delete a transaction?
-    // For now, if unconfirm sets to PENDING, that's enough for debt tracking.
-    const isDeleted = true; // Placeholder
+    const isDeleted = true;
 
     if (isDeleted) {
       const updatedPlayer = {
@@ -907,8 +886,6 @@ export class GameService {
       }
 
       if (await game.save()) {
-        // Balance recompute not needed in Transaction model immediately
-        // await this.ledgerRepo.recomputeUserBalance(game.workspaceId._id.toString(), userId.toString());
         return { updated: true, playerName: player.name };
       }
     }
@@ -969,7 +946,6 @@ export class GameService {
     game.roster.players[idx] = updatedPlayer;
     game.markModified("roster");
 
-    // 2. Handle Financial Transaction
     const validMethod = (payMethod === 'dinheiro' || payMethod === 'pix' || payMethod === 'transf') ? payMethod : 'pix';
 
     if (game.status === 'closed' || game.status === 'finished') {
@@ -981,7 +957,6 @@ export class GameService {
       });
 
       let targetTx = null;
-      // Try precise match on description if possible
       const searchName = player.name;
 
       if (player.guest) {
@@ -993,8 +968,6 @@ export class GameService {
       if (targetTx) {
         await this.transactionRepo.markAsPaid(targetTx._id.toString(), now, validMethod);
       } else if (finalAmount > 0) {
-        // No pending transaction found (maybe was deleted or logic skipped), but we are paying now.
-        // Create new COMPLETED transaction.
         await this.transactionRepo.createTransaction({
           workspaceId: game.workspaceId.toString(),
           userId: inviterId,
@@ -1110,7 +1083,6 @@ export class GameService {
     }
 
     const { email, apiKey, accountId, categories } = organizzeConfig;
-    // Use playerPayment category for game payments
     const categoryId = categories.playerPayment;
 
     const payload = {
@@ -1206,7 +1178,6 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      // Check if phone is actually a LID (15+ digits)
       const isLid = /^\d{15,}$/.test(phone);
       user = await this.userModel.create({
         name,
@@ -1237,7 +1208,6 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      // Check if phone is actually a LID (15+ digits)
       const isLid = /^\d{15,}$/.test(phone);
       user = await this.userModel.create({
         name,
@@ -1268,7 +1238,6 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      // Check if phone is actually a LID (15+ digits)
       const isLid = /^\d{15,}$/.test(phone);
       user = await this.userModel.create({
         name,
@@ -1288,7 +1257,6 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: inviterPhone }).exec();
 
     if (!user) {
-      // Check if phone is actually a LID (15+ digits)
       const isLid = /^\d{15,}$/.test(inviterPhone);
       user = await this.userModel.create({
         name: inviterName,
@@ -1313,7 +1281,6 @@ export class GameService {
     let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
     if (!user) {
-      // Check if phone is actually a LID (15+ digits)
       const isLid = /^\d{15,}$/.test(phone);
       user = await this.userModel.create({
         name,
@@ -1473,7 +1440,6 @@ export class GameService {
   }
 
   async getUserDebtsGrouped(userId: string): Promise<FormattedWorkspace[]> {
-    // Replaced Ledger usage with Transaction
     const transactions = await this.transactionRepo.findByUserId(userId);
 
     const map = new Map<string, {
@@ -1492,7 +1458,6 @@ export class GameService {
       workspaceSlug?: string;
     }>();
 
-    // Helper to get or create workspace entry
     const getWs = (wsId: string) => {
       if (!map.has(wsId)) {
         map.set(wsId, { workspaceId: wsId, balanceCents: 0, games: [] });
@@ -1500,31 +1465,20 @@ export class GameService {
       return map.get(wsId)!;
     };
 
-    // Process transactions
     for (const t of transactions) {
       const wsId = t.workspaceId.toString();
       const entry = getWs(wsId);
 
-      // Simple balance logic: Income Completed - Expense Completed? 
-      // Or Income Pending = Debt.
-      // Legacy ledger had balance. We'll skip balance calc for now as it's not strictly tracked in Transaction yet.
-
-      // Group by Game (if exists)
       if (t.gameId) {
         const gId = t.gameId.toString();
-        // Find or create game entry in this workspace
-        // This logic was complex in legacy. 
-        // Simplification: We just list transactions as lines if needed, or skip detailed grouping if not used.
-        // The original code returned 'games' array with debits/credits.
       }
     }
 
-    // Stub implementation to fix build. Logic needs full rewrite for Transaction system.
     return [];
   }
 
   async getDebtsSummary(workspace: WorkspaceDoc, user: IUser) {
-    const balanceCents = 0; // Legacy ledger balance removed
+    const balanceCents = 0;
 
     const games = await this.gameRepo.findUnpaidGamesForUser(
       workspace._id,
@@ -1571,8 +1525,6 @@ export class GameService {
       priceCents: number;
     }>;
 
-    // Add BBQ debts from ledger
-    // Add BBQ debts from transactions
     const bbqTransactions = await this.transactionRepo.findPendingTransactions(
       workspace._id.toString(),
       {
@@ -1580,11 +1532,10 @@ export class GameService {
         type: TransactionType.INCOME
       }
     );
-    const bbqLedgers = bbqTransactions; // Alias for compatibility with loop below if used, or refactor loop
+    const bbqLedgers = bbqTransactions;
 
     for (const bbqL of bbqLedgers) {
       let date = bbqL.createdAt || new Date();
-      // Try to extract date from note (format: "Debito de churrasco - YYYY-MM-DD - UserName")
       if (bbqL.note) {
         const noteMatch = bbqL.note.match(/(\d{4}-\d{2}-\d{2})/);
         if (noteMatch) {
@@ -1602,7 +1553,6 @@ export class GameService {
       });
     }
 
-    // Sort debts by date (most recent first)
     debts.sort((a, b) => b.date.getTime() - a.date.getTime());
 
     return { balanceCents, debts };
@@ -1624,14 +1574,11 @@ export class GameService {
       const data = `${String(dia.getDate()).padStart(2, "0")}/${String(dia.getMonth() + 1).padStart(2, "0")}`;
       const valor = Utils.formatCentsToReal(g.priceCents);
 
-      // Check if this is a BBQ debt (title starts with 🍖)
       const isBBQ = g.title?.startsWith("🍖");
 
       if (isBBQ) {
-        // BBQ debts don't have slots
         linhas.push(`\n*${data}* — ${g.title}\n- Churrasco — ${valor}`);
       } else {
-        // Game debts with slots
         const ownStr = g.own.map((o: OwnDebts) => `- Vaga própria (slot ${o.slot ?? "?"}) — ${valor}`).join("\n");
         const guestStr = g.guests.map((gu: GuestDebts) => `- Convidado ${gu.name ?? ""} (slot ${gu.slot ?? "?"}) — ${valor}`).join("\n");
         const bloco = [ownStr, guestStr].filter(Boolean).join("\n");

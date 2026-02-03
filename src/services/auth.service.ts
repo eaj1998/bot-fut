@@ -60,6 +60,8 @@ export class AuthService {
         const code = this.generateOTP();
         const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MINUTES * 60 * 1000);
 
+        this.loggerService.debug(`OTP: ${code}`);
+
         await this.otpModel.create({
             phone,
             code,

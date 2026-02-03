@@ -23,4 +23,8 @@ export class LoggerService {
   public info(...args: any[]) {
     console.info(`[${this.name}]`, ...args, new Date());
   }
+
+  public debug(...args: any[]) {
+    console.debug(`[${this.name}]`, ...args, new Date());
+  }
 }

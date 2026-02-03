@@ -158,7 +158,7 @@ export class FinancialService {
         workspaceId: string,
         page: number = 1,
         limit: number = 20,
-        filters?: { type?: TransactionType; search?: string }
+        filters?: { type?: TransactionType; search?: string, status?: TransactionStatus }
     ): Promise<{ transactions: TransactionResponseDto[]; total: number; pages: number }> {
         if (!workspaceId) {
             throw new ApiError(400, 'workspaceId é obrigatório');
@@ -167,6 +167,7 @@ export class FinancialService {
         const repoFilters: any = {};
         if (filters?.type) repoFilters.type = filters.type;
         if (filters?.search) repoFilters.search = filters.search;
+        if (filters?.status) repoFilters.status = filters.status;
 
         const result = await this.transactionRepo.findAll(workspaceId, page, limit, repoFilters);
 

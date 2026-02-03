@@ -21,6 +21,7 @@ export class TransactionsController {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
         const type = req.query.type as any;
+        const status = req.query.status as any;
         const search = req.query.search as string;
 
         if (!workspaceId) {
@@ -32,6 +33,7 @@ export class TransactionsController {
 
         const filters: any = {};
         if (type) filters.type = type;
+        if (status) filters.status = status;
         if (search) filters.search = search;
 
         const result = await this.financialService.getAllTransactions(workspaceId, page, limit, filters);
@@ -153,9 +155,6 @@ export class TransactionsController {
                 if (game) {
                     const transactionUserId = transaction.userId.toString();
 
-                    // Encontrar o slot do jogador no roster
-                    // Para jogadores normais: transaction.userId = player.userId
-                    // Para convidados: transaction.userId = player.invitedByUserId (quem convidou paga)
                     const player = game.roster.players.find(p => {
                         const playerUserId = p.userId?.toString();
                         const invitedBy = p.invitedByUserId?.toString();

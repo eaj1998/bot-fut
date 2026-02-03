@@ -290,7 +290,7 @@ export class MembershipRepository {
         nextDue.setMonth(nextDue.getMonth() + 1);
         nextDue.setDate(10);
 
-        nextDue.setHours(0, 0, 0, 0);
+        nextDue.setHours(12, 0, 0, 0);
 
         return nextDue;
     }

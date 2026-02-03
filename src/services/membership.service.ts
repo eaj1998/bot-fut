@@ -238,7 +238,7 @@ export class MembershipService {
             }
         }
 
-        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING)) {
+        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING || membership.status === MembershipStatus.INACTIVE)) {
             await this.membershipRepo.reactivateMembership(membershipId);
 
             const nextDueDate = MembershipRepository.calculateNextDueDate();
@@ -378,7 +378,6 @@ export class MembershipService {
      * Gera transações PENDING para o mês atual se não existirem
      */
     async processMonthlyBilling(workspaceId: string): Promise<{ processed: number, created: number, errors: number, details: any[] }> {
-        // 1. Buscar assinaturas ativas
         const activeMemberships = await this.membershipRepo.findActiveMemberships(workspaceId);
 
         const results = {
@@ -394,8 +393,6 @@ export class MembershipService {
                 const membershipId = membership._id.toString();
                 const nextDueDate = new Date(membership.nextDueDate);
 
-                // 2. Verificar se já existe transação para este vencimento
-                // A lógica é buscar transações desta membership e ver se alguma tem vencimento no mesmo mês/ano do nextDueDate
                 const transactions = await this.transactionRepo.findByMembershipId(membershipId);
 
                 const alreadyBilled = transactions.some((t: any) => {
@@ -403,7 +400,8 @@ export class MembershipService {
                     return tDate.getMonth() === nextDueDate.getMonth() &&
                         tDate.getFullYear() === nextDueDate.getFullYear() &&
                         t.type === TransactionType.INCOME &&
-                        (t.category === TransactionCategory.MEMBERSHIP);
+                        (t.category === TransactionCategory.MEMBERSHIP) &&
+                        t.status === TransactionStatus.COMPLETED;
                 });
 
                 if (alreadyBilled) {
@@ -416,17 +414,16 @@ export class MembershipService {
                     continue;
                 }
 
-                // 3. Criar transação PENDING
                 await this.transactionRepo.createTransaction({
                     workspaceId,
-                    userId: membership.userId?._id?.toString() || membership.userId?.toString(), // Handle populated or not
+                    userId: membership.userId?._id?.toString() || membership.userId?.toString(),
                     membershipId,
                     type: TransactionType.INCOME,
                     category: TransactionCategory.MEMBERSHIP,
                     status: TransactionStatus.PENDING,
                     amount: membership.planValue, // Centavos
-                    dueDate: nextDueDate,
-                    description: `Mensalidade ${nextDueDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
+                    dueDate: MembershipRepository.calculateNextDueDate(),
+                    description: `Mensalidade ${MembershipRepository.calculateNextDueDate().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
                     method: undefined
                 });
 

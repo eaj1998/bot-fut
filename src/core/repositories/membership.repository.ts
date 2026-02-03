@@ -214,10 +214,8 @@ export class MembershipRepository {
             });
         }
 
-        // Ordenação
         pipeline.push({ $sort: { createdAt: -1 } });
 
-        // Facet para paginação e contagem total
         const result = await this.model.aggregate([
             ...pipeline,
             {
@@ -225,7 +223,6 @@ export class MembershipRepository {
                     memberships: [
                         { $skip: (page - 1) * limit },
                         { $limit: limit },
-                        // Projetar campos para manter compatibilidade com interface
                         {
                             $project: {
                                 _id: 1,
@@ -252,7 +249,7 @@ export class MembershipRepository {
 
         const memberships = result[0].memberships.map((m: any) => ({
             ...m,
-            userId: m.user // Adapta para manter estrutura esperada onde userId é o objeto populado
+            userId: m.user
         }));
         const total = result[0].totalCount[0]?.count || 0;
 
@@ -312,7 +309,7 @@ export class MembershipRepository {
                 {
                     $set: {
                         status: MembershipStatus.ACTIVE,
-                        suspendedAt: undefined
+                        suspendedAt: undefined,
                     }
                 },
                 { new: true }

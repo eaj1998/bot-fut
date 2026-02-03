@@ -238,12 +238,13 @@ export class MembershipService {
             }
         }
 
-        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING || membership.status === MembershipStatus.INACTIVE)) {
+        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING || membership.status === MembershipStatus.INACTIVE || membership.status === MembershipStatus.CANCELED_SCHEDULED)) {
             await this.membershipRepo.reactivateMembership(membershipId);
-
-            const nextDueDate = MembershipRepository.calculateNextDueDate();
-            await this.membershipRepo.updateNextDueDate(membershipId, nextDueDate);
         }
+
+        const nextDueDate = MembershipRepository.calculateNextDueDate();
+
+        await this.membershipRepo.updateNextDueDate(membershipId, nextDueDate);
 
         const updatedMembership = await this.membershipRepo.findById(membershipId);
 
@@ -303,7 +304,6 @@ export class MembershipService {
             const isOwner = membership.userId.toString() === requesterId;
 
             if (!isGlobalAdmin && !isOwner) {
-                // Check if requester is Workspace Admin
                 const member = await this.workspaceMemberModel.findOne({
                     workspaceId: membership.workspaceId,
                     userId: requesterId,
@@ -422,8 +422,8 @@ export class MembershipService {
                     category: TransactionCategory.MEMBERSHIP,
                     status: TransactionStatus.PENDING,
                     amount: membership.planValue, // Centavos
-                    dueDate: MembershipRepository.calculateNextDueDate(),
-                    description: `Mensalidade ${MembershipRepository.calculateNextDueDate().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
+                    dueDate: membership.nextDueDate,
+                    description: `Mensalidade ${membership.nextDueDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
                     method: undefined
                 });
 

@@ -251,7 +251,7 @@ export class TransactionsController {
             return res.status(400).json({ success: false, message: 'Workspace ID obrigatório' });
         }
 
-        const report = await this.financialService.notifyOverdueSinglePayments(workspaceId);
+        const report = await this.financialService.notifyOverdueSinglePayments(workspaceId as string);
 
         res.json({
             success: true,

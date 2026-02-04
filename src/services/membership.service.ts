@@ -45,6 +45,9 @@ interface ManualPaymentInput {
 import { Model } from 'mongoose';
 import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
 
+import { BOT_CLIENT_TOKEN, IBotServerPort } from '../server/type';
+import { WorkspaceRepository } from '../core/repositories/workspace.repository';
+
 @injectable()
 export class MembershipService {
     constructor(
@@ -52,7 +55,66 @@ export class MembershipService {
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
         @inject(USER_REPOSITORY_TOKEN) private readonly userRepo: UserRepository,
         @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>,
+        @inject(BOT_CLIENT_TOKEN) private readonly botServer: IBotServerPort,
+        @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository
     ) { }
+
+    /**
+     * Envia notificações para usuários com faturas pendentes no mês atual
+     */
+    async notifyPendingInvoices(workspaceId: string): Promise<{ totalFound: number, sent: number, failed: number, details: any[] }> {
+        const workspace = await this.workspaceRepo.findById(workspaceId);
+        const pendingTransactions = await this.transactionRepo.findPendingTransactions(workspaceId, {
+            category: TransactionCategory.MEMBERSHIP,
+            type: TransactionType.INCOME
+        });
+
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const targetTransactions = pendingTransactions.filter(t => {
+            const d = new Date(t.dueDate);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        });
+
+        const report = {
+            totalFound: targetTransactions.length,
+            sent: 0,
+            failed: 0,
+            details: [] as any[]
+        };
+
+        for (const t of targetTransactions) {
+            try {
+                const user = t.userId as any;
+                if (!user || !user.phoneE164) {
+                    report.failed++;
+                    report.details.push({ id: t._id, error: 'User invalid or no phone', user: user?.name });
+                    continue;
+                }
+
+                const phone = user.phoneE164.replace('+', '') + '@c.us'; // Format for Whatsapp Web JS
+                const monthName = new Date(t.dueDate).toLocaleDateString('pt-BR', { month: 'long' });
+                const dueDateFormatted = new Date(t.dueDate).toLocaleDateString('pt-BR');
+                const valueFormatted = (t.amount / 100).toFixed(2).replace('.', ',');
+
+                const message = `Olá, ${user.name}! ⚽\n\nSua mensalidade de *${monthName}* já está disponível.\nValor: R$ ${valueFormatted}\nVencimento: ${dueDateFormatted}\n\nFavor realizar o pagamento para garantir sua participação!\n\n${workspace?.settings?.pix ? 'PIX: ' + workspace.settings.pix : ''}`;
+
+                await this.botServer.sendMessage(phone, message);
+
+                report.sent++;
+                report.details.push({ id: t._id, status: 'SENT', user: user.name });
+
+            } catch (error: any) {
+                console.error(`Falha ao notificar fatura ${t._id}:`, error);
+                report.failed++;
+                report.details.push({ id: t._id, status: 'ERROR', error: error.message });
+            }
+        }
+
+        return report;
+    }
 
     /**
      * Lista todas as memberships para admin (paginado)
@@ -357,7 +419,7 @@ export class MembershipService {
                 category: TransactionCategory.MEMBERSHIP,
                 status: TransactionStatus.PENDING,
                 amount: input.planValue,
-                dueDate: new Date(), // Pay immediately
+                dueDate: input.nextDueDate, // Pay immediately
                 paidAt: undefined,
                 description: `Mensalidade Inicial de ${user?.name ?? input.userId}`,
                 method: undefined

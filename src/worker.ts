@@ -6,6 +6,7 @@ import { connectMongo } from './infra/database/mongoose.connection';
 import { ConfigService } from './config/config.service';
 import { LoggerService } from './logger/logger.service';
 import { SuspendOverdueMembershipsJob } from './jobs/suspend-overdue-memberships.job';
+import { GenerateMonthlyInvoicesJob } from './jobs/generate-monthly-invoices.job';
 
 // Import models
 import { USER_MODEL_TOKEN, UserModel } from './core/models/user.model';
@@ -59,6 +60,15 @@ async function bootstrap() {
         cron.schedule('0 3 11 * *', async () => {
             logger.info('Running scheduled job: SuspendOverdueMembershipsJob');
             const job = container.resolve(SuspendOverdueMembershipsJob);
+            await job.run();
+        }, {
+            timezone: "America/Sao_Paulo"
+        });
+
+        // "06:00 AM do dia 01 de cada mês" -> 0 6 1 * *
+        cron.schedule('0 8 1 * *', async () => {
+            logger.info('Running scheduled job: GenerateMonthlyInvoicesJob');
+            const job = container.resolve(GenerateMonthlyInvoicesJob);
             await job.run();
         }, {
             timezone: "America/Sao_Paulo"

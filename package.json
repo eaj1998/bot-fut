@@ -18,7 +18,8 @@
     "migrate:sync-organizze": "ts-node scripts/sync-organizze-status.ts",
     "migrate:lid": "ts-node scripts/migrate-lid.ts",
     "migrate:ledger": "ts-node scripts/migrate-ledger-to-transactions.ts",
-    "test:suspension": "ts-node scripts/test-suspension-job.ts"
+    "test:suspension": "ts-node scripts/test-suspension-job.ts",
+    "test:invoice": "ts-node scripts/test-invoice-job.ts"
   },
   "keywords": [],
   "author": "",

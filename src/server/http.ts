@@ -25,19 +25,6 @@ export class HttpServer extends IBotServerPort {
     loggerService.setName('HTTPServer');
   }
 
-  // sendMessage(
-  //   chatId: string,
-  //   message: WAWebJS.MessageContent,
-  //   options?: WAWebJS.MessageSendOptions
-  // ): any {
-  //   if (!this.socket) {
-  //     this.loggerService.log('No socket available');
-  //     return { pin: async (duration?: number) => true };
-  //   }
-  //   this.socket.emit('message', { chat: chatId, message, options });
-  //   return { pin: async (duration?: number) => true };
-  // }
-
   async sendMessage(chatId: string, message: string): Promise<any> {
     if (this.socket)
       this.socket.emit('message', { chat: chatId, message });

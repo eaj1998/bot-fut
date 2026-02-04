@@ -243,4 +243,27 @@ export class MembershipsController {
             data: result
         });
     });
+
+    /**
+     * POST /api/memberships/:workspaceId/notify-invoices
+     * Envia notificações WhatsApp para usuários com faturas pendentes
+     */
+    notifyInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const { workspaceId } = req.params;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'workspaceId é obrigatório'
+            });
+        }
+
+        const report = await this.membershipService.notifyPendingInvoices(workspaceId);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Notificações enviadas',
+            data: report
+        });
+    });
 }

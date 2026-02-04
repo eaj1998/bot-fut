@@ -169,6 +169,7 @@ export class TransactionRepository {
 
         return this.model
             .find(query)
+            .populate('userId', 'name phoneE164')
             .sort({ dueDate: 1 })
             .lean()
             .exec();

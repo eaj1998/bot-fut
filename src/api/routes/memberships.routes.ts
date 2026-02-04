@@ -20,6 +20,7 @@ router.put('/:id', requireAdmin, controller.updateMembership);
 router.post('/:id/manual-payment', requireAdmin, controller.registerManualPayment);
 router.post('/:id/suspend', requireAdmin, controller.suspendMembership);
 router.post('/admin/process-billing', requireAdmin, controller.processMonthlyBilling);
+router.post('/:workspaceId/notify-invoices', requireAdmin, controller.notifyInvoices);
 
 // User/Admin endpoints (Controller checks permissions)
 router.post('/:id/cancel', controller.cancelMembership);

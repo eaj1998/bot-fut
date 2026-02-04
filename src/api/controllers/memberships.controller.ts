@@ -249,7 +249,7 @@ export class MembershipsController {
      * Envia notificações WhatsApp para usuários com faturas pendentes
      */
     notifyInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const { workspaceId } = req.params;
+        const workspaceId = req.params.workspaceId;
 
         if (!workspaceId) {
             return res.status(400).json({
@@ -258,7 +258,7 @@ export class MembershipsController {
             });
         }
 
-        const report = await this.membershipService.notifyPendingInvoices(workspaceId);
+        const report = await this.membershipService.notifyPendingInvoices(workspaceId as string);
 
         return res.status(200).json({
             success: true,

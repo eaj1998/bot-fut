@@ -160,14 +160,10 @@ export class AuthService {
             throw new ApiError(404, 'User not found');
         }
 
-        this.loggerService.info(`[getMe] Fetching workspaces for user: ${userId}`);
-
         const members = await this.workspaceMemberModel.find({
             userId: user._id,
             status: 'ACTIVE'
         }).populate('workspaceId').exec();
-
-        this.loggerService.info(`[getMe] Found ${members.length} membership records`);
 
         const workspaces = members
             .filter(m => {
@@ -179,7 +175,6 @@ export class AuthService {
             })
             .map(m => {
                 const w = m.workspaceId as any;
-                this.loggerService.info(`[getMe] Mapping workspace: ${w._id}`);
                 return {
                     id: w._id.toString(),
                     name: w.name,
@@ -187,8 +182,6 @@ export class AuthService {
                     settings: w.settings
                 };
             });
-
-        this.loggerService.info(`[getMe] User belongs to ${workspaces.length} workspaces: ${workspaces.map(w => w.name).join(', ')}`);
 
         return {
             id: user._id.toString(),

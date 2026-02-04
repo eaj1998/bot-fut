@@ -214,4 +214,49 @@ export class TransactionsController {
 
         res.status(201).json(transaction);
     });
+
+
+    /**
+     * PUT /api/transactions/:id
+     * Atualiza dados de uma transação (Edição via Admin)
+     */
+    update = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const { id } = req.params;
+        const { status, description } = req.body;
+
+        if (!id) {
+            return res.status(400).json({ success: false, message: 'ID da transação é obrigatório' });
+        }
+
+        const result = await this.financialService.updateTransaction(id as string, {
+            status,
+            description
+        });
+
+        res.json({
+            success: true,
+            data: result,
+            message: 'Transação atualizada com sucesso'
+        });
+    });
+
+    /**
+     * POST /api/transactions/:workspaceId/notify-singles
+     * Dispara notificações de cobrança para pendências avulsas
+     */
+    notifySinglePayments = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const { workspaceId } = req.params;
+
+        if (!workspaceId) {
+            return res.status(400).json({ success: false, message: 'Workspace ID obrigatório' });
+        }
+
+        const report = await this.financialService.notifyOverdueSinglePayments(workspaceId);
+
+        res.json({
+            success: true,
+            message: 'Processamento de notificações finalizado',
+            data: report
+        });
+    });
 }

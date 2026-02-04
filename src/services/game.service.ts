@@ -347,7 +347,7 @@ export class GameService {
                   paidAt: isPaid ? new Date() : undefined,
                   description: player.guest
                     ? `Jogo ${game.title} - ${formatDateBR(game.date)} (convidado: ${player.name})`
-                    : `Jogo ${game.title} - ${formatDateBR(game.date)}`,
+                    : `Jogo ${game.title} - ${formatDateBR(game.date)} - ${player.name}`,
                   method: isPaid ? 'dinheiro' : 'pix',
                 });
 

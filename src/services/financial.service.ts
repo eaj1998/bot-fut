@@ -7,6 +7,8 @@ import { TransactionType, TransactionCategory, TransactionStatus } from '../core
 import { TransactionResponseDto } from '../api/dto/transaction.dto';
 import { ApiError } from '../api/middleware/error.middleware';
 
+import { WhatsAppService } from './whatsapp.service';
+
 interface CreateManualTransactionInput {
     workspaceId: string;
     userId?: string;
@@ -26,13 +28,20 @@ interface UserBalanceResult {
     transactions: TransactionResponseDto[];
 }
 
+interface NotifySinglesReport {
+    sent: number;
+    failed: number;
+    totalValue: number;
+}
+
 @injectable()
 export class FinancialService {
     constructor(
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
         @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
         @inject(USER_REPOSITORY_TOKEN) private readonly userRepo: UserRepository,
-        @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository
+        @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
+        @inject(WhatsAppService) private readonly whatsappService: WhatsAppService // Injeção Nova
     ) { }
 
     /**
@@ -179,15 +188,120 @@ export class FinancialService {
     }
 
     /**
+     * Atualiza uma transação existente (Status, Descrição)
+     */
+    async updateTransaction(transactionId: string, updates: { status?: TransactionStatus; description?: string }): Promise<TransactionResponseDto> {
+        const transaction = await this.transactionRepo.findById(transactionId);
+        if (!transaction) {
+            throw new ApiError(404, 'Transação não encontrada');
+        }
+
+        if (transaction.category == 'MEMBERSHIP') {
+            throw new ApiError(400, 'Não é possível atualizar transação de mensalidade');
+        }
+
+        const updateData: any = {};
+
+        if (updates.description !== undefined) {
+            updateData.description = updates.description;
+        }
+
+        if (updates.status) {
+            updateData.status = updates.status;
+
+            if (updates.status === TransactionStatus.COMPLETED && transaction.status !== TransactionStatus.COMPLETED) {
+                updateData.paidAt = new Date();
+            }
+        }
+
+        const updated = await this.transactionRepo.updateTransaction(transactionId, updateData);
+
+        if (!updated) {
+            throw new ApiError(500, 'Falha ao atualizar transação');
+        }
+
+        return this.toResponseDto(updated);
+    }
+
+    /**
+     * Notifica usuários com pagamentos avulsos vencidos (Jogos, Churrascos, etc)
+     * Ignora category = MEMBERSHIP
+     */
+    async notifyOverdueSinglePayments(workspaceId: string): Promise<NotifySinglesReport> {
+        const allPending = await this.transactionRepo.findPendingTransactions(workspaceId, {
+            type: TransactionType.INCOME
+        });
+
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+
+        const singleDebts = allPending.filter(t =>
+            t.category !== TransactionCategory.MEMBERSHIP &&
+            new Date(t.dueDate) <= now &&
+            t.userId
+        );
+
+        if (singleDebts.length === 0) {
+            return { sent: 0, failed: 0, totalValue: 0 };
+        }
+
+        const debtsByUser = new Map<string, typeof singleDebts>();
+
+        for (const debt of singleDebts) {
+            const userId = debt.userId._id ? debt.userId._id.toString() : debt.userId.toString();
+            if (!debtsByUser.has(userId)) {
+                debtsByUser.set(userId, []);
+            }
+            debtsByUser.get(userId)?.push(debt);
+        }
+
+        let sent = 0;
+        let failed = 0;
+        let totalValueNotified = 0;
+
+        for (const [userId, debts] of debtsByUser) {
+            try {
+                const user = await this.userRepo.findById(userId);
+
+                if (!user || !user.phoneE164) {
+                    failed++;
+                    continue;
+                }
+
+                let userTotal = 0;
+                let itemsList = '';
+
+                debts.forEach(d => {
+                    const val = (d.amount || 0) / 100;
+                    userTotal += val;
+                    const dateStr = new Date(d.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    itemsList += `- ${d.description || d.category} (${dateStr}): R$ ${val.toFixed(2).replace('.', ',')}\n`;
+                });
+
+                totalValueNotified += userTotal;
+                const message = `Olá ${user.name.split(' ')[0]}! ⚠️\n\nConstam as seguintes pendências avulsas em aberto:\n\n${itemsList}\n*Total: R$ ${userTotal.toFixed(2).replace('.', ',')}*\n\nFavor regularizar via Pix para manter o caixa em dia! ⚽`;
+
+                await this.whatsappService.sendMessage(user.phoneE164, message);
+                sent++;
+
+            } catch (error) {
+                console.error(`Erro ao notificar usuário ${userId}:`, error);
+                failed++;
+            }
+        }
+
+        return { sent, failed, totalValue: totalValueNotified };
+    }
+
+    /**
      * Converte Transaction model para DTO de resposta
      */
     private toResponseDto(transaction: any): TransactionResponseDto {
         const amountCents = transaction.amount || 0;
-
         return {
             id: transaction._id.toString(),
             workspaceId: transaction.workspaceId.toString(),
-            userId: transaction.userId?.toString(),
+            user: { _id: transaction.userId?._id, name: transaction.userId?.name },
             gameId: transaction.gameId?.toString(),
             membershipId: transaction.membershipId?.toString(),
             type: transaction.type,

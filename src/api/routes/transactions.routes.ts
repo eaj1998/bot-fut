@@ -37,4 +37,12 @@ router.get('/my', controller.getMyTransactions);
 // Processa o pagamento de uma transação
 router.post('/:id/pay', controller.payTransaction);
 
+// PUT /api/transactions/:id
+// Atualiza status ou descrição de uma transação
+router.put('/:id', controller.update);
+
+// POST /api/transactions/:workspaceId/notify-singles
+// Dispara cobrança de pendências avulsas (não mensais)
+router.post('/:workspaceId/notify-singles', controller.notifySinglePayments);
+
 export default router;

@@ -23,8 +23,7 @@ export interface UpdateTransactionDto {
 export interface TransactionResponseDto {
     id: string;
     workspaceId: string;
-    userId?: string;
-    userName?: string;
+    user?: { _id: string, name: string };
     gameId?: string;
     gameName?: string;
     membershipId?: string;

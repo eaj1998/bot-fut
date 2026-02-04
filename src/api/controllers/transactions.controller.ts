@@ -245,7 +245,7 @@ export class TransactionsController {
      * Dispara notificações de cobrança para pendências avulsas
      */
     notifySinglePayments = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const { workspaceId } = req.params;
+        const workspaceId = req.params.workspaceId;
 
         if (!workspaceId) {
             return res.status(400).json({ success: false, message: 'Workspace ID obrigatório' });

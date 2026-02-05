@@ -32,7 +32,7 @@ ENV HUSKY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-RUN npm install --omit=dev
+RUN npm install
 
 # Copia o restante do projeto
 COPY . .

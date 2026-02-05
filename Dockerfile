@@ -32,7 +32,7 @@ ENV HUSKY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-RUN npm install
+RUN npm install --omit=dev
 
 # Copia o restante do projeto
 COPY . .
@@ -46,8 +46,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 # 🔥 Pasta onde a sessão do WhatsApp será salva
 RUN mkdir -p /app/.wwebjs_auth
 
-# Instala apenas dependências de produção
-RUN npm install --omit=dev
+# remove dev deps depois do build
+RUN npm prune --omit=dev
 
 # Porta padrão (Railway define automaticamente, mas não atrapalha)
 EXPOSE 3000

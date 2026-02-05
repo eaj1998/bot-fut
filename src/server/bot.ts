@@ -84,9 +84,30 @@ export class BotServer extends IBotServerPort {
           '--disable-gpu',
           '--no-first-run',
           '--no-zygote',
-          '--single-process'
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+
+          '--disable-background-networking',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-extensions',
+          '--disable-sync',
+          '--metrics-recording-only',
+          '--mute-audio'
         ],
       }
+    });
+  }
+  private setupGracefulShutdown() {
+    process.on('SIGTERM', async () => {
+      this.loggerService.warn('[BotServer] SIGTERM received, shutting down...');
+      try {
+        await this.client?.destroy();
+      } catch (e) {
+        this.loggerService.error('Error during shutdown', e);
+      }
+      process.exit(0);
     });
   }
 
@@ -94,6 +115,8 @@ export class BotServer extends IBotServerPort {
     if (!this.client) {
       throw new Error('Server cannot be initialized without setup');
     }
+
+    this.setupGracefulShutdown();
 
     this.client.on('ready', () => {
       this.loggerService.log('✅ [BotServer] WhatsApp client is READY!');
@@ -129,7 +152,6 @@ export class BotServer extends IBotServerPort {
     });
 
     this.client.on('message', async (message) => {
-      this.loggerService.log(`[BotServer] Raw message received from ${message.from}`); // DEBUG
       if (this.events.message) {
         this.events.message(message);
       }

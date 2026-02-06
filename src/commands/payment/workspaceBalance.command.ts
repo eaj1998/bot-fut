@@ -68,7 +68,10 @@ export class WorkspaceBalanceCommand implements Command {
 
       for (const tx of pendingTransactions) {
         if (tx.userId) {
-          const userId = tx.userId.toString();
+          const userId = (typeof tx.userId === 'object' && '_id' in tx.userId)
+            ? (tx.userId as any)._id.toString()
+            : tx.userId.toString();
+
           userIds.add(userId);
 
           if (!userDebts.has(userId)) {

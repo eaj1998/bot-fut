@@ -263,6 +263,7 @@ export class GameService {
 
     try {
       const sent = await this.whatsappService.sendMessage(game.chatId, "Jogo Cancelado!");
+      this.loggerService.info(`pinned message: ${sent}`);
       if (sent && sent.pin) {
         await sent.pin(86400); // 24 horas
       }

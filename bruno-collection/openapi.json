@@ -1,0 +1,4872 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Faz o Simplesebol API",
+    "version": "1.0.0",
+    "description": "API REST para gerenciamento de jogos de futebol com sistema de pagamentos e controle de jogadores",
+    "contact": {
+      "name": "API Support",
+      "email": "support@botfutebol.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de Desenvolvimento"
+    },
+    {
+      "url": "https://api.botfutebol.com",
+      "description": "Servidor de Produção"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "GameResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único do jogo",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome/título do jogo",
+            "example": "⚽ CAMPO DO VIANA"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Data do jogo (YYYY-MM-DD)",
+            "example": "2024-12-25"
+          },
+          "time": {
+            "type": "string",
+            "description": "Horário do jogo (HH:MM)",
+            "example": "20:30"
+          },
+          "maxPlayers": {
+            "type": "integer",
+            "description": "Número máximo de jogadores",
+            "example": 16
+          },
+          "currentPlayers": {
+            "type": "integer",
+            "description": "Número atual de jogadores confirmados",
+            "example": 12
+          },
+          "pricePerPlayer": {
+            "type": "number",
+            "description": "Preço por jogador em reais",
+            "example": 14
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "open",
+              "closed",
+              "finished",
+              "cancelled"
+            ],
+            "description": "Status atual do jogo",
+            "example": "open"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data de criação do jogo",
+            "example": "2024-12-20T10:00:00.000Z"
+          }
+        }
+      },
+      "PlayerInGameDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID do jogador",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do jogador",
+            "example": "João Silva"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Telefone do jogador",
+            "example": "+5549999999999"
+          },
+          "isPaid": {
+            "type": "boolean",
+            "description": "Indica se o jogador já pagou",
+            "example": true
+          }
+        }
+      },
+      "GameDetailResponseDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GameResponseDto"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "players": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlayerInGameDto"
+                },
+                "description": "Lista de jogadores confirmados"
+              },
+              "substitutes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlayerInGameDto"
+                },
+                "description": "Lista de jogadores substitutos"
+              },
+              "waitlist": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "description": "Lista de espera"
+              },
+              "outlist": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "description": "Jogadores que não participarão"
+              },
+              "financialSummary": {
+                "type": "object",
+                "properties": {
+                  "totalToReceive": {
+                    "type": "number",
+                    "description": "Total a receber",
+                    "example": 224
+                  },
+                  "totalPaid": {
+                    "type": "number",
+                    "description": "Total já pago",
+                    "example": 168
+                  },
+                  "totalPending": {
+                    "type": "number",
+                    "description": "Total pendente",
+                    "example": 56
+                  },
+                  "paidCount": {
+                    "type": "integer",
+                    "description": "Quantidade de jogadores que pagaram",
+                    "example": 12
+                  },
+                  "unpaidCount": {
+                    "type": "integer",
+                    "description": "Quantidade de jogadores que não pagaram",
+                    "example": 4
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateGameDto": {
+        "type": "object",
+        "required": [
+          "name",
+          "date",
+          "time",
+          "location",
+          "maxPlayers",
+          "pricePerPlayer"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome/título do jogo",
+            "example": "⚽ CAMPO DO VIANA"
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo do jogo",
+            "example": "society"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Data do jogo (YYYY-MM-DD)",
+            "example": "2024-12-25"
+          },
+          "time": {
+            "type": "string",
+            "description": "Horário do jogo (HH:MM)",
+            "example": "20:30"
+          },
+          "location": {
+            "type": "string",
+            "description": "Local do jogo",
+            "example": "Campo do Viana"
+          },
+          "maxPlayers": {
+            "type": "integer",
+            "description": "Número máximo de jogadores",
+            "example": 16
+          },
+          "pricePerPlayer": {
+            "type": "number",
+            "description": "Preço por jogador em reais",
+            "example": 14
+          },
+          "chatId": {
+            "type": "string",
+            "description": "ID do chat do WhatsApp",
+            "example": "120363123456789012@g.us"
+          }
+        }
+      },
+      "AddPlayerToGameDto": {
+        "type": "object",
+        "required": [
+          "phone",
+          "name"
+        ],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Telefone do jogador",
+            "example": "+5549999999999"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do jogador",
+            "example": "João Silva"
+          },
+          "isGoalkeeper": {
+            "type": "boolean",
+            "description": "Indica se é goleiro",
+            "example": false
+          }
+        }
+      },
+      "UpdateGameDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome/título do jogo",
+            "example": "⚽ CAMPO DO VIANA"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Data do jogo (YYYY-MM-DD)",
+            "example": "2024-12-25"
+          },
+          "time": {
+            "type": "string",
+            "description": "Horário do jogo (HH:MM)",
+            "example": "20:30"
+          },
+          "location": {
+            "type": "string",
+            "description": "Local do jogo",
+            "example": "Campo do Viana"
+          },
+          "maxPlayers": {
+            "type": "integer",
+            "description": "Número máximo de jogadores",
+            "example": 16
+          },
+          "pricePerPlayer": {
+            "type": "number",
+            "description": "Preço por jogador em reais",
+            "example": 14
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "open",
+              "closed",
+              "finished",
+              "cancelled"
+            ],
+            "description": "Status do jogo",
+            "example": "open"
+          }
+        }
+      },
+      "PlayerResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único do jogador",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do jogador",
+            "example": "João Silva"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email do jogador",
+            "example": "joao@email.com"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Telefone do jogador",
+            "example": "+5511999999999"
+          },
+          "cpf": {
+            "type": "string",
+            "description": "CPF do jogador",
+            "example": "123.456.789-00"
+          },
+          "nick": {
+            "type": "string",
+            "description": "Apelido do jogador",
+            "example": "Joãozinho"
+          },
+          "isGoalie": {
+            "type": "boolean",
+            "description": "Indica se é goleiro",
+            "example": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "suspended"
+            ],
+            "description": "Status do jogador",
+            "example": "active"
+          },
+          "balance": {
+            "type": "number",
+            "description": "Saldo do jogador em reais",
+            "example": 50
+          },
+          "totalDebt": {
+            "type": "number",
+            "description": "Débito total em reais",
+            "example": 28
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "user"
+            ],
+            "description": "Papel do usuário",
+            "example": "user"
+          },
+          "joinDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data de cadastro",
+            "example": "2024-01-15T10:00:00.000Z"
+          },
+          "lastActivity": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Última atividade",
+            "example": "2024-12-20T15:30:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data de criação",
+            "example": "2024-01-15T10:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data da última atualização",
+            "example": "2024-12-20T15:30:00.000Z"
+          }
+        }
+      },
+      "DebtResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único do débito",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "playerId": {
+            "type": "string",
+            "description": "ID do jogador",
+            "example": "507f1f77bcf86cd799439012"
+          },
+          "playerName": {
+            "type": "string",
+            "description": "Nome do jogador",
+            "example": "João Silva"
+          },
+          "gameId": {
+            "type": "string",
+            "description": "ID do jogo",
+            "example": "507f1f77bcf86cd799439013"
+          },
+          "gameName": {
+            "type": "string",
+            "description": "Nome do jogo",
+            "example": "⚽ CAMPO DO VIANA"
+          },
+          "workspaceId": {
+            "type": "string",
+            "description": "ID do workspace",
+            "example": "507f1f77bcf86cd799439014"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Valor do débito em reais",
+            "example": 14
+          },
+          "amountCents": {
+            "type": "integer",
+            "description": "Valor do débito em centavos",
+            "example": 1400
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "overdue",
+              "cancelled"
+            ],
+            "description": "Status do débito",
+            "example": "pending"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Observações sobre o débito",
+            "example": "Débito referente ao jogo do dia 25/12"
+          },
+          "category": {
+            "type": "string",
+            "description": "Categoria do débito",
+            "example": "player-debt"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data de criação",
+            "example": "2024-12-20T10:00:00.000Z"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data do pagamento",
+            "example": "2024-12-21T14:30:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data da última atualização",
+            "example": "2024-12-21T14:30:00.000Z"
+          }
+        }
+      },
+      "WorkspaceResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único do workspace",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do workspace",
+            "example": "Arena Viana"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Slug único do workspace",
+            "example": "viana"
+          },
+          "description": {
+            "type": "string",
+            "description": "Descrição do workspace",
+            "example": "Workspace Arena Viana"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "whatsapp",
+              "telegram",
+              "discord"
+            ],
+            "description": "Plataforma do workspace",
+            "example": "whatsapp"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "maintenance"
+            ],
+            "description": "Status do workspace",
+            "example": "active"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Fuso horário",
+            "example": "America/Sao_Paulo"
+          },
+          "totalChats": {
+            "type": "integer",
+            "description": "Total de chats",
+            "example": 5
+          },
+          "activeChats": {
+            "type": "integer",
+            "description": "Chats ativos",
+            "example": 3
+          },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "maxPlayers": {
+                "type": "integer",
+                "description": "Máximo de jogadores",
+                "example": 16
+              },
+              "pricePerGame": {
+                "type": "number",
+                "description": "Preço por jogo em reais",
+                "example": 14
+              },
+              "pricePerGameCents": {
+                "type": "integer",
+                "description": "Preço por jogo em centavos",
+                "example": 1400
+              },
+              "commandsEnabled": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Comandos habilitados",
+                "example": [
+                  "/lista",
+                  "/entrar",
+                  "/sair"
+                ]
+              },
+              "pix": {
+                "type": "string",
+                "description": "Chave PIX",
+                "example": "+5549999999999"
+              },
+              "title": {
+                "type": "string",
+                "description": "Título",
+                "example": "⚽ VIANA"
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data de criação",
+            "example": "2024-01-15T10:00:00.000Z"
+          },
+          "lastSync": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Última sincronização",
+            "example": "2024-12-20T15:30:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data da última atualização",
+            "example": "2024-12-20T15:30:00.000Z"
+          }
+        }
+      },
+      "ChatScheduleDto": {
+        "type": "object",
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6,
+            "description": "Dia da semana (0=Dom, 1=Seg, ..., 6=Sáb)",
+            "example": 1
+          },
+          "time": {
+            "type": "string",
+            "description": "Horário (HH:mm)",
+            "example": "20:30"
+          },
+          "title": {
+            "type": "string",
+            "description": "Título do jogo",
+            "example": "⚽ CAMPO DO VIANA"
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Preço em centavos",
+            "example": 1400
+          },
+          "pix": {
+            "type": "string",
+            "description": "Chave PIX",
+            "example": "+5549999999999"
+          }
+        }
+      },
+      "ChatResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único do chat",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "workspaceId": {
+            "type": "string",
+            "description": "ID do workspace",
+            "example": "507f1f77bcf86cd799439012"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do chat",
+            "example": "Grupo Campo Viana"
+          },
+          "chatId": {
+            "type": "string",
+            "description": "ID do chat na plataforma",
+            "example": "120363123456789012@g.us"
+          },
+          "label": {
+            "type": "string",
+            "description": "Label do chat",
+            "example": "Viana Segunda"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "group",
+              "private"
+            ],
+            "description": "Tipo do chat",
+            "example": "group"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "archived"
+            ],
+            "description": "Status do chat",
+            "example": "active"
+          },
+          "memberCount": {
+            "type": "integer",
+            "description": "Número de membros",
+            "example": 15
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ChatScheduleDto"
+          },
+          "lastMessage": {
+            "type": "string",
+            "description": "Última mensagem"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data/hora da última mensagem"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data de criação",
+            "example": "2024-01-15T10:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data da última atualização",
+            "example": "2024-12-20T15:30:00.000Z"
+          }
+        }
+      },
+      "DashboardStatsDto": {
+        "type": "object",
+        "properties": {
+          "totalPlayers": {
+            "type": "integer",
+            "description": "Total de jogadores",
+            "example": 45
+          },
+          "activePlayers": {
+            "type": "integer",
+            "description": "Jogadores ativos",
+            "example": 38
+          },
+          "inactivePlayers": {
+            "type": "integer",
+            "description": "Jogadores inativos",
+            "example": 7
+          },
+          "totalGames": {
+            "type": "integer",
+            "description": "Total de jogos",
+            "example": 24
+          },
+          "upcomingGames": {
+            "type": "integer",
+            "description": "Jogos próximos",
+            "example": 5
+          },
+          "completedGames": {
+            "type": "integer",
+            "description": "Jogos concluídos",
+            "example": 18
+          },
+          "totalDebt": {
+            "type": "number",
+            "description": "Débito total em reais",
+            "example": 1250
+          },
+          "totalPending": {
+            "type": "integer",
+            "description": "Total de débitos pendentes",
+            "example": 8
+          },
+          "totalOverdue": {
+            "type": "integer",
+            "description": "Total de débitos vencidos",
+            "example": 3
+          },
+          "paidThisMonth": {
+            "type": "number",
+            "description": "Pago no mês atual em reais",
+            "example": 3840
+          },
+          "revenue": {
+            "type": "number",
+            "description": "Receita total em reais",
+            "example": 15680
+          },
+          "revenueGrowth": {
+            "type": "number",
+            "description": "Crescimento de receita em %",
+            "example": 12.5
+          },
+          "totalWorkspaces": {
+            "type": "integer",
+            "description": "Total de workspaces",
+            "example": 3
+          },
+          "activeWorkspaces": {
+            "type": "integer",
+            "description": "Workspaces ativos",
+            "example": 2
+          },
+          "totalChats": {
+            "type": "integer",
+            "description": "Total de chats",
+            "example": 12
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Mensagem de erro",
+            "example": "Game not found"
+          },
+          "statusCode": {
+            "type": "integer",
+            "description": "Código HTTP do erro",
+            "example": 404
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/auth/request-otp": {
+      "post": {
+        "summary": "Solicita código OTP",
+        "description": "Envia um código OTP via WhatsApp para autenticação",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "phone"
+                ],
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "description": "Número de telefone com código do país",
+                    "example": "+5549999999999"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP enviado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "OTP sent successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Telefone inválido"
+          }
+        }
+      }
+    },
+    "/api/auth/verify-otp": {
+      "post": {
+        "summary": "Verifica código OTP",
+        "description": "Valida o código OTP e retorna tokens de autenticação",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "phone",
+                  "otp"
+                ],
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "description": "Número de telefone com código do país",
+                    "example": "+5549999999999"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "description": "Código OTP recebido",
+                    "example": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticação bem-sucedida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "Token JWT de acesso"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "Token para renovação"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "OTP inválido ou expirado"
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "Renova token de acesso",
+        "description": "Gera um novo access token usando o refresh token",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "Refresh token válido"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token renovado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "Novo token JWT de acesso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token inválido ou expirado"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Obtém dados do usuário autenticado",
+        "description": "Retorna informações do usuário atualmente autenticado",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados do usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "admin"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Faz logout do usuário",
+        "description": "Invalida os tokens de autenticação do usuário",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout realizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Logged out successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          }
+        }
+      }
+    },
+    "/api/bbq": {
+      "get": {
+        "summary": "Lista todos os churrascos",
+        "description": "Retorna uma lista paginada de churrascos com filtros opcionais",
+        "tags": [
+          "BBQ"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "closed",
+                "finished",
+                "cancelled"
+              ]
+            },
+            "description": "Filtrar por status do churrasco"
+          },
+          {
+            "in": "query",
+            "name": "chatId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrar por ID do chat"
+          },
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrar por ID do workspace"
+          },
+          {
+            "in": "query",
+            "name": "dateFrom",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Data inicial (ISO 8601)"
+          },
+          {
+            "in": "query",
+            "name": "dateTo",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Data final (ISO 8601)"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Número da página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Itens por página"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de churrascos retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bbqs": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BBQResponseDto"
+                          }
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cria um novo churrasco",
+        "description": "Cria um novo churrasco (requer autenticação de admin)",
+        "tags": [
+          "BBQ"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "chatId",
+                  "workspaceId"
+                ],
+                "properties": {
+                  "chatId": {
+                    "type": "string",
+                    "description": "ID do chat"
+                  },
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "ID do workspace"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Data do churrasco (ISO 8601)"
+                  },
+                  "valuePerPerson": {
+                    "type": "number",
+                    "description": "Valor por pessoa"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Churrasco criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          }
+        }
+      }
+    },
+    "/api/bbq/stats": {
+      "get": {
+        "summary": "Obtém estatísticas de churrascos",
+        "description": "Retorna estatísticas agregadas sobre churrascos",
+        "tags": [
+          "BBQ"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrar estatísticas por workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas retornadas com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "description": "Total de churrascos"
+                        },
+                        "open": {
+                          "type": "integer",
+                          "description": "Churrascos abertos"
+                        },
+                        "closed": {
+                          "type": "integer",
+                          "description": "Churrascos fechados"
+                        },
+                        "finished": {
+                          "type": "integer",
+                          "description": "Churrascos finalizados"
+                        },
+                        "cancelled": {
+                          "type": "integer",
+                          "description": "Churrascos cancelados"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}": {
+      "get": {
+        "summary": "Obtém detalhes de um churrasco",
+        "description": "Retorna informações detalhadas de um churrasco específico",
+        "tags": [
+          "BBQ"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do churrasco",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Churrasco não encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Atualiza um churrasco",
+        "description": "Atualiza informações de um churrasco existente (requer autenticação de admin)",
+        "tags": [
+          "BBQ"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Data do churrasco (ISO 8601)"
+                  },
+                  "valuePerPerson": {
+                    "type": "number",
+                    "description": "Valor por pessoa"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "closed",
+                      "finished",
+                      "cancelled"
+                    ],
+                    "description": "Status do churrasco"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Churrasco atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Churrasco não encontrado"
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}/status": {
+      "patch": {
+        "summary": "Atualiza status do churrasco",
+        "description": "Atualiza apenas o status de um churrasco (requer autenticação de admin)",
+        "tags": [
+          "BBQ"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "closed",
+                      "finished",
+                      "cancelled"
+                    ],
+                    "description": "Novo status do churrasco"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Churrasco não encontrado"
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}/close": {
+      "post": {
+        "summary": "Fecha um churrasco",
+        "description": "Fecha um churrasco e processa débitos (requer autenticação de admin)",
+        "tags": [
+          "BBQ"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Churrasco fechado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro ao fechar churrasco (ex: valor não definido)"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Churrasco não encontrado"
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}/cancel": {
+      "post": {
+        "summary": "Cancela um churrasco",
+        "description": "Cancela um churrasco (requer autenticação de admin)",
+        "tags": [
+          "BBQ"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Churrasco cancelado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Churrasco não encontrado"
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}/participants": {
+      "post": {
+        "summary": "Adiciona um participante ao churrasco",
+        "description": "Adiciona um usuário ou convidado à lista de participantes do churrasco",
+        "tags": [
+          "BBQ"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userId",
+                  "userName"
+                ],
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "description": "ID do usuário (ou ID gerado para convidado)"
+                  },
+                  "userName": {
+                    "type": "string",
+                    "description": "Nome do participante"
+                  },
+                  "invitedBy": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "ID do usuário que convidou (null se for participante direto)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Participante adicionado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos ou BBQ não permite adição de participantes"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Churrasco não encontrado"
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}/participants/{userId}": {
+      "delete": {
+        "summary": "Remove um participante do churrasco",
+        "description": "Remove um usuário ou convidado da lista de participantes do churrasco",
+        "tags": [
+          "BBQ"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do participante a ser removido"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Participante removido com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BBQ não permite remoção de participantes"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Churrasco ou participante não encontrado"
+          }
+        }
+      }
+    },
+    "/api/bbq/{id}/participants/{userId}/payment": {
+      "patch": {
+        "summary": "Marca ou desmarca um participante como pago",
+        "description": "Atualiza o status de pagamento de um participante do churrasco",
+        "tags": [
+          "BBQ"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do churrasco"
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do participante"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "isPaid"
+                ],
+                "properties": {
+                  "isPaid": {
+                    "type": "boolean",
+                    "description": "Status de pagamento (true = pago, false = pendente)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status de pagamento atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BBQResponseDto"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BBQ não está fechado ou dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Churrasco ou participante não encontrado"
+          }
+        }
+      }
+    },
+    "/api/chats": {
+      "get": {
+        "summary": "Lista todos os chats",
+        "description": "Retorna uma lista paginada de chats com filtros opcionais",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrar por workspace"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "archived",
+                "all"
+              ]
+            },
+            "description": "Filtrar por status do chat"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Buscar por chatId ou label"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Número da página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Itens por página"
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "label",
+                "createdAt"
+              ]
+            },
+            "description": "Campo para ordenação"
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "description": "Direção da ordenação"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de chats retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chats": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatResponseDto"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cria/vincula um novo chat (bind)",
+        "description": "Vincula um chat do WhatsApp a um workspace (requer autenticação de admin)",
+        "tags": [
+          "Chats"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "chatId"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "example": "507f1f77bcf86cd799439011"
+                  },
+                  "chatId": {
+                    "type": "string",
+                    "example": "120363123456789012@g.us"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "Grupo Campo Viana"
+                  },
+                  "label": {
+                    "type": "string",
+                    "example": "Viana Segunda"
+                  },
+                  "schedule": {
+                    "type": "object",
+                    "properties": {
+                      "weekday": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6,
+                        "example": 1
+                      },
+                      "time": {
+                        "type": "string",
+                        "example": "20:30"
+                      },
+                      "title": {
+                        "type": "string",
+                        "example": "⚽ CAMPO DO VIANA"
+                      },
+                      "priceCents": {
+                        "type": "integer",
+                        "example": 1400
+                      },
+                      "pix": {
+                        "type": "string",
+                        "example": "+5549999999999"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Chat criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "409": {
+            "description": "Chat já existe"
+          }
+        }
+      }
+    },
+    "/api/chats/stats": {
+      "get": {
+        "summary": "Obtém estatísticas de chats",
+        "description": "Retorna estatísticas agregadas sobre chats",
+        "tags": [
+          "Chats"
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas retornadas com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalChats": {
+                      "type": "integer"
+                    },
+                    "activeChats": {
+                      "type": "integer"
+                    },
+                    "inactiveChats": {
+                      "type": "integer"
+                    },
+                    "archivedChats": {
+                      "type": "integer"
+                    },
+                    "chatsWithSchedule": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{id}": {
+      "get": {
+        "summary": "Obtém detalhes de um chat",
+        "description": "Retorna informações detalhadas de um chat específico",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do chat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Atualiza um chat",
+        "description": "Atualiza informações de um chat existente (requer autenticação de admin)",
+        "tags": [
+          "Chats"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive",
+                      "archived"
+                    ]
+                  },
+                  "schedule": {
+                    "type": "object",
+                    "properties": {
+                      "weekday": {
+                        "type": "integer"
+                      },
+                      "time": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "priceCents": {
+                        "type": "integer"
+                      },
+                      "pix": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deleta um chat",
+        "description": "Remove um chat do sistema (requer autenticação de admin)",
+        "tags": [
+          "Chats"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Chat deletado com sucesso"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      }
+    },
+    "/api/chats/{id}/schedule": {
+      "get": {
+        "summary": "Obtém schedule de um chat",
+        "description": "Retorna configuração de schedule de um chat",
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule do chat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatScheduleDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Atualiza schedule de um chat",
+        "description": "Configura/atualiza schedule de um chat (requer autenticação de admin)",
+        "tags": [
+          "Chats"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "weekday": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 6
+                  },
+                  "time": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "priceCents": {
+                    "type": "integer"
+                  },
+                  "pix": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      }
+    },
+    "/api/chats/{id}/activate": {
+      "post": {
+        "summary": "Ativa um chat",
+        "description": "Ativa um chat inativo ou arquivado (requer autenticação de admin)",
+        "tags": [
+          "Chats"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat ativado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      }
+    },
+    "/api/chats/{id}/deactivate": {
+      "post": {
+        "summary": "Desativa um chat",
+        "description": "Desativa um chat ativo (requer autenticação de admin)",
+        "tags": [
+          "Chats"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do chat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat desativado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Chat não encontrado"
+          }
+        }
+      }
+    },
+    "/api/dashboard/{workspaceId}": {
+      "get": {
+        "summary": "Obtém dados completos do dashboard",
+        "description": "Retorna estatísticas agregadas e dados recentes de todos os módulos para um workspace específico",
+        "tags": [
+          "Dashboard"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados do dashboard retornados com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stats": {
+                      "$ref": "#/components/schemas/DashboardStatsDto"
+                    },
+                    "recentGames": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "date": {
+                            "type": "string"
+                          },
+                          "time": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "currentPlayers": {
+                            "type": "integer"
+                          },
+                          "maxPlayers": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "recentDebts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "playerName": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "monthlyRevenue": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "month": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard/{workspaceId}/stats": {
+      "get": {
+        "summary": "Obtém apenas estatísticas do dashboard",
+        "description": "Retorna estatísticas agregadas sem dados adicionais para um workspace específico",
+        "tags": [
+          "Dashboard"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas retornadas com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStatsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/games": {
+      "get": {
+        "summary": "Lista todos os jogos",
+        "description": "Retorna uma lista paginada de jogos com filtros opcionais",
+        "tags": [
+          "Games"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduled",
+                "open",
+                "closed",
+                "finished",
+                "cancelled"
+              ]
+            },
+            "description": "Filtrar por status do jogo"
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrar por tipo de jogo"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Buscar por título ou localização"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Número da página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Itens por página"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de jogos retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "games": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GameResponseDto"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "Total de jogos"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "Página atual"
+                    },
+                    "totalPages": {
+                      "type": "integer",
+                      "description": "Total de páginas"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cria um novo jogo",
+        "description": "Cria um novo jogo agendado (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Jogo criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          }
+        }
+      }
+    },
+    "/api/games/stats": {
+      "get": {
+        "summary": "Obtém estatísticas de jogos",
+        "description": "Retorna estatísticas agregadas sobre jogos",
+        "tags": [
+          "Games"
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas retornadas com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "Total de jogos"
+                    },
+                    "open": {
+                      "type": "integer",
+                      "description": "Jogos abertos"
+                    },
+                    "closed": {
+                      "type": "integer",
+                      "description": "Jogos fechados"
+                    },
+                    "finished": {
+                      "type": "integer",
+                      "description": "Jogos finalizados"
+                    },
+                    "cancelled": {
+                      "type": "integer",
+                      "description": "Jogos cancelados"
+                    },
+                    "upcoming": {
+                      "type": "integer",
+                      "description": "Jogos próximos (próximos 7 dias)"
+                    },
+                    "activePlayers": {
+                      "type": "integer",
+                      "description": "Total de jogadores ativos"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}": {
+      "get": {
+        "summary": "Obtém detalhes de um jogo",
+        "description": "Retorna informações detalhadas de um jogo específico incluindo jogadores, lista de espera e resumo financeiro",
+        "tags": [
+          "Games"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do jogo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetailResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jogo não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Atualiza um jogo",
+        "description": "Atualiza informações de um jogo existente (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jogo atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Cancela um jogo",
+        "description": "Cancela um jogo agendado (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jogo cancelado com sucesso"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/status": {
+      "put": {
+        "summary": "Atualiza status do jogo",
+        "description": "Atualiza apenas o status de um jogo (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled",
+                      "open",
+                      "closed",
+                      "finished",
+                      "cancelled"
+                    ],
+                    "description": "Novo status do jogo",
+                    "example": "open"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Status inválido"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/close": {
+      "post": {
+        "summary": "Fecha um jogo",
+        "description": "Fecha um jogo e processa pagamentos/débitos (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jogo fechado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/send-reminder": {
+      "post": {
+        "summary": "Envia lembrete do jogo",
+        "description": "Envia um lembrete via WhatsApp para o grupo do jogo (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Lembrete enviado com sucesso"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/export": {
+      "get": {
+        "summary": "Exporta lista de jogadores em CSV",
+        "description": "Exporta a lista de jogadores do jogo em formato CSV (requer autenticação de admin)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arquivo CSV gerado com sucesso",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/players": {
+      "post": {
+        "summary": "Adiciona um jogador ou convidado ao jogo",
+        "description": "Adiciona um novo jogador à lista do jogo (requer autenticação).\n\n**Para adicionar jogador normal:**\n- Envie `phone` e `name`\n\n**Para adicionar convidado:**\n- Envie `phone` (de quem convida), `name` (de quem convida), e `guestName` (nome do convidado)\n- O convidado será adicionado com formato: \"NomeConvidado (conv. NomeQuemConvida)\"\n",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPlayerToGameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Jogador adicionado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Jogo não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/players/{playerId}": {
+      "delete": {
+        "summary": "Remove um jogador do jogo",
+        "description": "Remove um jogador da lista do jogo (requer autenticação)",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          },
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Jogador removido com sucesso"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Jogo ou jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/remove-guest": {
+      "post": {
+        "summary": "Remove um convidado por slot (Preciso)",
+        "tags": [
+          "Games"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "slot"
+                ],
+                "properties": {
+                  "slot": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/remove-player": {
+      "post": {
+        "summary": "Remove um jogador por ID (Preciso)",
+        "tags": [
+          "Games"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userId"
+                ],
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          }
+        }
+      }
+    },
+    "/api/games/{gameId}/players/{slot}/payment": {
+      "patch": {
+        "summary": "Marca/desmarca pagamento de jogador",
+        "description": "Atualiza o status de pagamento de um jogador (requer autenticação).\n\n**Diferenciação automática:**\n- Se for **vaga própria**: débito/crédito vai para o próprio jogador\n- Se for **convidado**: débito/crédito vai para quem convidou (invitedByUserId)\n- **Goleiros**: não geram débito/crédito (não pagam)\n\n**Fluxo:**\n1. Busca débito pendente no ledger\n2. Confirma o débito pendente\n3. Cria crédito confirmado\n4. Atualiza saldo do usuário\n\n**Importante:** Use o **slot** do jogador, não o userId. O slot identifica\ninequivocamente o jogador na lista, mesmo quando há convidados.\n",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogo"
+          },
+          {
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Número do slot do jogador na lista (1, 2, 3, etc.)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "isPaid"
+                ],
+                "properties": {
+                  "isPaid": {
+                    "type": "boolean",
+                    "description": "Status de pagamento (true = marcar como pago, false = desmarcar)",
+                    "example": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status de pagamento atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Pagamento marcado com sucesso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Jogo ou jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players": {
+      "get": {
+        "summary": "Lista todos os jogadores",
+        "description": "Retorna uma lista paginada de jogadores com filtros opcionais",
+        "tags": [
+          "Players"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "suspended",
+                "all"
+              ]
+            },
+            "description": "Filtrar por status do jogador"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Buscar por nome, email, telefone ou CPF"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Número da página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Itens por página"
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "createdAt",
+                "totalDebt",
+                "lastActivity"
+              ]
+            },
+            "description": "Campo para ordenação"
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "description": "Direção da ordenação"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de jogadores retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "players": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlayerResponseDto"
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "Total de jogadores (considerando filtros)"
+                    },
+                    "page": {
+                      "type": "integer",
+                      "description": "Página atual"
+                    },
+                    "totalPages": {
+                      "type": "integer",
+                      "description": "Total de páginas"
+                    },
+                    "limit": {
+                      "type": "integer",
+                      "description": "Itens por página"
+                    },
+                    "activeCount": {
+                      "type": "integer",
+                      "description": "Quantidade de jogadores ativos na página atual"
+                    },
+                    "withDebtsCount": {
+                      "type": "integer",
+                      "description": "Quantidade de jogadores com débitos na página atual"
+                    },
+                    "inactiveCount": {
+                      "type": "integer",
+                      "description": "Quantidade de jogadores inativos na página atual"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cria um novo jogador",
+        "description": "Cria um novo jogador (requer autenticação de admin)",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "phoneE164"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "João Silva"
+                  },
+                  "phoneE164": {
+                    "type": "string",
+                    "example": "+5511999999999"
+                  },
+                  "email": {
+                    "type": "string",
+                    "example": "joao@email.com"
+                  },
+                  "cpf": {
+                    "type": "string",
+                    "example": "123.456.789-00"
+                  },
+                  "nick": {
+                    "type": "string",
+                    "example": "Joãozinho"
+                  },
+                  "isGoalie": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "user"
+                    ],
+                    "default": "user"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Jogador criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "409": {
+            "description": "Jogador já existe"
+          }
+        }
+      }
+    },
+    "/api/players/stats": {
+      "get": {
+        "summary": "Obtém estatísticas de jogadores",
+        "description": "Retorna estatísticas agregadas sobre jogadores",
+        "tags": [
+          "Players"
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas retornadas com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "active": {
+                      "type": "integer"
+                    },
+                    "inactive": {
+                      "type": "integer"
+                    },
+                    "suspended": {
+                      "type": "integer"
+                    },
+                    "withDebts": {
+                      "type": "integer"
+                    },
+                    "totalDebt": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/players/export": {
+      "get": {
+        "summary": "Exporta jogadores em CSV",
+        "description": "Exporta lista de jogadores em formato CSV (requer autenticação de admin)",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "suspended",
+                "all"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arquivo CSV gerado com sucesso",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          }
+        }
+      }
+    },
+    "/api/players/{id}": {
+      "get": {
+        "summary": "Obtém detalhes de um jogador",
+        "description": "Retorna informações detalhadas de um jogador específico",
+        "tags": [
+          "Players"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do jogador",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Atualiza um jogador",
+        "description": "Atualiza informações de um jogador existente (requer autenticação de admin)",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "phoneE164": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "cpf": {
+                    "type": "string"
+                  },
+                  "nick": {
+                    "type": "string"
+                  },
+                  "isGoalie": {
+                    "type": "boolean"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "user"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive",
+                      "suspended"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jogador atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          },
+          "409": {
+            "description": "Conflito (email ou telefone já existe)"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deleta um jogador",
+        "description": "Remove um jogador do sistema (requer autenticação de admin)",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Jogador deletado com sucesso"
+          },
+          "400": {
+            "description": "Jogador possui débitos pendentes"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players/{id}/debts": {
+      "get": {
+        "summary": "Obtém débitos de um jogador",
+        "description": "Retorna lista de débitos de um jogador específico",
+        "tags": [
+          "Players"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de débitos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players/{id}/games": {
+      "get": {
+        "summary": "Obtém jogos de um jogador",
+        "description": "Retorna lista de jogos que um jogador participou",
+        "tags": [
+          "Players"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de jogos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players/{id}/transactions": {
+      "get": {
+        "summary": "Obtém movimentações (transações) de um jogador",
+        "description": "Retorna lista paginada de movimentações do ledger de um jogador ordenadas por data",
+        "tags": [
+          "Players"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Número da página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Itens por página"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de movimentações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ledgers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "_id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "debit",
+                              "credit"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pendente",
+                              "confirmado",
+                              "estornado"
+                            ]
+                          },
+                          "amountCents": {
+                            "type": "integer"
+                          },
+                          "note": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players/{id}/suspend": {
+      "post": {
+        "summary": "Suspende um jogador",
+        "description": "Suspende um jogador do sistema (requer autenticação de admin)",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jogador suspenso com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players/{id}/activate": {
+      "post": {
+        "summary": "Ativa um jogador",
+        "description": "Ativa um jogador suspenso ou inativo (requer autenticação de admin)",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jogador ativado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/players/{id}/credit": {
+      "post": {
+        "summary": "Adiciona crédito ao jogador",
+        "description": "Adiciona um valor de crédito ao saldo do jogador em um workspace específico",
+        "tags": [
+          "Players"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do jogador"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "amountCents"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "ID do workspace"
+                  },
+                  "amountCents": {
+                    "type": "integer",
+                    "description": "Valor do crédito em centavos"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "Observação sobre o crédito"
+                  },
+                  "method": {
+                    "type": "string",
+                    "description": "Método de pagamento (pix, dinheiro, etc)",
+                    "default": "pix"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Crédito adicionado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "404": {
+            "description": "Jogador não encontrado"
+          }
+        }
+      }
+    },
+    "/api/workspaces": {
+      "get": {
+        "summary": "Lista todos os workspaces",
+        "description": "Retorna uma lista paginada de workspaces com filtros opcionais",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "maintenance",
+                "all"
+              ]
+            },
+            "description": "Filtrar por status do workspace"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Buscar por nome ou slug"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Número da página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Itens por página"
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "createdAt",
+                "totalChats"
+              ]
+            },
+            "description": "Campo para ordenação"
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "description": "Direção da ordenação"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de workspaces retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspaces": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WorkspaceResponseDto"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cria um novo workspace",
+        "description": "Cria um novo workspace (requer autenticação de admin)",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "slug"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Arena Viana"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "viana"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "example": "America/Sao_Paulo"
+                  },
+                  "settings": {
+                    "type": "object",
+                    "properties": {
+                      "maxPlayers": {
+                        "type": "integer",
+                        "example": 16
+                      },
+                      "pricePerGameCents": {
+                        "type": "integer",
+                        "example": 1400
+                      },
+                      "commandsEnabled": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "example": [
+                          "/lista",
+                          "/entrar",
+                          "/sair"
+                        ]
+                      },
+                      "pix": {
+                        "type": "string",
+                        "example": "+5549999999999"
+                      },
+                      "title": {
+                        "type": "string",
+                        "example": "⚽ VIANA"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Workspace criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "409": {
+            "description": "Workspace já existe"
+          }
+        }
+      }
+    },
+    "/api/workspaces/stats": {
+      "get": {
+        "summary": "Obtém estatísticas de workspaces",
+        "description": "Retorna estatísticas agregadas sobre workspaces",
+        "tags": [
+          "Workspaces"
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas retornadas com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalWorkspaces": {
+                      "type": "integer"
+                    },
+                    "activeWorkspaces": {
+                      "type": "integer"
+                    },
+                    "inactiveWorkspaces": {
+                      "type": "integer"
+                    },
+                    "totalChats": {
+                      "type": "integer"
+                    },
+                    "totalGames": {
+                      "type": "integer"
+                    },
+                    "totalRevenue": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workspaces/{id}": {
+      "get": {
+        "summary": "Obtém detalhes de um workspace",
+        "description": "Retorna informações detalhadas de um workspace específico",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Atualiza um workspace",
+        "description": "Atualiza informações de um workspace existente (requer autenticação de admin)",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "timezone": {
+                    "type": "string"
+                  },
+                  "settings": {
+                    "type": "object",
+                    "properties": {
+                      "maxPlayers": {
+                        "type": "integer"
+                      },
+                      "pricePerGameCents": {
+                        "type": "integer"
+                      },
+                      "commandsEnabled": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "pix": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workspace atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          },
+          "409": {
+            "description": "Conflito (slug já existe)"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deleta um workspace",
+        "description": "Remove um workspace do sistema (requer autenticação de admin)",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Workspace deletado com sucesso"
+          },
+          "400": {
+            "description": "Workspace possui chats vinculados"
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Sem permissão de admin"
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{id}/chats": {
+      "get": {
+        "summary": "Obtém chats de um workspace",
+        "description": "Retorna lista de chats vinculados a um workspace",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de chats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{id}/stats": {
+      "get": {
+        "summary": "Obtém estatísticas de um workspace",
+        "description": "Retorna estatísticas específicas de um workspace",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas do workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalChats": {
+                      "type": "integer"
+                    },
+                    "totalGames": {
+                      "type": "integer"
+                    },
+                    "upcomingGames": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{id}/organizze": {
+      "patch": {
+        "summary": "Atualiza configurações do Organizze",
+        "description": "Atualiza credenciais e categorias do Organizze para um workspace (requer autenticação de admin)",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "apiKey",
+                  "accountId",
+                  "categories"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "example": "abc123xyz"
+                  },
+                  "accountId": {
+                    "type": "integer",
+                    "example": 9099386
+                  },
+                  "categories": {
+                    "type": "object",
+                    "properties": {
+                      "fieldPayment": {
+                        "type": "integer",
+                        "example": 152977750
+                      },
+                      "playerPayment": {
+                        "type": "integer",
+                        "example": 152977751
+                      },
+                      "playerDebt": {
+                        "type": "integer",
+                        "example": 152977752
+                      },
+                      "general": {
+                        "type": "integer",
+                        "example": 152977753
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configurações atualizadas com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove configurações do Organizze",
+        "description": "Remove todas as configurações do Organizze de um workspace (requer autenticação de admin)",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID do workspace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações removidas com sucesso"
+          },
+          "404": {
+            "description": "Workspace não encontrado"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}

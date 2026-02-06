@@ -98,7 +98,6 @@ export class PayFieldCommand implements Command {
             }
 
         } catch (e) {
-            this.logService.log(`Ocorreu um erro ao registrar pagamento do campo: `, e);
             await message.reply(`Não foi possível registrar o pagamento, tente novamente mais tarde`);
         }
     }

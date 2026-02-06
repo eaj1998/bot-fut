@@ -32,12 +32,9 @@ export class AuthService {
 
     async requestOtp(dto: RequestOtpDto): Promise<{ message: string; expiresIn: number }> {
         const phone = this.util.normalizePhone(dto.phone);
-        this.loggerService.info(`Normalized phone: ${phone}`);
         let user = await this.userModel.findOne({ phoneE164: phone }).exec();
 
         if (!user) {
-            this.loggerService.info(`User not found, creating new user`);
-
             const isValidPhone = await this.whatsappService.isPhoneNumberRegistered(phone);
             if (!isValidPhone) {
                 this.loggerService.warn(`Phone number may not be registered on WhatsApp: ${phone}`);
@@ -48,8 +45,6 @@ export class AuthService {
                 name: phone,
                 role: 'user',
             });
-
-            this.loggerService.info(`New user auto-created for phone: ${phone}`);
         }
 
         await this.otpModel.updateMany(
@@ -59,8 +54,6 @@ export class AuthService {
 
         const code = this.generateOTP();
         const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MINUTES * 60 * 1000);
-
-        this.loggerService.debug(`OTP: ${code}`);
 
         await this.otpModel.create({
             phone,
@@ -75,8 +68,6 @@ export class AuthService {
         if (!sent) {
             throw new ApiError(500, 'Failed to send OTP. Please try again.');
         }
-
-        this.loggerService.info(`OTP requested for phone: ${phone}`);
 
         return {
             message: 'OTP sent to your WhatsApp',
@@ -135,7 +126,6 @@ export class AuthService {
             }
         }
 
-        this.loggerService.info(`OTP verified successfully for phone: ${normalizedPhone}`);
         return await this.generateAuthResponse(user);
     }
 
@@ -168,7 +158,6 @@ export class AuthService {
         const workspaces = members
             .filter(m => {
                 if (!m.workspaceId) {
-                    this.loggerService.warn(`[getMe] Membership ${m._id} has null workspaceId`);
                     return false;
                 }
                 return true;
@@ -189,6 +178,7 @@ export class AuthService {
             phone: user.phoneE164 || user.lid || '',
             role: user.role || 'user',
             status: user.status,
+            isGoalie: user.isGoalie,
             createdAt: user.createdAt,
             workspaces
         };
@@ -226,19 +216,16 @@ export class AuthService {
             status: 'ACTIVE'
         }).populate('workspaceId', 'name settings').exec();
 
-        this.loggerService.info(`Found ${members.length} workspace members for user ${user._id}`);
 
         const workspaces = members
             .filter(m => {
                 if (!m.workspaceId) {
-                    this.loggerService.warn(`WorkspaceMember ${m._id} has null workspaceId - workspace may have been deleted`);
                     return false;
                 }
                 return true;
             })
             .map(m => {
                 const w = m.workspaceId as any; // populated
-                this.loggerService.info(`Mapping workspace: ${w._id} - ${w.name}`);
                 return {
                     id: w._id.toString(),
                     name: w.name,
@@ -246,8 +233,6 @@ export class AuthService {
                     settings: w.settings
                 };
             });
-
-        this.loggerService.info(`Returning ${workspaces.length} workspaces to user`);
 
         return {
             accessToken,
@@ -300,7 +285,6 @@ export class AuthService {
 
             return hasAdminRole;
         } catch (error) {
-            this.loggerService.error('[isAdmin] Error checking admin status:', error);
             return false;
         }
     }

@@ -453,6 +453,56 @@ router.delete('/:gameId/players/:playerId', controller.removePlayer);
 
 /**
  * @swagger
+ * /api/games/{gameId}/remove-guest:
+ *   post:
+ *     summary: Remove um convidado por slot (Preciso)
+ *     tags: [Games]
+ *     parameters:
+ *       - in: path
+ *         name: gameId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [slot]
+ *             properties:
+ *               slot: { type: integer }
+ *     responses:
+ *       200: { description: Sucesso }
+ */
+router.post('/:gameId/remove-guest', controller.removeGuest);
+
+/**
+ * @swagger
+ * /api/games/{gameId}/remove-player:
+ *   post:
+ *     summary: Remove um jogador por ID (Preciso)
+ *     tags: [Games]
+ *     parameters:
+ *       - in: path
+ *         name: gameId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userId]
+ *             properties:
+ *               userId: { type: string }
+ *     responses:
+ *       200: { description: Sucesso }
+ */
+router.post('/:gameId/remove-player', controller.removePlayerFromBody);
+
+/**
+ * @swagger
  * /api/games/{gameId}/players/{slot}/payment:
  *   patch:
  *     summary: Marca/desmarca pagamento de jogador

@@ -18,7 +18,7 @@ const router = Router();
 router.use('/api-docs', swaggerUi.serve);
 router.get('/api-docs', swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Bot Futebol API Documentation',
+  customSiteTitle: 'Faz o Simplesebol API Documentation',
 }));
 
 // API routes

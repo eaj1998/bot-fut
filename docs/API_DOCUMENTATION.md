@@ -1,4 +1,4 @@
-# Documentação da API - Bot Futebol
+# Documentação da API - Faz o Simplesebol
 
 ## 📚 Swagger/OpenAPI
 
@@ -134,4 +134,4 @@ Sempre que adicionar novos endpoints:
 - A documentação é gerada automaticamente a partir dos comentários JSDoc
 - Todos os endpoints estão organizados por tags (Authentication, Games)
 - A interface do Swagger UI está personalizada para ocultar a topbar padrão
-- O título da página é "Bot Futebol API Documentation"
+- O título da página é "Faz o Simplesebol API Documentation"

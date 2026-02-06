@@ -92,7 +92,10 @@ export class GameService {
     @inject(LoggerService) private readonly loggerService: LoggerService,
 
     @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
-  ) { }
+  ) {
+
+    this.loggerService.setName('[GAME-SERVICE]');
+  }
 
   async listGames(filters: {
     workspaceId: string;
@@ -161,11 +164,11 @@ export class GameService {
         slot: player.slot,
         isGoalkeeper,
         isPaid: player.paid || false,
+        guest: player.guest || false,
       };
 
       players.push(playerDto);
 
-      // Cálculo Financeiro: Apenas jogadores de linha pagam
       if (!isGoalkeeper) {
         const userId = player.userId?.toString() || player.invitedByUserId?.toString();
         const isGuest = !!player.guest;
@@ -540,12 +543,99 @@ export class GameService {
       throw new ApiError(404, 'Game not found');
     }
 
-    const user = await this.userModel.findById(playerId).exec();
-    if (!user) {
-      throw new ApiError(404, 'User not found');
+    const cleanPlayerId = (playerId || '').trim();
+
+    // Try to find index by User ID directly in the roster first (more precise)
+    const players = game.roster.players ?? [];
+    let idx = players.findIndex(p => p.userId?.toString() === cleanPlayerId);
+
+    // If not found in roster, check if the ID passed IS the user ID but maybe stored differently or user was deleted
+    if (idx === -1) {
+      const user = await this.userModel.findById(cleanPlayerId).exec();
+      if (!user) {
+        throw new ApiError(404, 'Player not found in game roster');
+      }
+      throw new ApiError(404, 'Player not in this game');
     }
 
-    await this.giveUpFromList(game, user, user.name);
+    await this.removePlayerAtIndex(game, idx);
+  }
+
+  async removeGuest(gameId: string, slot: number): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    const players = game.roster.players ?? [];
+    const idx = players.findIndex(p => p.slot === slot);
+
+    if (idx === -1) {
+      throw new ApiError(404, 'Player not found in this slot');
+    }
+
+    const player = players[idx];
+
+    // Verification: Must be a guest
+    if (!player.guest) {
+      throw new ApiError(400, 'Player in this slot is not a guest');
+    }
+
+
+    await this.removePlayerAtIndex(game, idx);
+  }
+
+  /**
+   * Private centralized method to remove a player by index, handle promotion, and save.
+   */
+  private async removePlayerAtIndex(game: IGame, index: number): Promise<{ player: GamePlayer, promotedMessage: string, mentions: string[] }> {
+    const players = game.roster.players;
+    const waitlist = game.roster.waitlist ?? [];
+    const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
+
+    const removed = players[index];
+    const removedSlot = removed?.slot ?? 0;
+
+    // Remove
+    players.splice(index, 1);
+
+    // Promotion logic
+    let promotedMessage = "";
+    let mentions: string[] = [];
+
+    if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
+      const promovido = waitlist.shift()!;
+
+      const promotedPlayer = {
+        slot: removedSlot,
+        userId: promovido.userId,
+        name: promovido.name ?? "Jogador",
+        phoneE164: promovido.phoneE164,
+        paid: false,
+      };
+
+      players.push(promotedPlayer);
+
+      // Prepare notifications
+      if (promovido?.phoneE164) {
+        const e164 = promovido.phoneE164.replace(/@c\.us$/i, "");
+        const jid = `${e164.replace(/\D/g, "")}@c.us`;
+        mentions.push(jid);
+      }
+
+      const alvo = promovido?.phoneE164
+        ? `*@${promovido.phoneE164.replace(/@c\.us$/i, "")}*`
+        : `*${promovido?.name ?? "Jogador"}*`;
+
+      promotedMessage = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
+    }
+
+    game.markModified('roster.players');
+    game.markModified('roster.waitlist');
+
+    await game.save();
+
+    return { player: removed, promotedMessage, mentions };
   }
 
   async addOutfieldPlayer(
@@ -618,7 +708,6 @@ export class GameService {
     const nomeTarget = (nomeAutor ?? "").trim().toLowerCase();
 
     let idxPlayer = players.findIndex(p => (p.name?.trim().toLowerCase() === nomeTarget && p.guest));
-    this.loggerService.log(`idxPlayer guest: ${idxPlayer}`);
     if (idxPlayer <= -1) {
       idxPlayer = players.findIndex(p => (p.userId?._id?.toString() ?? p.userId?.toString() ?? "")
         .toLowerCase()
@@ -628,55 +717,14 @@ export class GameService {
     let mensagemPromocao = "";
 
     if (idxPlayer > -1) {
-      const removed = players[idxPlayer];
-      const removedSlot = removed?.slot ?? 0;
-      players.splice(idxPlayer, 1);
-      nomeAutor = removed.name;
+      const removed = await this.removePlayerAtIndex(game, idxPlayer);
 
-      let promotedPlayer: any | null = null;
-      let promovido: any | null = null;
+      let texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${removed.promotedMessage}`;
 
-      if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
-        promovido = waitlist.shift()!;
-
-        promotedPlayer = {
-          slot: removedSlot,
-          userId: promovido.userId,
-          name: promovido.name ?? "Jogador",
-          phoneE164: promovido.phoneE164,
-          paid: false,
-        };
-
-        players.push(promotedPlayer);
+      if (removed.player.guest ?? false) { // Use Nullish Coalescing for safety
+        texto = `Ok, o convidado: ${removed.player.name}, foi removido da lista.`;
       }
-
-      const mentions: string[] = [];
-      if (promovido?.phoneE164) {
-        const e164 = promovido.phoneE164.replace(/@c\.us$/i, "");
-        const jid = `${e164.replace(/\D/g, "")}@c.us`;
-        mentions.push(jid);
-      }
-
-      const alvo =
-        promovido?.phoneE164
-          ? `*@${promovido.phoneE164.replace(/@c\.us$/i, "")}*`
-          : `*${promovido?.name ?? "Jogador"}*`;
-
-      if (promovido) {
-        mensagemPromocao = `\n\n📢 Atenção: ${alvo} foi promovido da suplência para a lista principal (slot ${removedSlot})!`;
-      }
-
-      game.markModified("roster.players");
-      game.markModified("roster.waitlist");
-
-      if (await game.save()) {
-        let texto = `Ok, ${nomeAutor}, seu nome foi removido da lista.${mensagemPromocao}`;
-
-        if (removed.guest) {
-          texto = `Ok, o convidado: ${nomeAutor}, foi removido da lista.`;
-        }
-        return { removed: true, message: texto, mentions };
-      }
+      return { removed: true, message: texto, mentions: removed.mentions };
     }
 
     const idxWait = waitlist.findIndex(w => {
@@ -847,7 +895,6 @@ export class GameService {
     let userId = player.userId?._id ?? player.invitedByUserId?._id;
 
     if (!userId) {
-      this.loggerService.log(`[LEDGER] Nenhum userId encontrado para ${player.name}`);
       return { updated: false, reason: 'User nao encontrado' };
     }
 
@@ -1015,7 +1062,6 @@ export class GameService {
     );
 
     if (!organizzeConfig?.email || !organizzeConfig?.apiKey) {
-      this.loggerService.log('[ORGANIZZE] Workspace Organizze config not set, skipping');
       return { added: true };
     }
 
@@ -1028,7 +1074,6 @@ export class GameService {
     const player = game.roster.players[idx];
 
     if (!player.organizzeId) {
-      this.loggerService.log(`[ORGANIZZE] Player ${player.name} não tem organizzeId, pulando atualização`);
       return { added: true };
     }
 
@@ -1063,7 +1108,6 @@ export class GameService {
         error?.message ??
         "Erro desconhecido ao criar transação no Organizze";
 
-      this.loggerService.log("[ORGANIZZE] ERRO:", apiErr);
       return { added: false };
     }
   }
@@ -1078,7 +1122,6 @@ export class GameService {
     const organizzeConfig = await this.workspaceRepo.getDecryptedOrganizzeConfig(workspaceId);
 
     if (!organizzeConfig?.email || !organizzeConfig?.apiKey) {
-      this.loggerService.log('[ORGANIZZE] Workspace Organizze config not set, skipping');
       return { added: true };
     }
 
@@ -1117,7 +1160,6 @@ export class GameService {
         error?.message ??
         "Erro desconhecido ao criar transação no Organizze";
 
-      this.loggerService.log("[ORGANIZZE] ERRO:", apiErr);
       return { added: false };
     }
   }
@@ -1772,7 +1814,8 @@ export class GameService {
         phone: p.phoneE164,
         slot: p.slot,
         isGoalkeeper: (p.slot ?? 0) <= (game.roster.goalieSlots ?? 2) && (p.slot ?? 0) > 0,
-        isPaid: p.paid || false
+        isPaid: p.paid || false,
+        guest: p.guest || false,
       })) || [],
       allowCasualsEarly: game.allowCasualsEarly,
     };

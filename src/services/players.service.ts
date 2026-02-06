@@ -30,10 +30,8 @@ export class PlayersService {
      * Converte documento do usuário para DTO de resposta
      */
     private async toResponseDto(user: any): Promise<PlayerResponseDto> {
-        // Balance defaulted to 0 as Ledger is removed
         const balance = 0;
 
-        // Usar TransactionRepository para calcular débitos pendentes (Income Pending)
         const debts = await this.transactionRepository.findByUserId(user._id.toString(), undefined, {
             status: TransactionStatus.PENDING,
             type: TransactionType.INCOME
@@ -132,12 +130,8 @@ export class PlayersService {
             throw new Error('Formato de telefone inválido');
         }
 
-        // Verificar duplicidade de telefone no workspace
-        // Como User não tem workspaceId direto, vamos verificar se existe o telefone
-        // e depois verificar se tem membership neste workspace
         const existingUser = await this.userRepository['model'].findOne({ phoneE164: normalizedPhone });
         if (existingUser) {
-            // Verificar se já tem membership neste workspace
             const existingMembership = await this.membershipRepo.findByUserId(
                 existingUser._id.toString(),
                 data.workspaceId
@@ -206,7 +200,6 @@ export class PlayersService {
             }
         }
 
-        // Separate workspaceId from user update data to avoid type errors
         const { workspaceId, ...userData } = data;
 
         const updated = await this.userRepository.update(id, userData);
@@ -214,7 +207,6 @@ export class PlayersService {
             throw new Error('Erro ao atualizar jogador');
         }
 
-        // Update Workspace Member Role if provided
         if (workspaceId && data.role) {
             const member = await this.workspaceMemberModel.findOne({
                 workspaceId: workspaceId,
@@ -222,12 +214,8 @@ export class PlayersService {
             });
 
             if (member) {
-                // Determine roles based on input
-                // If admin, add ADMIN role. If user, ensure NO ADMIN role.
                 let newRoles = member.roles || [];
 
-                // Remove legacy mixed case if needed, but let's just handle the target state
-                // Clean up existing admin roles
                 newRoles = newRoles.filter(r => !['admin', 'ADMIN', 'owner', 'OWNER'].includes(r));
 
                 if (data.role === 'admin') {
@@ -236,7 +224,6 @@ export class PlayersService {
                     newRoles.push('PLAYER'); // Default role
                 }
 
-                // Deduplicate
                 member.roles = [...new Set(newRoles)];
                 await member.save();
             }

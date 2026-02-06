@@ -100,6 +100,7 @@ export class PlayerInGameDto {
   slot?: number;
   isGoalkeeper!: boolean;
   isPaid!: boolean;
+  guest?: boolean;
 }
 
 export class GameDetailResponseDto extends GameResponseDto {

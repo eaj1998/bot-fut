@@ -19,7 +19,8 @@
     "migrate:lid": "ts-node scripts/migrate-lid.ts",
     "migrate:ledger": "ts-node scripts/migrate-ledger-to-transactions.ts",
     "test:suspension": "ts-node scripts/test-suspension-job.ts",
-    "test:invoice": "ts-node scripts/test-invoice-job.ts"
+    "test:invoice": "ts-node scripts/test-invoice-job.ts",
+    "export-openapi": "ts-node src/export-openapi.ts"
   },
   "keywords": [],
   "author": "",

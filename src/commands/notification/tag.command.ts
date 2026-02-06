@@ -50,7 +50,6 @@ export class TagCommand implements Command {
 
         if (group) {
             for (let participant of group.participants) {
-                this.loggerService.log('participant', participant);
                 const serializedId = participant.id._serialized;
 
                 const phoneE164 = this.util.normalizePhone(serializedId)

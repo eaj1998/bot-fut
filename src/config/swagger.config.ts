@@ -5,12 +5,12 @@ const options: Options = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Bot Futebol API',
+            title: 'Faz o Simples API',
             version: '1.0.0',
             description: 'API REST para gerenciamento de jogos de futebol com sistema de pagamentos e controle de jogadores',
             contact: {
                 name: 'API Support',
-                email: 'support@botfutebol.com',
+                email: 'support@fazosimples.com',
             },
         },
         servers: [
@@ -19,7 +19,7 @@ const options: Options = {
                 description: 'Servidor de Desenvolvimento',
             },
             {
-                url: 'https://api.botfutebol.com',
+                url: 'https://api.fazosimplesfc.app',
                 description: 'Servidor de Produção',
             },
         ],

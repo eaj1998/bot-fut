@@ -34,7 +34,6 @@ Se você não solicitou este código, ignore esta mensagem.`;
 
             const result = await this.botClient.sendMessage(`${formattedPhone}@c.us`, message);
 
-            this.loggerService.log(`OTP sent to ${phone}`, result?.id || '');
             return true;
         } catch (error) {
             this.loggerService.error(`Failed to send OTP to ${phone}`, error);

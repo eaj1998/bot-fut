@@ -76,7 +76,6 @@ export class AddCreditCommand implements Command {
                     }
 
                 } catch (e: any) {
-                    this.loggerService.log(`[ADD-CREDIT] Falha ao adicionar crédito: ${e}`);
                     message.reply(`Erro ao adicionar crédito: ${e.message}`);
                 }
             }

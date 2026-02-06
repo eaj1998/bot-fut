@@ -29,7 +29,6 @@ export class OrganizzeService {
         const { email, apiKey, accountId } = this.configService.organizze ?? {};
 
         if (!email || !apiKey) {
-            this.loggerService.log('[ORGANIZZE] Credentials are not set');
             return { added: true };
         }
 
@@ -55,7 +54,6 @@ export class OrganizzeService {
             );
 
             if (res.status === 201 && res.data?.id != null) {
-                this.loggerService.log(`[ORGANIZZE] Transaction created: ${res.data.id}`);
                 return { added: true, transactionId: res.data.id };
             }
             return { added: false, error: "Invalid response from Organizze" };
@@ -66,7 +64,6 @@ export class OrganizzeService {
                 error?.message ||
                 "Erro desconhecido ao criar transação no Organizze";
 
-            this.loggerService.log("[ORGANIZZE] ERRO:", apiErr);
             return { added: false, error: String(apiErr) };
         }
     }

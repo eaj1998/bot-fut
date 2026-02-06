@@ -15,7 +15,6 @@ export class BindCommand {
   ) { }
 
   async handle(message: Message) {
-    console.log('Grupo:', message.from);
     const parts = message.body.trim().split(/\s+/);
     // Ex: ["/bind", "campo-do-viana", "2", "20:30"]
     const [, slug, weekdayRaw, timeRaw] = parts;

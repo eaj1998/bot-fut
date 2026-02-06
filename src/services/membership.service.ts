@@ -223,11 +223,9 @@ export class MembershipService {
         let shouldActivate = false;
 
         if (pendingTransaction) {
-            console.log('Pending transaction found');
             const pendingAmount = pendingTransaction.amount;
 
             if (paidAmountCents >= pendingAmount) {
-                console.log('Pending transaction completed');
                 transaction = await this.transactionRepo.updateTransaction(pendingTransaction._id.toString(), {
                     status: TransactionStatus.COMPLETED,
                     paidAt: new Date(),
@@ -236,7 +234,6 @@ export class MembershipService {
                 });
                 shouldActivate = true;
             } else {
-                console.log('Pending transaction partial');
                 // Pagamento Parcial (< dívida)
                 // 1. Criar transação separada para o valor PAGO (Receita que entrou)
                 transaction = await this.transactionRepo.createTransaction({
@@ -262,7 +259,6 @@ export class MembershipService {
                 shouldActivate = false;
             }
         } else {
-            console.log('No pending transaction found');
             const planValue = membership.planValue;
 
             transaction = await this.transactionRepo.createTransaction({
@@ -280,10 +276,8 @@ export class MembershipService {
             });
 
             if (paidAmountCents >= planValue) {
-                console.log('Pending transaction completed');
                 shouldActivate = true;
             } else {
-                console.log('Pending transaction partial');
                 if (membership.status !== MembershipStatus.ACTIVE) {
                     const remaining = planValue - paidAmountCents;
                     if (remaining > 0) {
@@ -311,7 +305,6 @@ export class MembershipService {
         }
 
         const nextDueDate = MembershipRepository.calculateNextDueDate();
-        console.log('Next due date: ', nextDueDate);
 
         await this.membershipRepo.updateNextDueDate(membershipId, nextDueDate);
 

@@ -105,11 +105,43 @@ export class GamesController {
   removePlayer = asyncHandler(async (req: Request, res: Response) => {
     const { gameId, playerId } = req.params;
 
+    // Legacy support for DELETE /:gameId/players/:playerId
     await this.gameService.removePlayer(gameId as string, playerId as string);
 
     res.json({
       success: true,
       message: 'Player removed from game',
+    });
+  });
+
+  removePlayerFromBody = asyncHandler(async (req: Request, res: Response) => {
+    const { gameId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      res.status(400);
+      throw new Error("userId is required");
+    }
+
+    await this.gameService.removePlayer(gameId as string, userId as string);
+
+    res.json({ success: true, message: 'Player removed from game' });
+  });
+
+  removeGuest = asyncHandler(async (req: Request, res: Response) => {
+    const { gameId } = req.params;
+    const { slot } = req.body;
+
+    if (slot === undefined) {
+      res.status(400);
+      throw new Error("slot is required");
+    }
+
+    await this.gameService.removeGuest(gameId as string, parseInt(slot, 10));
+
+    res.json({
+      success: true,
+      message: 'Guest removed from game',
     });
   });
 

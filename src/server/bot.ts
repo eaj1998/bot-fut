@@ -23,7 +23,7 @@ export class BotServer extends IBotServerPort {
       if (!this.client) {
         throw new Error('Server cannot be initialized without setup');
       }
-      await this.client.sendMessage(chatId, message, options);
+      return await this.client.sendMessage(chatId, message, options);
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;

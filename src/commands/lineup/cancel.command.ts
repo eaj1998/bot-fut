@@ -4,6 +4,7 @@ import { BOT_CLIENT_TOKEN, IBotServerPort } from '../../server/type';
 import { Message } from 'whatsapp-web.js';
 import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
+import { LoggerService } from '../../logger/logger.service';
 
 @injectable()
 export class CancelCommand implements Command {
@@ -13,6 +14,7 @@ export class CancelCommand implements Command {
         @inject(BOT_CLIENT_TOKEN) private readonly server: IBotServerPort,
         @inject(GameService) private readonly gameService: GameService,
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
+        @inject(LoggerService) private readonly loggerSvc: LoggerService,
     ) { }
 
     async handle(message: Message): Promise<void> {
@@ -36,6 +38,9 @@ export class CancelCommand implements Command {
         await this.gameService.cancelGame(game._id.toString());
 
         const sent = await this.server.sendMessage(groupId, "Jogo Cancelado!");
-        sent.pin(86400);
+        this.loggerSvc.info(`MSG SENT: ${sent}`);
+        if (sent && sent.pin) {
+            await sent.pin(86400);
+        }
     }
 }

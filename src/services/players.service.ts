@@ -15,6 +15,8 @@ import {
     PaginatedPlayersResponseDto,
     PlayersStatsDto,
 } from '../api/dto/player.dto';
+import { LoggerService } from '../logger/logger.service';
+import { normalizePhone, isValidBrazilianPhone, removeExtraNine, validateAndFormatPhone } from '../utils/phone.util';
 
 @injectable()
 export class PlayersService {
@@ -23,13 +25,14 @@ export class PlayersService {
         @inject(GAME_REPOSITORY_TOKEN) private readonly gameRepository: GameRepository,
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepository: TransactionRepository,
         @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
-        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>,
+        @inject(LoggerService) private readonly loggerService: LoggerService
     ) { }
 
     /**
      * Converte documento do usuário para DTO de resposta
      */
-    private async toResponseDto(user: any): Promise<PlayerResponseDto> {
+    private async toResponseDto(user: any, workspaceId?: string): Promise<PlayerResponseDto> {
         const balance = 0;
 
         const debts = await this.transactionRepository.findByUserId(user._id.toString(), undefined, {
@@ -37,6 +40,18 @@ export class PlayersService {
             type: TransactionType.INCOME
         });
         const totalDebt = debts.reduce((sum, d) => sum + d.amount, 0);
+
+        let role = user.role || 'user';
+        if (workspaceId) {
+            const member = await this.workspaceMemberModel.findOne({ workspaceId, userId: user._id });
+            if (member && member.roles && member.roles.length > 0) {
+                if (member.roles.includes('ADMIN') || member.roles.includes('admin') || member.roles.includes('owner')) {
+                    role = 'admin';
+                } else {
+                    role = 'user';
+                }
+            }
+        }
 
         return {
             id: user._id.toString(),
@@ -49,7 +64,7 @@ export class PlayersService {
             status: user.status || 'active',
             balance: balance / 100,
             totalDebt: totalDebt / 100,
-            role: user.role || 'user',
+            role: role,
             joinDate: user.createdAt?.toISOString() || new Date().toISOString(),
             lastActivity: user.updatedAt?.toISOString() || user.createdAt?.toISOString() || new Date().toISOString(),
             createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
@@ -64,7 +79,7 @@ export class PlayersService {
         const { users, total } = await this.userRepository.findAll(filters);
 
         const players = await Promise.all(
-            users.map((user) => this.toResponseDto(user))
+            users.map((user) => this.toResponseDto(user, filters.workspaceId))
         );
 
         const stats = await this.userRepository.getStats();
@@ -122,8 +137,7 @@ export class PlayersService {
             throw new Error('Workspace ID é obrigatório');
         }
 
-        // Normalizar telefone
-        const { normalizePhone, isValidBrazilianPhone } = require('../utils/phone.util');
+        data.phoneE164 = validateAndFormatPhone(data.phoneE164);
         const normalizedPhone = normalizePhone(data.phoneE164);
 
         if (!normalizedPhone || !isValidBrazilianPhone(data.phoneE164)) {
@@ -141,7 +155,6 @@ export class PlayersService {
             }
         }
 
-        // Criar ou atualizar usuário
         let user = existingUser;
         if (!user) {
             user = await this.userRepository.create({
@@ -154,6 +167,22 @@ export class PlayersService {
                 playerType: data.type,
                 stars: data.stars,
             });
+
+            const memberExists = await this.workspaceMemberModel.exists({
+                workspaceId: data.workspaceId,
+                userId: user._id
+            });
+
+            if (!memberExists) {
+                await this.workspaceMemberModel.create({
+                    workspaceId: data.workspaceId,
+                    userId: user._id,
+                    roles: ['PLAYER'],
+                    status: 'ACTIVE',
+                    nickname: data.name
+                });
+            }
+
         } else {
             // Atualizar dados se usuário já existe
             user.name = data.name;
@@ -181,7 +210,7 @@ export class PlayersService {
             });
         }
 
-        return this.toResponseDto(user);
+        return this.toResponseDto(user, data.workspaceId);
     }
 
     /**
@@ -202,6 +231,14 @@ export class PlayersService {
 
         const { workspaceId, ...userData } = data;
 
+        if (userData.phoneE164) {
+            userData.phoneE164 = validateAndFormatPhone(userData.phoneE164);
+        }
+
+        if (userData.phoneE164) {
+            const normalized = normalizePhone(userData.phoneE164);
+            if (normalized) userData.phoneE164 = normalized;
+        }
         const updated = await this.userRepository.update(id, userData);
         if (!updated) {
             throw new Error('Erro ao atualizar jogador');
@@ -226,10 +263,16 @@ export class PlayersService {
 
                 member.roles = [...new Set(newRoles)];
                 await member.save();
+            } else {
+                await this.workspaceMemberModel.create({
+                    workspaceId: workspaceId,
+                    userId: user._id,
+                    roles: ['PLAYER']
+                });
             }
         }
 
-        return this.toResponseDto(updated);
+        return this.toResponseDto(updated, workspaceId);
     }
 
     /**

@@ -63,3 +63,28 @@ export function formatPhoneDisplay(phone: string): string {
 
     return phone;
 }
+
+export function removeNonNumeric(numeros: string): string {
+    return numeros.replace(/\D/g, '');
+}
+
+export function removeExtraNine(numeros: string): string {
+    if (numeros.length < 11) {
+        return numeros;
+    }
+    numeros = removeNonNumeric(numeros);
+    const ddd = numeros.substring(0, 2);
+    const numeroSemNono = numeros.substring(2, 3) + numeros.substring(4);
+
+    return ddd + numeroSemNono;
+}
+
+export function validateAndFormatPhone(phone: string): string {
+    if (phone) {
+        phone = removeNonNumeric(phone);
+        if (phone.length === 11) {
+            phone = removeExtraNine(phone);
+        }
+    }
+    return phone;
+}

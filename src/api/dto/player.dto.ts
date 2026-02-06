@@ -51,6 +51,7 @@ export interface ListPlayersDto {
     limit?: number;
     sortBy?: 'name' | 'createdAt' | 'totalDebt' | 'lastActivity';
     sortOrder?: 'asc' | 'desc';
+    workspaceId?: string;
 }
 
 export interface PaginatedPlayersResponseDto {

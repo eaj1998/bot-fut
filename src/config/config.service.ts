@@ -59,22 +59,6 @@ export class ConfigService {
     },
   };
 
-  private getRequiredEnv(key: string): string {
-    const value = process.env[key];
-
-    if (!value && this.env === 'production') {
-      throw new Error(
-        `❌ Required environment variable ${key} is not set in production`
-      );
-    }
-
-    if (!value) {
-      console.warn(`⚠️  ${key} not set, using default value (not safe for production)`);
-      return 'development-secret-key-change-in-production';
-    }
-
-    return value;
-  }
   validate(): void {
     const errors: string[] = [];
 

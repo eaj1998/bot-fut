@@ -258,7 +258,7 @@ export class PlayersService {
                 if (data.role === 'admin') {
                     newRoles.push('ADMIN');
                 } else {
-                    newRoles.push('PLAYER'); // Default role
+                    newRoles.push('PLAYER');
                 }
 
                 member.roles = [...new Set(newRoles)];

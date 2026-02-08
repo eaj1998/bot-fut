@@ -23,6 +23,7 @@ type DailyForecast = {
     precipitation_sum?: number[];
     rain_sum?: number[];
     wind_speed_10m_max?: number[];
+    precipitation_probability_max?: number[];
 };
 
 @injectable()
@@ -83,6 +84,7 @@ export class WeatherCommand implements Command {
                     'apparent_temperature_min',
                     'precipitation_sum',
                     'rain_sum',
+                    'precipitation_probability_max',
                     'wind_speed_10m_max',
                 ].join(',')
             );
@@ -99,7 +101,8 @@ export class WeatherCommand implements Command {
 
             const i = 0; // HOJE
 
-            const rain = daily.rain_sum?.[i] ?? daily.precipitation_sum?.[i];
+            const rain = daily.precipitation_sum?.[i] ?? daily.rain_sum?.[i];
+            const prob = daily.precipitation_probability_max?.[i];
 
             if (rain != undefined && rain > 0) {
                 const sticker = MessageMedia.fromFilePath('./assets/pedro.webp');
@@ -154,7 +157,8 @@ export class WeatherCommand implements Command {
         const tmin = this.safe(d.temperature_2m_min[i], '°C');
         const atmax = this.safe(d.apparent_temperature_max?.[i], '°C');
         const atmin = this.safe(d.apparent_temperature_min?.[i], '°C');
-        const rain = this.safe(d.rain_sum?.[i] ?? d.precipitation_sum?.[i], 'mm');
+        const rain = this.safe(d.precipitation_sum?.[i] ?? d.rain_sum?.[i], 'mm');
+        const prob = this.safe(d.precipitation_probability_max?.[i], '%');
         const wind = this.safe(d.wind_speed_10m_max?.[i], 'km/h');
 
         return [
@@ -162,6 +166,7 @@ export class WeatherCommand implements Command {
             `*${icon} ${desc}*`,
             `• 🌡️ Máx/Min: *${tmax}* / *${tmin}*`,
             `• 🧥 Sensação: ${atmax} / ${atmin}`,
+            `• 🌦️ Prob. Chuva: ${prob}`,
             `• 🌧️ Chuva: ${rain}`,
             `• 💨 Vento máx: ${wind}`,
             `\nFonte: Open-Meteo`,

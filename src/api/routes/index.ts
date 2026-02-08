@@ -11,6 +11,7 @@ import dashboardRoutes from './dashboard.routes';
 import bbqRoutes from './bbq.routes';
 import membershipsRoutes from './memberships.routes';
 import transactionsRoutes from './transactions.routes';
+import publicRoutes from './public.routes';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/bbq', bbqRoutes);
 router.use('/memberships', membershipsRoutes);
 router.use('/transactions', transactionsRoutes);
+router.use('/public', publicRoutes);
 
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

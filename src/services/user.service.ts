@@ -51,12 +51,7 @@ export class UserService {
                     status: 'ACTIVE',
                     nickname: userName
                 });
-            } else {
-                console.log('member', memberExists);
-
-                user.workspaceRoles = memberExists.roles[0].toString();
             }
-
         }
 
 

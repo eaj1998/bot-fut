@@ -5,6 +5,7 @@ import { Message } from 'whatsapp-web.js';
 import { GameService } from '../../services/game.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { USER_SERVICE_TOKEN, UserService } from '../../services/user.service';
+import { AuthService } from '../../services/auth.service';
 
 @injectable()
 export class LineUpCreateCommand implements Command {
@@ -15,6 +16,7 @@ export class LineUpCreateCommand implements Command {
     @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
     @inject(GameService) private readonly gameService: GameService,
     @inject(USER_SERVICE_TOKEN) private readonly userService: UserService,
+    @inject(AuthService) private readonly authService: AuthService
   ) { }
 
   async handle(message: Message): Promise<void> {
@@ -26,10 +28,9 @@ export class LineUpCreateCommand implements Command {
       return;
     }
 
-    const user = await this.userService.resolveUserFromMessage(message, workspace._id);
     let game = await this.gameService.getActiveGame(workspace._id.toString(), groupId);
 
-    if (user.role == IRole.USER || user.role == IRole.PLAYER) {
+    if (!await this.authService.isAdmin(message)) {
 
       if (!game) {
         await message.reply("Nenhum jogo agendado encontrado para este grupo.");
@@ -38,10 +39,7 @@ export class LineUpCreateCommand implements Command {
       const texto = await this.gameService.formatGameList(game);
       await this.server.sendMessage(groupId, texto);
       return;
-
     }
-
-
 
     game = await this.gameService.createGameForChat(workspace, message.from);
 

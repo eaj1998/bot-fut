@@ -8,7 +8,7 @@ export interface IUser extends Document {
     nick?: string;
     isGoalie: boolean;
     role?: 'admin' | 'user';
-    workspaceRoles?: 'ADMIN' | 'USER' | 'PLAYER';
+    workspaceRoles?: string[];
     status?: 'active' | 'inactive';
     position?: 'GOALKEEPER' | 'DEFENDER' | 'MIDFIELDER' | 'STRIKER';
     playerType?: 'MENSALISTA' | 'AVULSO';

@@ -8,11 +8,11 @@ export interface IUser extends Document {
     nick?: string;
     isGoalie: boolean;
     role?: 'admin' | 'user';
+    workspaceRoles?: string[];
     status?: 'active' | 'inactive';
     position?: 'GOALKEEPER' | 'DEFENDER' | 'MIDFIELDER' | 'STRIKER';
     playerType?: 'MENSALISTA' | 'AVULSO';
-    stars?: number; // 1-5 technical rating
-    /** @deprecated Use WorkspaceMember instead */
+    stars?: number;
     workspaceId?: Types.ObjectId;
     lastAccessedWorkspaceId?: Types.ObjectId;
     createdAt: Date;
@@ -30,7 +30,7 @@ const UserSchema = new Schema({
     position: { type: String, enum: ['GOALKEEPER', 'DEFENDER', 'MIDFIELDER', 'STRIKER'] },
     playerType: { type: String, enum: ['MENSALISTA', 'AVULSO'] },
     stars: { type: Number, min: 1, max: 5 },
-    workspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace' }, // Deprecated
+    workspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace' },
     lastAccessedWorkspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace' },
 }, { timestamps: true });
 

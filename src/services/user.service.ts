@@ -5,6 +5,7 @@ import { UserRepository } from '../core/repositories/user.repository';
 import { IUser } from '../core/models/user.model';
 import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
 import { getUserNameFromMessage, getLidFromMessage, getPhoneFromMessage } from '../utils/message';
+import { IRole } from '../commands/type';
 
 /**
  * Service responsible for user resolution from WhatsApp messages.
@@ -30,15 +31,12 @@ export class UserService {
         message: Message,
         workspaceId?: Types.ObjectId
     ): Promise<IUser> {
-        // Extract user information from the message
         const userName = await getUserNameFromMessage(message);
         const lid = await getLidFromMessage(message);
         const phone = await getPhoneFromMessage(message);
 
-        // Find or create the user
         const user = await this.userRepository.upsertByPhone(workspaceId, phone, userName, lid);
 
-        // If workspaceId provided, ensure user is a member
         if (workspaceId && user) {
             const memberExists = await this.workspaceMemberModel.exists({
                 workspaceId,
@@ -53,8 +51,14 @@ export class UserService {
                     status: 'ACTIVE',
                     nickname: userName
                 });
+            } else {
+                console.log('member', memberExists);
+
+                user.workspaceRoles = memberExists.roles[0].toString();
             }
+
         }
+
 
         return user;
     }

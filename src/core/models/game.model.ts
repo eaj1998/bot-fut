@@ -4,6 +4,7 @@ import { Schema, model, Document, Types, Model } from "mongoose";
  * Subdocumento: jogador que está na lista (roster.players)
  */
 export interface GamePlayer {
+  _id?: Types.ObjectId;
   slot?: number;
   userId?: Types.ObjectId;
   name: string;
@@ -13,6 +14,7 @@ export interface GamePlayer {
   guest?: boolean;
   invitedByUserId?: Types.ObjectId
   phoneE164?: string;
+  team?: 'A' | 'B';
 }
 
 /**
@@ -76,8 +78,9 @@ const RosterPlayerSchema = new Schema<GamePlayer>(
     organizzeId: Number,
     invitedByUserId: { type: Types.ObjectId, ref: "User" },
     phoneE164: String,
+    team: { type: String, enum: ['A', 'B'], required: false },
   },
-  { _id: false }
+  { _id: true }
 );
 
 const RosterWaitlistSchema = new Schema<GameWaitlistEntry>(

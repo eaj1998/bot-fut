@@ -12,6 +12,81 @@ router.use(authenticate);
 
 /**
  * @swagger
+ * /api/players/me/profile:
+ *   get:
+ *     summary: Obtém o perfil do usuário logado
+ *     description: Retorna as informações de perfil do usuário logado (requer autenticação)
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil do usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlayerProfileDto'
+ *       404:
+ *         description: Jogador não encontrado
+ *       401:
+ *         description: Não autenticado
+ */
+router.get('/me/profile', controller.getProfile);
+
+/**
+ * @swagger
+ * /api/players/me/profile:
+ *   put:
+ *     summary: Atualiza o perfil do usuário logado
+ *     description: Atualiza as informações de perfil do usuário logado (requer autenticação)
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateProfileDto'
+ *     responses:
+ *       200:
+ *         description: Perfil atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlayerProfileDto'
+ *       404:
+ *         description: Jogador não encontrado
+ *       401:
+ *         description: Não autenticado
+ */
+router.put('/me/profile', controller.updateProfile);
+
+/**
+ * @swagger
+ * /api/players/rateable:
+ *   get:
+ *     summary: Obtém jogadores para avaliar
+ *     description: Retorna lista de jogadores ativos que podem ser avaliados (exclui o próprio usuário)
+ *     tags: [Players]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de jogadores
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/PlayerResponseDto'
+ *       401:
+ *         description: Não autenticado
+ */
+router.get('/rateable', controller.getRateablePlayers);
+
+/**
+ * @swagger
  * /api/players:
  *   get:
  *     summary: Lista todos os jogadores

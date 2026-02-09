@@ -19,30 +19,8 @@ const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', group
 { id: 17, name: 'Val', phone: '+5541998877265', groupId: groupId },
 { id: 18, name: 'Andrei', phone: '+5541992877665', groupId: groupId },]
 
-const USERS = [
-  { id: 2, name: 'Edipão', phone: '554992007299', groupId: groupId },
-  { id: 1, name: 'Andrei', phone: '554999264289', groupId: groupId },
-  { id: 3, name: 'Lucas', phone: '17097495473', groupId: groupId },
-  { id: 4, name: 'Debastiani', phone: '554998126478', groupId: groupId },
-  { id: 5, name: 'Murilo Xavier', phone: '554988334847', groupId: groupId },
-  { id: 6, name: 'Ebenezer', phone: '555184240591', groupId: groupId },
-  { id: 7, name: 'Daniel Forgiarini', phone: '554999656215', groupId: groupId },
-  { id: 8, name: 'Tailon', phone: '554988465437', groupId: groupId },
-  { id: 9, name: 'Tainá', phone: '554998218945', groupId: groupId },
-  { id: 10, name: 'Aninha', phone: '554999110988', groupId: groupId },
-  { id: 11, name: 'Felipão', phone: '554988416153', groupId: groupId },
-  { id: 12, name: 'Gui', phone: '554999431216', groupId: groupId },
-  { id: 13, name: 'Léo', phone: '554988575147', groupId: groupId },
-  { id: 14, name: 'Biel', phone: '554991877406', groupId: groupId },
-  { id: 15, name: 'Thay', phone: '555596179905', groupId: groupId },
-  { id: 16, name: 'Rafa', phone: '554989137227', groupId: groupId },
-  { id: 17, name: 'Val', phone: '554991072330', groupId: groupId },
-  { id: 18, name: 'Andrei', phone: '554988166996', groupId: groupId },
-  // Users with LID (simulating WhatsApp's new ID system)
-  { id: 19, name: 'Valéria (LID)', lid: '234294979096803', phone: '554991071925', groupId: groupId },
-  { id: 20, name: 'João (LID only)', lid: '642227802399051', groupId: groupId },
-  { id: 21, name: 'Maria (LID only)', lid: '987654321098765', groupId: groupId },
-];
+// USERS will be loaded from the database
+let USERS = [];
 
 
 
@@ -162,20 +140,39 @@ $(document).ready(() => {
       });
   };
 
-  USERS.map((user, index) => {
-    const $contact = $(templates.contact);
+  // Function to load users from API and initialize chat list
+  const loadUsersAndInitialize = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/public/users');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      USERS = await response.json();
+      console.log(`Loaded ${USERS.length} users from database`);
 
-    $contact.find('.name').text(user.name);
+      // Initialize chat list with loaded users
+      USERS.map((user, index) => {
+        const $contact = $(templates.contact);
 
-    if (index === 0) {
-      setUserChat(user, $contact);
+        $contact.find('.name').text(user.name);
+
+        if (index === 0) {
+          setUserChat(user, $contact);
+        }
+
+        $contact.on('click', () => {
+          setUserChat(user, $contact);
+        });
+        $elements.list.append($contact);
+      });
+    } catch (error) {
+      console.error('Error loading users:', error);
+      alert('Failed to load users from database. Check console for details.');
     }
+  };
 
-    $contact.on('click', () => {
-      setUserChat(user, $contact);
-    });
-    $elements.list.append($contact);
-  });
+  // Load users when page is ready
+  loadUsersAndInitialize();
 
   $elements.input.on('keydown', (e) => {
     if (e.which === 13 && !e.shiftKey) {

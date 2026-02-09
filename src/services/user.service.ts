@@ -68,6 +68,15 @@ export class UserService {
     getUserIdentifier(user: IUser): string {
         return user.phoneE164 || user.lid || '';
     }
+    /**
+     * Finds multiple users by their IDs.
+     * 
+     * @param ids - Array of user IDs
+     * @returns Array of found users
+     */
+    async findUsersByIds(ids: string[]): Promise<IUser[]> {
+        return this.userRepository.findByIds(ids);
+    }
 }
 
 export const USER_SERVICE_TOKEN = 'USER_SERVICE_TOKEN';

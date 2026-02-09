@@ -73,3 +73,19 @@ export interface PlayersStatsDto {
     withDebts: number;
     totalDebt: number;
 }
+
+export interface PlayerProfileDto {
+    name: string;
+    mainPosition: string;
+    secondaryPositions: string[];
+    dominantFoot: 'LEFT' | 'RIGHT' | 'BOTH';
+    rating: number;
+    ratingCount: number;
+}
+
+export interface UpdateProfileDto {
+    name: string;
+    mainPosition: string;
+    secondaryPositions?: string[];
+    dominantFoot?: 'LEFT' | 'RIGHT' | 'BOTH';
+}

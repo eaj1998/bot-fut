@@ -1,14 +1,18 @@
 import { Request, Response } from 'express';
 import { injectable } from 'tsyringe';
 import { GameService } from '../../services/game.service';
+import { UserService } from '../../services/user.service';
+import { TeamBalancerService } from '../../services/team-balancer.service';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { asyncHandler } from '../middleware/error.middleware';
+import { asyncHandler, ApiError } from '../middleware/error.middleware';
 import { CreateGameDto, UpdateGameDto, AddPlayerToGameDto, MarkPaymentDto, GameFilterDto, GameStatus } from '../dto/game.dto';
 
 @injectable()
 export class GamesController {
   constructor(
     private gameService: GameService,
+    private userService: UserService,
+    private teamBalancer: TeamBalancerService
   ) { }
 
   listGames = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -223,6 +227,43 @@ export class GamesController {
     res.json({
       success: true,
       message: 'Game cancelled successfully',
+    });
+  });
+
+  generateTeams = asyncHandler(async (req: Request, res: Response) => {
+    const { gameId } = req.params;
+    const game = await this.gameService.getGameById(gameId as string);
+
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    const playerIds = game.roster.players
+      .map(p => p.userId?.toString())
+      .filter((id): id is string => !!id);
+
+    const users = await this.userService.findUsersByIds(playerIds);
+    const result = this.teamBalancer.balanceTeams(users);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  });
+
+  saveTeamAssignments = asyncHandler(async (req: Request, res: Response) => {
+    const { gameId } = req.params;
+    const { assignments } = req.body;
+
+    if (!assignments || !Array.isArray(assignments)) {
+      throw new ApiError(400, 'Invalid assignments format');
+    }
+
+    await this.gameService.saveTeamAssignments(gameId as string, assignments);
+
+    res.json({
+      success: true,
+      message: 'Team assignments saved successfully'
     });
   });
 }

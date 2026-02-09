@@ -146,7 +146,6 @@ export class GameService {
     const waitlist: WaitlistPlayerDto[] = [];
     const outlist: OutlistPlayerDto[] = [];
 
-    // Buscar membros ativos para exclusão do cálculo financeiro
     const activeMembers = await this.membershipRepo.findActiveMemberships(game.workspaceId.toString());
     const activeMemberIds = new Set(activeMembers.map(m => m.userId?._id?.toString() || m.userId?.toString()));
 
@@ -157,24 +156,36 @@ export class GameService {
       const goalieSlots = game.roster.goalieSlots ?? 2;
       const isGoalkeeper = (player.slot ?? 0) <= goalieSlots && (player.slot ?? 0) > 0;
 
+      let user = (player.userId as any) || (player.invitedByUserId as any);
+
+      if (player.userId) {
+        user = await this.userModel.findById(player.userId).exec();
+      }
+
       const playerDto: PlayerInGameDto = {
-        id: (player.invitedByUserId ?? player.userId)?.toString() ?? '',
+        id: player._id?.toString() || '', // <--- CRÍTICO: O ID do item da lista (Roster ID)
         name: player.name,
         phone: player.phoneE164,
         slot: player.slot,
         isGoalkeeper,
         isPaid: player.paid || false,
         guest: player.guest || false,
+        team: player.team,
+        profile: user?.profile ? {
+          mainPosition: user.profile.mainPosition,
+          rating: user.profile.rating,
+          secondaryPositions: user.profile.secondaryPositions
+        } : {
+          mainPosition: 'MEI',
+          rating: 3.0,
+          secondaryPositions: []
+        }
       };
-
       players.push(playerDto);
 
       if (!isGoalkeeper) {
         const userId = player.userId?.toString() || player.invitedByUserId?.toString();
         const isGuest = !!player.guest;
-        // É membro se o ID estiver na lista de ativos E não for convidado (segurança, embora guest tenha invitedBy)
-        // Se for guest, o ID pode ser do membro que convidou. Mas guest PAGA.
-        // Se não for guest, Verifica se é membro.
         const isMember = userId && activeMemberIds.has(userId) && !isGuest;
 
         if (!isMember) {
@@ -1184,6 +1195,44 @@ export class GameService {
     await this.gameRepo.save(game);
     return this.mapToGameResponse(game);
   }
+
+  /**
+   * Save team assignments for players in a game
+   */
+  async saveTeamAssignments(gameId: string, assignments: { playerId: string; team: 'A' | 'B' }[]): Promise<void> {
+    const game = await this.gameModel.findById(gameId).exec();
+    if (!game) {
+      throw new ApiError(404, 'Game not found');
+    }
+
+    // Create a map for quick lookup using roster ID
+    const assignmentMap = new Map(assignments.map(a => [a.rosterId, a.team]));
+
+    // Update team assignments for each player
+    for (const player of game.roster.players) {
+      // Use the subdocument _id as the key
+      const rosterId = player._id?.toString();
+
+      if (rosterId && assignmentMap.has(rosterId)) {
+        player.team = assignmentMap.get(rosterId);
+      } else {
+        // Optional: clear team if not in assignment list? 
+        // Or keep existing if not specified? 
+        // The prompt implies we are saving the state, so maybe we should update everything.
+        // But usually we just update what is sent. 
+        // Let's assume the frontend sends all assignments.
+        // If the player is NOT in the map, maybe we should clear the team?
+        // For now, let's just update if present to be safe, or as per user request "if (player) player.team = assignment.team;"
+        // The user snippet was:
+        // const player = game.roster.find(p => p._id.toString() === assignment.rosterId);
+        // if (player) player.team = assignment.team;
+      }
+    }
+
+
+    await game.save();
+  }
+
 
   async sendReminder(gameId: string): Promise<void> {
     const game = await this.gameModel.findById(gameId).exec();

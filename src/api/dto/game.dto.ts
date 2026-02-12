@@ -105,6 +105,7 @@ export class PlayerInGameDto {
   profile?: {
     mainPosition: string;
     rating: number;
+    guest?: boolean;
     secondaryPositions?: string[];
   };
 }

@@ -238,12 +238,63 @@ export class GamesController {
       throw new ApiError(404, 'Game not found');
     }
 
-    const playerIds = game.roster.players
+    // 1. Get all user IDs to fetch real users
+    const userIds = game.roster.players
       .map(p => p.userId?.toString())
       .filter((id): id is string => !!id);
 
-    const users = await this.userService.findUsersByIds(playerIds);
-    const result = this.teamBalancer.balanceTeams(users);
+    const usersMap = new Map<string, any>();
+    if (userIds.length > 0) {
+      const users = await this.userService.findUsersByIds(userIds);
+      users.forEach(u => usersMap.set(u._id.toString(), u));
+    }
+
+    // 2. Map ALL roster players to IUser-like structure for the balancer
+    const playersForBalancer: any[] = game.roster.players.map(player => {
+      // Use Roster ID as the unique identifier
+      const rosterId = player._id?.toString();
+
+      // Logic to enforce Goalkeeper position if in goalie slot
+      const goalieSlots = game.roster.goalieSlots ?? 2;
+      const isGoalkeeperSlot = (player.slot ?? 0) <= goalieSlots && (player.slot ?? 0) > 0;
+
+      // If registered user
+      if (player.userId && usersMap.has(player.userId.toString())) {
+        const user = usersMap.get(player.userId.toString());
+        // CLONE user to avoid mutating the original cached object if any
+        // OVERRIDE _id with rosterId to match frontend keys
+        const clonedUser = {
+          ...user,
+          _id: rosterId,
+          name: player.name || user.name // Prefer roster name if available? Or user name? Roster name usually snapshot.
+        };
+
+        // Enforce GOL position
+        if (isGoalkeeperSlot && clonedUser.profile) {
+          clonedUser.profile = {
+            ...clonedUser.profile,
+            mainPosition: 'GOL'
+          };
+        }
+
+        return clonedUser;
+      }
+
+      // If guest (or user not found)
+      return {
+        _id: rosterId,
+        name: player.name,
+        phoneE164: player.phoneE164,
+        roles: ['guest'],
+        profile: {
+          mainPosition: isGoalkeeperSlot ? 'GOL' : 'MEI',
+          rating: 3.0,
+          guest: true
+        }
+      };
+    });
+
+    const result = this.teamBalancer.balanceTeams(playersForBalancer);
 
     res.json({
       success: true,

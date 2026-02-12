@@ -71,6 +71,12 @@ export class PlayersService {
             lastActivity: user.updatedAt?.toISOString() || user.createdAt?.toISOString() || new Date().toISOString(),
             createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
             updatedAt: user.updatedAt?.toISOString() || new Date().toISOString(),
+            profile: user.profile ? {
+                mainPosition: user.profile.mainPosition,
+                secondaryPositions: user.profile.secondaryPositions,
+                dominantFoot: user.profile.dominantFoot,
+                rating: user.profile.rating
+            } : undefined
         };
     }
 
@@ -231,6 +237,8 @@ export class PlayersService {
             }
         }
 
+        this.loggerService.info('Updating player:', { id, data });
+
         const { workspaceId, ...userData } = data;
 
         if (userData.phoneE164) {
@@ -241,8 +249,57 @@ export class PlayersService {
             const normalized = normalizePhone(userData.phoneE164);
             if (normalized) userData.phoneE164 = normalized;
         }
-        const updated = await this.userRepository.update(id, userData);
+
+        // Handle profile update
+        if (data.profile) {
+            // Ensure profile object exists
+            if (!userData.profile) {
+                // @ts-ignore
+                userData.profile = {};
+            }
+
+            // Merge profile data
+            // @ts-ignore
+            userData.profile = {
+                rating: 3.0,
+                ratingCount: 0,
+                // @ts-ignore
+                ...(user.profile || {}),
+                ...data.profile
+            };
+
+            // Sync legacy fields
+            if (data.profile.mainPosition) {
+                if (data.profile.mainPosition === 'GOL') {
+                    userData.isGoalie = true;
+                    // @ts-ignore
+                    userData.position = 'GOALKEEPER';
+                } else {
+                    // Update legacy position based on mainPosition
+                    switch (data.profile.mainPosition) {
+                        case 'ZAG':
+                        case 'LAT':
+                            // @ts-ignore
+                            userData.position = 'DEFENDER';
+                            break;
+                        case 'MEI':
+                            // @ts-ignore
+                            userData.position = 'MIDFIELDER';
+                            break;
+                        case 'ATA':
+                            // @ts-ignore
+                            userData.position = 'STRIKER';
+                            break;
+                    }
+                }
+            }
+        }
+
+        this.loggerService.info('UserData for update:', { id, userData });
+
+        const updated = await this.userRepository.update(id, userData as any);
         if (!updated) {
+            this.loggerService.error('Update returned null for player:', { id });
             throw new Error('Erro ao atualizar jogador');
         }
 

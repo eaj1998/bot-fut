@@ -142,6 +142,83 @@ router.get('/:gameId', controller.getGameDetail);
 
 /**
  * @swagger
+ * /api/games/{gameId}/teams/generate:
+ *   post:
+ *     summary: Gera times equilibrados
+ *     description: Gera e retorna a sugestão de times equilibrados com base no rating dos jogadores confirmados (requer autenticação).
+ *     tags: [Games]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: gameId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do jogo
+ *     responses:
+ *       200:
+ *         description: Times gerados com sucesso
+ */
+router.post('/:gameId/teams/generate', controller.generateTeams);
+
+/**
+ * @swagger
+ * /api/games/{gameId}/teams:
+ *   put:
+ *     summary: Salva atribuições de times
+ *     description: Persiste as atribuições de jogadores aos times A e B (requer autenticação de admin)
+ *     tags: [Games]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: gameId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do jogo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - assignments
+ *             properties:
+ *               assignments:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - playerId
+ *                     - team
+ *                   properties:
+ *                     playerId:
+ *                       type: string
+ *                       description: ID do jogador
+ *                     team:
+ *                       type: string
+ *                       enum: [A, B]
+ *                       description: Time atribuído
+ *     responses:
+ *       200:
+ *         description: Atribuições salvas com sucesso
+ *       400:
+ *         description: Formato de atribuições inválido
+ *       404:
+ *         description: Jogo não encontrado
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Sem permissão de admin
+ */
+router.put('/:gameId/teams', requireAdmin, controller.saveTeamAssignments);
+
+
+/**
+ * @swagger
  * /api/games:
  *   post:
  *     summary: Cria um novo jogo

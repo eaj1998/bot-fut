@@ -24,6 +24,12 @@ export interface UpdatePlayerDto {
     role?: 'admin' | 'user';
     status?: 'active' | 'inactive';
     workspaceId?: string;
+    profile?: {
+        mainPosition: 'GOL' | 'ZAG' | 'LAT' | 'MEI' | 'ATA';
+        secondaryPositions?: ('GOL' | 'ZAG' | 'LAT' | 'MEI' | 'ATA')[];
+        dominantFoot?: 'LEFT' | 'RIGHT' | 'BOTH';
+        rating?: number;
+    };
 }
 
 export interface PlayerResponseDto {
@@ -42,6 +48,12 @@ export interface PlayerResponseDto {
     lastActivity: string;
     createdAt: string;
     updatedAt: string;
+    profile?: {
+        mainPosition?: string;
+        secondaryPositions?: string[];
+        dominantFoot?: string;
+        rating?: number;
+    };
 }
 
 export interface ListPlayersDto {
@@ -72,4 +84,20 @@ export interface PlayersStatsDto {
     suspended: number;
     withDebts: number;
     totalDebt: number;
+}
+
+export interface PlayerProfileDto {
+    name: string;
+    mainPosition: string;
+    secondaryPositions: string[];
+    dominantFoot: 'LEFT' | 'RIGHT' | 'BOTH';
+    rating: number;
+    ratingCount: number;
+}
+
+export interface UpdateProfileDto {
+    name: string;
+    mainPosition: string;
+    secondaryPositions?: string[];
+    dominantFoot?: 'LEFT' | 'RIGHT' | 'BOTH';
 }

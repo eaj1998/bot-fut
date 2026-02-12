@@ -139,6 +139,13 @@ export class UserRepository {
         return !!user;
     }
 
+    async findActiveUsersExcluding(excludeUserId: string): Promise<IUser[]> {
+        return this.model.find({
+            _id: { $ne: excludeUserId },
+            status: 'active'
+        }).lean() as unknown as IUser[];
+    }
+
     async findByIds(ids: string[] | Types.ObjectId[]): Promise<IUser[]> {
         return this.model.find({ _id: { $in: ids } }).lean() as unknown as IUser[];
     }

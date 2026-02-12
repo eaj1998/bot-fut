@@ -237,7 +237,6 @@ export class PlayersService {
             }
         }
 
-        this.loggerService.info('Updating player:', { id, data });
 
         const { workspaceId, ...userData } = data;
 

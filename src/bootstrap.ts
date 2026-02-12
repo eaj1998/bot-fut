@@ -16,6 +16,9 @@ import { WORKSPACE_MEMBER_MODEL_TOKEN, WorkspaceMemberModel } from './core/model
 import { UserRepository } from './core/repositories/user.repository';
 import { GameRepository, GAME_REPOSITORY_TOKEN } from './core/repositories/game.respository';
 import { PlayersService, PLAYERS_SERVICE_TOKEN } from './services/players.service';
+import { PlayerRatingService, PLAYER_RATING_SERVICE_TOKEN } from './services/player-rating.service';
+import { TeamBalancerService, TEAM_BALANCER_SERVICE_TOKEN } from './services/team-balancer.service';
+import { PLAYER_RATING_MODEL_TOKEN, PlayerRatingModel } from './core/models/player-rating.model';
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from './services/workspace.service';
 import { ChatService, CHATS_SERVICE_TOKEN } from './services/chat.service';
 import { DashboardService, DASHBOARD_SERVICE_TOKEN } from './services/dashboard.service';
@@ -61,6 +64,9 @@ const main = async () => {
   // Register services
   container.register(USER_SERVICE_TOKEN, { useClass: UserService });
   container.register(PLAYERS_SERVICE_TOKEN, { useClass: PlayersService });
+  container.register(PLAYER_RATING_SERVICE_TOKEN, { useClass: PlayerRatingService });
+  container.register(TEAM_BALANCER_SERVICE_TOKEN, { useClass: TeamBalancerService });
+  container.register(PLAYER_RATING_MODEL_TOKEN, { useValue: PlayerRatingModel });
   container.register(WORKSPACES_SERVICE_TOKEN, { useClass: WorkspaceService });
   container.register(CHATS_SERVICE_TOKEN, { useClass: ChatService });
   container.register(DASHBOARD_SERVICE_TOKEN, { useClass: DashboardService });

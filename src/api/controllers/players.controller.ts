@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { PlayersService, PLAYERS_SERVICE_TOKEN } from '../../services/players.service';
-import { CreatePlayerDto, UpdatePlayerDto, ListPlayersDto } from '../dto/player.dto';
+import { CreatePlayerDto, UpdatePlayerDto, ListPlayersDto, UpdateProfileDto } from '../dto/player.dto';
 import { ApiError } from '../middleware/error.middleware';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 @injectable()
 export class PlayersController {
@@ -250,6 +251,50 @@ export class PlayersController {
             } else {
                 next(error);
             }
+        }
+    };
+
+    getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const userId = req.user!.id;
+            const profile = await this.playersService.getProfile(userId);
+            res.json(profile);
+        } catch (error) {
+            if (error instanceof Error && error.message === 'Jogador não encontrado') {
+                next(new ApiError(404, error.message));
+            } else {
+                next(error);
+            }
+        }
+    };
+
+    updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const userId = req.user!.id;
+            const data: UpdateProfileDto = req.body;
+
+            if (!data.mainPosition || data.mainPosition.trim() === '') {
+                throw new ApiError(400, 'Posição principal é obrigatória');
+            }
+
+            const profile = await this.playersService.updateProfile(userId, data);
+            res.json(profile);
+        } catch (error) {
+            if (error instanceof Error && error.message === 'Jogador não encontrado') {
+                next(new ApiError(404, error.message));
+            } else {
+                next(error);
+            }
+        }
+    };
+
+    getRateablePlayers = async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const userId = req.user!.id;
+            const players = await this.playersService.getRateablePlayers(userId);
+            res.json(players);
+        } catch (error) {
+            next(error);
         }
     };
 }

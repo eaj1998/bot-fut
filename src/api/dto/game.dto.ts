@@ -101,6 +101,13 @@ export class PlayerInGameDto {
   isGoalkeeper!: boolean;
   isPaid!: boolean;
   guest?: boolean;
+  team?: 'A' | 'B';
+  profile?: {
+    mainPosition: string;
+    rating: number;
+    guest?: boolean;
+    secondaryPositions?: string[];
+  };
 }
 
 export class GameDetailResponseDto extends GameResponseDto {

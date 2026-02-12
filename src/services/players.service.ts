@@ -14,6 +14,8 @@ import {
     ListPlayersDto,
     PaginatedPlayersResponseDto,
     PlayersStatsDto,
+    PlayerProfileDto,
+    UpdateProfileDto
 } from '../api/dto/player.dto';
 import { LoggerService } from '../logger/logger.service';
 import { normalizePhone, isValidBrazilianPhone, removeExtraNine, validateAndFormatPhone } from '../utils/phone.util';
@@ -69,6 +71,12 @@ export class PlayersService {
             lastActivity: user.updatedAt?.toISOString() || user.createdAt?.toISOString() || new Date().toISOString(),
             createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
             updatedAt: user.updatedAt?.toISOString() || new Date().toISOString(),
+            profile: user.profile ? {
+                mainPosition: user.profile.mainPosition,
+                secondaryPositions: user.profile.secondaryPositions,
+                dominantFoot: user.profile.dominantFoot,
+                rating: user.profile.rating
+            } : undefined
         };
     }
 
@@ -229,6 +237,7 @@ export class PlayersService {
             }
         }
 
+
         const { workspaceId, ...userData } = data;
 
         if (userData.phoneE164) {
@@ -239,8 +248,57 @@ export class PlayersService {
             const normalized = normalizePhone(userData.phoneE164);
             if (normalized) userData.phoneE164 = normalized;
         }
-        const updated = await this.userRepository.update(id, userData);
+
+        // Handle profile update
+        if (data.profile) {
+            // Ensure profile object exists
+            if (!userData.profile) {
+                // @ts-ignore
+                userData.profile = {};
+            }
+
+            // Merge profile data
+            // @ts-ignore
+            userData.profile = {
+                rating: 3.0,
+                ratingCount: 0,
+                // @ts-ignore
+                ...(user.profile || {}),
+                ...data.profile
+            };
+
+            // Sync legacy fields
+            if (data.profile.mainPosition) {
+                if (data.profile.mainPosition === 'GOL') {
+                    userData.isGoalie = true;
+                    // @ts-ignore
+                    userData.position = 'GOALKEEPER';
+                } else {
+                    // Update legacy position based on mainPosition
+                    switch (data.profile.mainPosition) {
+                        case 'ZAG':
+                        case 'LAT':
+                            // @ts-ignore
+                            userData.position = 'DEFENDER';
+                            break;
+                        case 'MEI':
+                            // @ts-ignore
+                            userData.position = 'MIDFIELDER';
+                            break;
+                        case 'ATA':
+                            // @ts-ignore
+                            userData.position = 'STRIKER';
+                            break;
+                    }
+                }
+            }
+        }
+
+        this.loggerService.info('UserData for update:', { id, userData });
+
+        const updated = await this.userRepository.update(id, userData as any);
         if (!updated) {
+            this.loggerService.error('Update returned null for player:', { id });
             throw new Error('Erro ao atualizar jogador');
         }
 
@@ -473,6 +531,87 @@ export class PlayersService {
         });
 
         return this.toResponseDto(user);
+    }
+
+    /**
+     * Obtém o perfil do jogador
+     */
+    async getProfile(userId: string): Promise<PlayerProfileDto> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+            throw new Error('Jogador não encontrado');
+        }
+
+        return {
+            name: user.name,
+            mainPosition: user.profile?.mainPosition || 'MEI',
+            secondaryPositions: user.profile?.secondaryPositions || [],
+            dominantFoot: user.profile?.dominantFoot || 'RIGHT',
+            rating: user.profile?.rating || 3.0,
+            ratingCount: user.profile?.ratingCount || 0
+        };
+    }
+
+    /**
+     * Atualiza o perfil do jogador
+     */
+    async updateProfile(userId: string, data: UpdateProfileDto): Promise<PlayerProfileDto> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+            throw new Error('Jogador não encontrado');
+        }
+
+        if (!user.profile) {
+            user.name = data.name;
+            user.profile = {
+                mainPosition: data.mainPosition as any,
+                secondaryPositions: (data.secondaryPositions || []) as any,
+                dominantFoot: data.dominantFoot,
+                rating: 3.0,
+                ratingCount: 0
+            };
+        } else {
+            user.name = data.name;
+            user.profile.mainPosition = data.mainPosition as any;
+            user.profile.secondaryPositions = (data.secondaryPositions || []) as any;
+            user.profile.dominantFoot = data.dominantFoot;
+        }
+
+        await user.save();
+
+        return {
+            name: user.name,
+            mainPosition: user.profile.mainPosition || 'MEI',
+            secondaryPositions: user.profile.secondaryPositions || [],
+            dominantFoot: user.profile.dominantFoot || 'RIGHT',
+            rating: user.profile.rating || 3.0,
+            ratingCount: user.profile.ratingCount || 0
+        };
+    }
+    /**
+     * Obtém jogadores que podem ser avaliados
+     */
+    async getRateablePlayers(currentUserId: string): Promise<PlayerResponseDto[]> {
+        const users = await this.userRepository.findActiveUsersExcluding(currentUserId);
+
+        // Mapeia para DTO simplificado
+        return users.map(user => ({
+            id: user._id.toString(),
+            name: user.name,
+            phone: user.phoneE164,
+            isGoalie: user.isGoalie || false,
+            status: user.status || 'active',
+            role: user.role || 'user',
+            // Campos opcionais
+            nick: user.nick,
+            profile: {
+                mainPosition: user.profile?.mainPosition || 'MEI',
+                secondaryPositions: user.profile?.secondaryPositions || [],
+                dominantFoot: user.profile?.dominantFoot || 'RIGHT',
+                rating: user.profile?.rating || 3.0,
+                ratingCount: user.profile?.ratingCount || 0
+            }
+        } as unknown as PlayerResponseDto));
     }
 }
 

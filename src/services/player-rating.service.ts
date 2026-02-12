@@ -24,6 +24,12 @@ export class PlayerRatingService {
         await this.updateUserRating(ratedId);
     }
 
+    async getRatingsByRater(raterId: string): Promise<IPlayerRating[]> {
+        return this.ratingModel.find({ raterId: new Types.ObjectId(raterId) })
+            .select('ratedId score')
+            .lean() as unknown as IPlayerRating[];
+    }
+
     private async updateUserRating(ratedId: string): Promise<void> {
         const stats = await this.ratingModel.aggregate([
             { $match: { ratedId: new Types.ObjectId(ratedId) } },

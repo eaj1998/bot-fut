@@ -37,4 +37,18 @@ export class PlayerRatingsController {
             }
         }
     };
+
+    getUserRatings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const raterId = req.user!.id;
+            const ratings = await this.ratingService.getRatingsByRater(raterId);
+
+            res.json({
+                success: true,
+                data: ratings
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

@@ -11,6 +11,39 @@ router.use(authenticate);
 /**
  * @swagger
  * /api/ratings:
+ *   get:
+ *     summary: Minhas avaliações
+ *     description: Lista as avaliações feitas pelo usuário autenticado
+ *     tags: [Ratings]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de avaliações retornada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       ratedId:
+ *                         type: string
+ *                       score:
+ *                         type: number
+ *       401:
+ *         description: Não autenticado
+ */
+router.get('/', controller.getUserRatings);
+
+/**
+ * @swagger
+ * /api/ratings:
  *   post:
  *     summary: Avalia um jogador
  *     description: Envia uma avaliação (1-5) para outro jogador

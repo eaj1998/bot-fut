@@ -158,11 +158,6 @@ export class GameService {
       if (p.invitedByUserId) userIdsToFetch.add(p.invitedByUserId.toString());
     });
 
-    // Waitlist & Outlist (apenas para garantir que temos os dados se precisar, 
-    // embora o loop abaixo use os dados embarcados se disponíveis, mas o DTO pede nome/telefone)
-    // Se o waitlist/outlist guarda só ID, precisaria buscar. 
-    // Mas o modelo parece guardar name/phone snapshot. Focaremos nos players do roster principal.
-
     const usersMap = new Map<string, IUser>();
     if (userIdsToFetch.size > 0) {
       const users = await this.userModel.find({ _id: { $in: Array.from(userIdsToFetch) } }).exec();
@@ -175,10 +170,6 @@ export class GameService {
     for (const player of game.roster.players) {
       const goalieSlots = game.roster.goalieSlots ?? 2;
       const isGoalkeeper = (player.slot ?? 0) <= goalieSlots && (player.slot ?? 0) > 0;
-
-      // Lógica de Profile:
-      // Se tem userId -> é usuário cadastrado -> usa profile do usuário
-      // Se não tem userId (é null/undefined) -> é convidado -> usa Mock Profile
 
       let profileData = {
         mainPosition: 'MEI',
@@ -197,15 +188,10 @@ export class GameService {
             secondaryPositions: user.profile.secondaryPositions || []
           };
         } else {
-          // Usuário existe no ID mas sem profile ou não encontrado no banco (raro)
-          // Mantém mock mas remove flag de guest se quisermos ser estritos, 
-          // mas se não achou user, trata como genérico. 
-          // Vamos assumir que se tem ID é user, então guest=false mesmo com dados default.
           profileData.guest = false;
         }
       }
 
-      // ID Universal: SEMPRE o _id do item do roster
       const playerDto: PlayerInGameDto = {
         id: player._id?.toString() || '',
         name: player.name,
@@ -224,8 +210,6 @@ export class GameService {
       if (!isGoalkeeper) {
         const userId = player.userId?.toString() || player.invitedByUserId?.toString();
         const isGuest = !!player.guest;
-        // Membro se: Tiver UserID E estiver ativo na lista de membros E NÃO for marcado como guest explícito nessa partida
-        // (embora se tem userId, o flag guest do roster costuma ser false, exceto casos híbridos raros)
         const isMember = userId && activeMemberIds.has(userId) && !isGuest;
 
         if (!isMember) {
@@ -598,11 +582,12 @@ export class GameService {
 
     const cleanPlayerId = (playerId || '').trim();
 
-    // Try to find index by User ID directly in the roster first (more precise)
     const players = game.roster.players ?? [];
-    let idx = players.findIndex(p => p.userId?.toString() === cleanPlayerId);
+    let idx = players.findIndex(p =>
+      p.userId?.toString() === cleanPlayerId ||
+      p._id?.toString() === cleanPlayerId
+    );
 
-    // If not found in roster, check if the ID passed IS the user ID but maybe stored differently or user was deleted
     if (idx === -1) {
       const user = await this.userModel.findById(cleanPlayerId).exec();
       if (!user) {

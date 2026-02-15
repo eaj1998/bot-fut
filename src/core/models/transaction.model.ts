@@ -19,7 +19,8 @@ export enum TransactionCategory {
 export enum TransactionStatus {
     PENDING = "PENDING",
     COMPLETED = "COMPLETED",
-    CANCELLED = "CANCELLED"
+    CANCELLED = "CANCELLED",
+    OVERDUE = "OVERDUE"
 }
 
 export interface ITransaction extends Document {

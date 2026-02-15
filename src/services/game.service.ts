@@ -533,18 +533,19 @@ export class GameService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (membership?.status === MembershipStatus.SUSPENDED) {
-      throw new ApiError(
-        403,
-        '🚫 Ação bloqueada. Sua mensalidade está suspensa. Regularize para jogar.'
-      );
-    }
-
     // Verificação 2: Early Access (only ACTIVE members can join future games)
     const isFutureGame = gameDate > today;
     const isActiveMember = membership?.status === MembershipStatus.ACTIVE;
 
     if (isFutureGame && !isActiveMember && !game.allowCasualsEarly) {
+
+      if (membership?.status === MembershipStatus.SUSPENDED) {
+        throw new ApiError(
+          403,
+          '🚫 Ação bloqueada. Sua mensalidade está cancelada!. Regularize para jogar.'
+        );
+      }
+
       throw new ApiError(
         403,
         '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo. Para se tornar mensalista contate o administrador do grupo.'

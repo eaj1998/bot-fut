@@ -58,7 +58,7 @@ export class SuspendOverdueMembershipsJob {
             this.logger.debug(`Workspace ${workspaceId}: ${candidates.length} candidates for suspension check.`);
 
             for (const membership of candidates) {
-                await this.checkAndSuspend(workspaceId, membership);
+                await this.checkAndCancel(workspaceId, membership);
             }
 
         } catch (error) {
@@ -66,7 +66,7 @@ export class SuspendOverdueMembershipsJob {
         }
     }
 
-    private async checkAndSuspend(workspaceId: string, membership: any) {
+    private async checkAndCancel(workspaceId: string, membership: any) {
         try {
             const pendingTransactions = await this.transactionRepo.findPendingTransactions(workspaceId, {
                 category: TransactionCategory.MEMBERSHIP,
@@ -79,11 +79,14 @@ export class SuspendOverdueMembershipsJob {
             );
 
             if (overdueTransaction) {
-                this.logger.info(`Suspending user ${membership.user.name} (${membership._id}) due to overdue transaction ${overdueTransaction._id} (Due: ${overdueTransaction.dueDate})`);
+                this.logger.info(`Canceling user ${membership.user.name} (${membership._id}) due to overdue transaction ${overdueTransaction._id} (Due: ${overdueTransaction.dueDate})`);
 
-                await this.membershipService.suspendMembership(
+                // Mark transaction as overdue
+                await this.transactionRepo.updateStatus(overdueTransaction._id, TransactionStatus.OVERDUE);
+
+                await this.membershipService.cancelMembership(
                     membership._id.toString(),
-                    'Suspensão automática por atraso no pagamento'
+                    true
                 );
             }
 

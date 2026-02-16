@@ -365,6 +365,43 @@ export class BBQService {
 
     return message;
   }
+
+  async toggleParticipantFree(workspaceId: string, chatId: string, userId: string, isFree: boolean, bbqId?: string): Promise<{ success: boolean; message: string; bbq?: IBBQ }> {
+    let bbq: IBBQ | null;
+
+    if (bbqId) {
+      bbq = await this.bbqRepository.findById(bbqId);
+    } else {
+      const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
+      bbq = await this.bbqRepository.findBBQForDate(workspaceId, chatId, gameDate);
+    }
+
+    if (!bbq) {
+      return { success: false, message: '❌ Churrasco não encontrado.' };
+    }
+
+    if (bbq.status !== 'open') {
+      return { success: false, message: '❌ O churrasco não está aberto para alterações.' };
+    }
+
+    const participant = bbq.participants.find(p => p.userId === userId);
+    if (!participant) {
+      return { success: false, message: '❌ Participante não encontrado.' };
+    }
+
+    // Update isFree status
+    bbq = await this.bbqRepository.updateParticipantIsFree(bbq._id.toString(), userId, isFree);
+
+    if (!bbq) {
+      return { success: false, message: '❌ Erro ao atualizar participante.' };
+    }
+
+    return {
+      success: true,
+      message: `✅ ${participant.userName} agora é ${isFree ? 'ISENTO' : 'PAGANTE'}. ${bbq?.financials.ticketPrice ? `Novo valor por pessoa: R$ ${bbq.financials.ticketPrice}` : ''}`,
+      bbq: bbq || undefined
+    };
+  }
 }
 
 export const BBQ_SERVICE_TOKEN = 'BBQ_SERVICE_TOKEN';

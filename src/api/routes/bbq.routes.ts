@@ -560,4 +560,55 @@ router.delete('/:id/participants/:userId', controller.removeParticipant);
  */
 router.patch('/:id/participants/:userId/payment', controller.toggleParticipantPayment);
 
+
+/**
+ * @swagger
+ * /api/bbq/{id}/participants/{userId}/free:
+ *   patch:
+ *     summary: Alterna status de isenção de pagamento do participante
+ *     tags: [BBQ]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do Churrasco
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do Usuário (participante)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - isFree
+ *             properties:
+ *               isFree:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Status atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BBQResponse'
+ *       404:
+ *         description: Churrasco ou participante não encontrado
+ */
+router.patch(
+    '/:id/participants/:userId/free',
+    authenticate,
+    // roleMiddleware(['admin', 'owner']), // Consider restricting to admins/owners
+    controller.toggleParticipantIsFree
+);
+
+
 export default router;

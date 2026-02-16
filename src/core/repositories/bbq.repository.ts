@@ -155,6 +155,13 @@ export class BBQRepository {
       { new: true }
     ).exec();
   }
+  async updateParticipantIsFree(bbqId: string, userId: string, isFree: boolean): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, 'participants.userId': userId },
+      { $set: { 'participants.$.isFree': isFree } },
+      { new: true }
+    ).exec();
+  }
 }
 
 export const BBQ_REPOSITORY_TOKEN = 'BBQ_REPOSITORY_TOKEN';

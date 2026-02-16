@@ -1,12 +1,12 @@
 import { BotServer } from './server/bot';
+import { BOT_CLIENT_TOKEN, IBotServerPort } from './server/type';
 import { ConfigService } from './config/config.service';
-import { container, inject, singleton } from 'tsyringe';
+import { container, inject, predicateAwareClassFactory, registry, singleton } from 'tsyringe';
 import { LoggerService } from './logger/logger.service';
 import { CommandFactory } from './commands/command.factory';
 import qrcode from 'qrcode-terminal';
 import { IRole } from './commands/type';
 import { AuthService } from './services/auth.service';
-import { IBotServerPort } from './server/type';
 
 @singleton()
 // @registry([

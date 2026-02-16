@@ -1,6 +1,5 @@
 import { BotServer } from './server/bot';
-import { HttpServer } from './server/http';
-import { BOT_CLIENT_TOKEN, BOT_SERVER_TOKEN, IBotServerPort } from './server/type';
+import { BOT_CLIENT_TOKEN, IBotServerPort } from './server/type';
 import { ConfigService } from './config/config.service';
 import { container, inject, predicateAwareClassFactory, registry, singleton } from 'tsyringe';
 import { LoggerService } from './logger/logger.service';
@@ -10,22 +9,23 @@ import { IRole } from './commands/type';
 import { AuthService } from './services/auth.service';
 
 @singleton()
-@registry([
-  {
-    token: BOT_SERVER_TOKEN,
-    useFactory: predicateAwareClassFactory<IBotServerPort>(
-      (c) => c.resolve(ConfigService).env === 'production',
-      BotServer,
-      HttpServer
-    ),
-  },
-])
+// @registry([
+//   {
+//     token: BOT_SERVER_TOKEN,
+//     useFactory: predicateAwareClassFactory<IBotServerPort>(
+//       (c) => c.resolve(ConfigService).env === 'production',
+//       BotServer,
+//       HttpServer
+//     ),
+//   },
+// ])
 export class App {
   private state: 'initialized' | 'pending' = 'pending';
   public latestQr: string | null = null;
+  private server!: IBotServerPort;
 
   constructor(
-    @inject(BOT_SERVER_TOKEN) private readonly server: IBotServerPort,
+    @inject(ConfigService) private readonly configService: ConfigService,
     @inject(LoggerService) private readonly loggerService: LoggerService,
     @inject(CommandFactory) private readonly commandFactory: CommandFactory,
     @inject(AuthService) private readonly authService: AuthService
@@ -36,6 +36,13 @@ export class App {
   async start() {
     if (this.state !== 'pending') {
       throw new Error('Cannot initialize app more than once');
+    }
+
+    if (this.configService.env === 'production') {
+      this.server = container.resolve(BotServer);
+    } else {
+      const { HttpServer } = await import('./server/http');
+      this.server = container.resolve(HttpServer);
     }
 
     this.state = 'initialized';

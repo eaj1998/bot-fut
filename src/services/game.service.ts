@@ -255,6 +255,22 @@ export class GameService {
     };
   }
 
+  async findGameByDate(date: Date): Promise<IGame | null> {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+
+    return this.gameModel.findOne({
+      date: {
+        $gte: start,
+        $lte: end,
+      },
+      status: { $in: ['closed', 'finished'] },
+    }).exec();
+  }
+
   async createGame(data: any, createdByPhone: string): Promise<GameResponseDto> {
     const creator = await this.userModel.findOne({ phoneE164: createdByPhone }).exec();
     if (!creator) {

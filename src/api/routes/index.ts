@@ -13,6 +13,7 @@ import bbqRoutes from './bbq.routes';
 import membershipsRoutes from './memberships.routes';
 import transactionsRoutes from './transactions.routes';
 import publicRoutes from './public.routes';
+import youtubeRoutes from './youtube.routes';
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.use('/bbq', bbqRoutes);
 router.use('/memberships', membershipsRoutes);
 router.use('/transactions', transactionsRoutes);
 router.use('/public', publicRoutes);
+router.use('/webhooks/youtube', youtubeRoutes);
 
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

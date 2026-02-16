@@ -52,5 +52,6 @@ jobs:
           cd ~/bot-fut-app
           
           # Baixar a nova imagem e reiniciar o container
-          /usr/local/bin/docker-compose pull
-          /usr/local/bin/docker-compose up -d
+          docker-compose down
+          docker-compose pull
+          docker-compose up -d

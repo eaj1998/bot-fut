@@ -481,6 +481,43 @@ export class TransactionRepository {
         });
         return map;
     }
+
+    /**
+     * Obtém estatísticas de débitos (usuários com débito e valor total)
+     */
+    async getDebtStats(): Promise<{ count: number; totalAmount: number }> {
+        const result = await this.model.aggregate([
+            {
+                $match: {
+                    type: TransactionType.INCOME,
+                    status: TransactionStatus.PENDING
+                }
+            },
+            {
+                $group: {
+                    _id: "$userId",
+                    totalDebt: { $sum: "$amount" }
+                }
+            },
+            {
+                $match: {
+                    totalDebt: { $gt: 0 }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    count: { $sum: 1 },
+                    totalAmount: { $sum: "$totalDebt" }
+                }
+            }
+        ]);
+
+        return {
+            count: result[0]?.count || 0,
+            totalAmount: result[0]?.totalAmount || 0
+        };
+    }
 }
 
 export const TRANSACTION_REPOSITORY_TOKEN = "TRANSACTION_REPOSITORY_TOKEN";

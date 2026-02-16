@@ -92,19 +92,8 @@ export class PlayersService {
 
         const stats = await this.userRepository.getStats();
 
-        const allUsers = await this.userRepository.findAll({ limit: 10000 });
-        let withDebtsCount = 0;
-
-        for (const user of allUsers.users) {
-            const debts = await this.transactionRepository.findByUserId(user._id.toString(), undefined, {
-                status: TransactionStatus.PENDING,
-                type: TransactionType.INCOME
-            });
-
-            if (debts.length > 0) {
-                withDebtsCount++;
-            }
-        }
+        const debtStats = await this.transactionRepository.getDebtStats();
+        const withDebtsCount = debtStats.count;
 
         return {
             players,
@@ -383,34 +372,8 @@ export class PlayersService {
     async getStats(): Promise<PlayersStatsDto> {
         const stats = await this.userRepository.getStats();
 
-        const debtStats = await this.transactionRepository['model'].aggregate([
-            {
-                $match: {
-                    type: TransactionType.INCOME,
-                    status: TransactionStatus.PENDING
-                }
-            },
-            {
-                $group: {
-                    _id: '$userId',
-                    totalDebt: { $sum: '$amount' }
-                }
-            },
-            {
-                $match: {
-                    totalDebt: { $gt: 0 }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    withDebts: { $sum: 1 },
-                    totalDebt: { $sum: '$totalDebt' }
-                }
-            }
-        ]);
-
-        const debtData = debtStats[0] || { withDebts: 0, totalDebt: 0 };
+        const debtStats = await this.transactionRepository.getDebtStats();
+        const debtData = { withDebts: debtStats.count, totalDebt: debtStats.totalAmount };
 
         return {
             total: stats.total,

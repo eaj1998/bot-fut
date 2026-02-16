@@ -558,4 +558,40 @@ export class BBQController {
             message: `${participant.userName} marcado como ${isPaid ? 'pago' : 'pendente'}`,
         });
     });
+    toggleParticipantIsFree = asyncHandler(async (req: Request, res: Response) => {
+        const { id, userId } = req.params;
+        const { isFree } = req.body;
+
+        if (typeof isFree !== 'boolean') {
+            res.status(400).json({ success: false, message: 'isFree deve ser um valor booleano' });
+            return;
+        }
+
+        const bbq = await this.bbqRepository.findById(id as string);
+        if (!bbq) {
+            res.status(404).json({ success: false, message: 'BBQ não encontrado' });
+            return;
+        }
+
+        const result = await this.bbqService.toggleParticipantFree(
+            bbq.workspaceId,
+            bbq.chatId,
+            userId as string,
+            isFree,
+            id as string
+        );
+
+        if (!result.success) {
+            res.status(400).json(result);
+            return;
+        }
+
+        const updatedBBQ = await this.bbqRepository.findById(id as string);
+
+        res.json({
+            success: true,
+            data: this.mapBBQToResponse(updatedBBQ!),
+            message: result.message,
+        });
+    });
 }

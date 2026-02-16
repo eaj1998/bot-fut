@@ -1,0 +1,43 @@
+meta {
+  name: Webhook
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3000/api/webhooks/youtube
+  body: xml
+  auth: inherit
+}
+
+headers {
+  Content-Type:  application/atom+xml
+}
+
+body:xml {
+  <?xml version='1.0' encoding='UTF-8'?>
+  <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom">
+    <link rel="hub" href="https://pubsubhubbub.appspot.com"/>
+    <link rel="self" href="https://www.youtube.com/xml/feeds/videos.xml?channel_id=SEU_CANAL_ID"/>
+    <title>YouTube video feed</title>
+    <updated>2026-02-16T15:00:00+00:00</updated>
+    <entry>
+      <id>yt:video:TESTE123</id>
+      <yt:videoId>TESTE123</yt:videoId>
+      <yt:channelId>SEU_CANAL_ID</yt:channelId>
+      <title>Viana - 12/02/2026 - A</title>
+      <link rel="alternate" href="https://www.youtube.com/watch?v=TESTE123"/>
+      <author>
+        <name>Futebol da Galera</name>
+        <uri>https://www.youtube.com/channel/SEU_CANAL_ID</uri>
+      </author>
+      <published>2026-02-16T15:00:00+00:00</published>
+      <updated>2026-02-16T15:00:00+00:00</updated>
+    </entry>
+  </feed>
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

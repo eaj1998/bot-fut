@@ -18,7 +18,7 @@ export class PlayersController {
                 status: req.query.status as any,
                 search: req.query.search as string,
                 page: parseInt(req.query.page as string) || 1,
-                limit: parseInt(req.query.limit as string) || 20,
+                limit: parseInt(req.query.limit as string) || 10,
                 sortBy: req.query.sortBy as any,
                 sortOrder: req.query.sortOrder as any,
             };
@@ -202,7 +202,7 @@ export class PlayersController {
             const result = await this.playersService.listPlayers(filters);
 
             const headers = ['ID', 'Nome', 'Email', 'Telefone', 'CPF', 'Status', 'Débito Total', 'Data de Cadastro'];
-            const rows = result.players.map(p => [
+            const rows = result.data.map(p => [
                 p.id,
                 p.name,
                 p.email || '',

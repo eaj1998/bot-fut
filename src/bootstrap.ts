@@ -14,6 +14,7 @@ import { ApiServer } from './server/api.server';
 import { LoggerService } from './logger/logger.service';
 import { WORKSPACE_MEMBER_MODEL_TOKEN, WorkspaceMemberModel } from './core/models/workspace-member.model';
 import { UserRepository } from './core/repositories/user.repository';
+import { PlayerRepository, PLAYER_REPOSITORY_TOKEN } from './core/repositories/player.repository';
 import { GameRepository, GAME_REPOSITORY_TOKEN } from './core/repositories/game.respository';
 import { PlayersService, PLAYERS_SERVICE_TOKEN } from './services/players.service';
 import { PlayerRatingService, PLAYER_RATING_SERVICE_TOKEN } from './services/player-rating.service';
@@ -57,6 +58,7 @@ const main = async () => {
 
   // Register repositories
   container.register('USER_REPOSITORY_TOKEN', { useClass: UserRepository });
+  container.register(PLAYER_REPOSITORY_TOKEN, { useClass: PlayerRepository });
   container.register(GAME_REPOSITORY_TOKEN, { useClass: GameRepository });
   container.register(BBQ_REPOSITORY_TOKEN, { useClass: BBQRepository });
   container.register(TRANSACTION_REPOSITORY_TOKEN, { useClass: TransactionRepository });

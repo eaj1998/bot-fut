@@ -66,6 +66,13 @@ export interface ListPlayersDto {
     workspaceId?: string;
 }
 
+export interface PaginationResponseDto {
+    data: PlayerResponseDto[];
+    totalCount: number;
+    currentPage: number;
+    totalPages: number;
+}
+
 export interface PaginatedPlayersResponseDto {
     players: PlayerResponseDto[];
     total: number;

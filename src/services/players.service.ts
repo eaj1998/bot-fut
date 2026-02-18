@@ -4,6 +4,7 @@ import { UserRepository } from '../core/repositories/user.repository';
 import { GameRepository, GAME_REPOSITORY_TOKEN } from '../core/repositories/game.respository';
 import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from '../core/repositories/transaction.repository';
 import { MembershipRepository, MEMBERSHIP_REPOSITORY_TOKEN } from '../core/repositories/membership.repository';
+import { PlayerRepository, PLAYER_REPOSITORY_TOKEN } from '../core/repositories/player.repository';
 import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from '../core/models/workspace-member.model';
 import { Model } from 'mongoose';
 import { TransactionType, TransactionStatus, TransactionCategory } from '../core/models/transaction.model';
@@ -12,7 +13,7 @@ import {
     UpdatePlayerDto,
     PlayerResponseDto,
     ListPlayersDto,
-    PaginatedPlayersResponseDto,
+    PaginationResponseDto,
     PlayersStatsDto,
     PlayerProfileDto,
     UpdateProfileDto
@@ -28,6 +29,7 @@ export class PlayersService {
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepository: TransactionRepository,
         @inject(MEMBERSHIP_REPOSITORY_TOKEN) private readonly membershipRepo: MembershipRepository,
         @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>,
+        @inject(PLAYER_REPOSITORY_TOKEN) private readonly playerRepository: PlayerRepository,
         @inject(LoggerService) private readonly loggerService: LoggerService
     ) { }
 
@@ -83,66 +85,29 @@ export class PlayersService {
     /**
      * Lista jogadores com filtros e paginação
      */
-    async listPlayers(filters: ListPlayersDto): Promise<PaginatedPlayersResponseDto> {
-        // 1. Find members of the workspace
-        const memberQuery: any = { workspaceId: filters.workspaceId };
-
-        // If status filter is provided, we might want to filter members by status
-        // But the previous implementation filtered by User status.
-        // Let's filter by WorkspaceMember status if possible, or fallback.
-        if (filters.status && filters.status !== 'all') {
-            // Map legacy status or user status to member status if applicable
-            // For now, let's fetch all relevant members and let UserRepository filter by User status if needed?
-            // Or better: Filter users who are MEMBERS of this workspace.
-            if (['active', 'inactive', 'suspended'].includes(filters.status.toLowerCase())) {
-                memberQuery.status = filters.status.toUpperCase();
-            }
-        }
-
-        const members = await this.workspaceMemberModel.find(memberQuery).select('userId status roles');
-        const userIds = members.map(m => m.userId);
-
-        if (userIds.length === 0) {
-            return {
-                players: [],
-                total: 0,
-                page: filters.page || 1,
-                totalPages: 0,
-                limit: filters.limit || 20,
-                activeCount: 0,
-                withDebtsCount: 0,
-                inactiveCount: 0,
-            };
-        }
-
-        const { users, total } = await this.userRepository.findAll({ ...filters, userIds });
+    /**
+     * Lista jogadores com filtros e paginação
+     */
+    async listPlayers(filters: ListPlayersDto): Promise<PaginationResponseDto> {
+        const { data, totalCount, currentPage, totalPages } = await this.playerRepository.listPlayers({
+            workspaceId: filters.workspaceId,
+            page: filters.page,
+            limit: filters.limit,
+            search: filters.search,
+            status: filters.status,
+            sortBy: filters.sortBy,
+            sortOrder: filters.sortOrder
+        });
 
         const players = await Promise.all(
-            users.map((user) => this.toResponseDto(user, filters.workspaceId))
+            data.map((user) => this.toResponseDto(user as any, filters.workspaceId))
         );
 
-        // Stats specific to workspace
-        const allMembers = await this.workspaceMemberModel.find({ workspaceId: filters.workspaceId }).select('userId');
-        const allUserIds = allMembers.map(m => m.userId);
-        const stats = await this.userRepository.getStats(allUserIds);
-
-        const debtStats = await this.transactionRepository.getDebtStats(filters.workspaceId); // Need to update TransactionRepo too?
-        // Wait, TransactionRepo.getDebtStats might not support workspaceId yet. I need to check.
-        // For now, let's assume I will update it or it might just be global?
-        // Actually, getDebtStats in Repo needs update. 
-        // Let's pass workspaceId to getDebtStats if I can update it later.
-        // But validation of code relies on existing signatures. 
-        // I will check transactionRepository later.
-
         return {
-            players,
-            total,
-            page: filters.page || 1,
-            totalPages: Math.ceil(total / (filters.limit || 20)),
-            limit: filters.limit || 20,
-            activeCount: stats.active,
-            withDebtsCount: debtStats.count, // This might be wrong if repo not updated
-            inactiveCount: stats.inactive,
+            data: players,
+            totalCount,
+            currentPage,
+            totalPages
         };
     }
 

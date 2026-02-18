@@ -7,6 +7,7 @@ import { CommandFactory } from './commands/command.factory';
 import qrcode from 'qrcode-terminal';
 import { IRole } from './commands/type';
 import { AuthService } from './services/auth.service';
+import { ChatModel, ChatStatus } from './core/models/chat.model';
 
 @singleton()
 // @registry([
@@ -23,6 +24,7 @@ export class App {
   private state: 'initialized' | 'pending' = 'pending';
   public latestQr: string | null = null;
   private server!: IBotServerPort;
+  private inactiveChatsCache: Map<string, number> = new Map();
 
   constructor(
     @inject(ConfigService) private readonly configService: ConfigService,
@@ -59,7 +61,6 @@ export class App {
       this.loggerService.log(`QR String: ${qr}`);
       this.loggerService.log('==================================================================\n');
 
-      // console.clear(); // Removed to preserve logs in Railway
       qrcode.generate(qr, { small: true }, (ascii) => {
         process.stdout.write('\n' + ascii + '\n');
       });
@@ -75,6 +76,28 @@ export class App {
       const command = matches?.[0];
       if (!command) {
         return;
+      }
+
+      if (command !== '/bind') {
+        const chat = await message.getChat();
+        const chatId = chat.id._serialized;
+
+        const chatDoc = await ChatModel.findOne({ chatId }).lean();
+
+        if (chatDoc && chatDoc.status !== ChatStatus.ACTIVE) {
+          const now = Date.now();
+          const lastWarning = this.inactiveChatsCache.get(chatId);
+
+          if (!lastWarning || now - lastWarning > 5 * 60 * 1000) {
+            await this.server.sendMessage(
+              chatId,
+              '⚠️ *Aviso do Sistema*\\n\\nO bot está desativado para este grupo. O administrador precisa ativá-lo no painel de controle.'
+            );
+            this.inactiveChatsCache.set(chatId, now);
+          }
+
+          return;
+        }
       }
 
       const handler = this.commandFactory.create(command);

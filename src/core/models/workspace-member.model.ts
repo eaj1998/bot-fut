@@ -6,7 +6,7 @@ export interface IWorkspaceMember extends Document {
     userId: Types.ObjectId;
     roles: string[];
     nickname?: string;
-    status: 'ACTIVE' | 'INVITED';
+    status: 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'INACTIVE';
     joinedAt: Date;
 }
 
@@ -15,7 +15,7 @@ const WorkspaceMemberSchema = new Schema({
     userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
     roles: [{ type: String }],
     nickname: { type: String },
-    status: { type: String, enum: ['ACTIVE', 'INVITED'], default: 'ACTIVE' },
+    status: { type: String, enum: ['ACTIVE', 'INVITED', 'SUSPENDED', 'INACTIVE'], default: 'ACTIVE' },
 }, { timestamps: true });
 
 WorkspaceMemberSchema.index({ workspaceId: 1, userId: 1 }, { unique: true });

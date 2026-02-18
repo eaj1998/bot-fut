@@ -23,6 +23,10 @@ export class BBQRepository {
     }).exec();
   }
 
+  async findOneByIdAndWorkspace(id: string, workspaceId: string): Promise<IBBQ | null> {
+    return this.model.findOne({ _id: id, workspaceId }).exec();
+  }
+
   async create(workspaceId: string, chatId: string, date: Date): Promise<IBBQ> {
     const bbq = new this.model({
       workspaceId,
@@ -41,17 +45,17 @@ export class BBQRepository {
     return bbq.save();
   }
 
-  async addParticipant(bbqId: string, participant: IBBQParticipant): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async addParticipant(bbqId: string, workspaceId: string, participant: IBBQParticipant): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       { $push: { participants: participant } },
       { new: true }
     ).exec();
   }
 
-  async removeParticipant(bbqId: string, userId: string): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async removeParticipant(bbqId: string, workspaceId: string, userId: string): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       {
         $pull: {
           participants: {
@@ -80,17 +84,17 @@ export class BBQRepository {
     }).exec();
   }
 
-  async setFinancials(bbqId: string, financials: { meatCost: number, cookCost: number, ticketPrice: number }): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async setFinancials(bbqId: string, workspaceId: string, financials: { meatCost: number, cookCost: number, ticketPrice: number }): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       { financials },
       { new: true }
     ).exec();
   }
 
-  async close(bbqId: string): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async close(bbqId: string, workspaceId: string): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       {
         status: 'closed',
         closedAt: new Date()
@@ -99,9 +103,9 @@ export class BBQRepository {
     ).exec();
   }
 
-  async cancel(bbqId: string): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async cancel(bbqId: string, workspaceId: string): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       {
         status: 'cancelled',
         canceledAt: new Date()
@@ -110,9 +114,9 @@ export class BBQRepository {
     ).exec();
   }
 
-  async markAsFinished(bbqId: string): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async markAsFinished(bbqId: string, workspaceId: string): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       {
         status: 'finished',
         finishedAt: new Date()
@@ -121,13 +125,13 @@ export class BBQRepository {
     ).exec();
   }
 
-  async finish(bbqId: string): Promise<IBBQ | null> {
-    return this.markAsFinished(bbqId);
+  async finish(bbqId: string, workspaceId: string): Promise<IBBQ | null> {
+    return this.markAsFinished(bbqId, workspaceId);
   }
 
-  async unfinish(bbqId: string): Promise<IBBQ | null> {
-    return this.model.findByIdAndUpdate(
-      bbqId,
+  async unfinish(bbqId: string, workspaceId: string): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: bbqId, workspaceId },
       {
         status: 'closed',
         finishedAt: undefined
@@ -140,25 +144,33 @@ export class BBQRepository {
     return this.model.findById(bbqId).exec();
   }
 
-  async updateParticipantPaymentStatus(bbqId: string, userId: string, isPaid: boolean): Promise<IBBQ | null> {
+  async updateParticipantPaymentStatus(bbqId: string, workspaceId: string, userId: string, isPaid: boolean): Promise<IBBQ | null> {
     return this.model.findOneAndUpdate(
-      { _id: bbqId, 'participants.userId': userId },
+      { _id: bbqId, workspaceId, 'participants.userId': userId },
       { $set: { 'participants.$.isPaid': isPaid } },
       { new: true }
     ).exec();
   }
 
-  async updateParticipantDebtId(bbqId: string, userId: string, debtId: string): Promise<IBBQ | null> {
+  async updateParticipantDebtId(bbqId: string, workspaceId: string, userId: string, debtId: string): Promise<IBBQ | null> {
     return this.model.findOneAndUpdate(
-      { _id: bbqId, 'participants.userId': userId },
+      { _id: bbqId, workspaceId, 'participants.userId': userId },
       { $set: { 'participants.$.debtId': debtId } },
       { new: true }
     ).exec();
   }
-  async updateParticipantIsFree(bbqId: string, userId: string, isFree: boolean): Promise<IBBQ | null> {
+  async updateParticipantIsFree(bbqId: string, workspaceId: string, userId: string, isFree: boolean): Promise<IBBQ | null> {
     return this.model.findOneAndUpdate(
-      { _id: bbqId, 'participants.userId': userId },
+      { _id: bbqId, workspaceId, 'participants.userId': userId },
       { $set: { 'participants.$.isFree': isFree } },
+      { new: true }
+    ).exec();
+  }
+
+  async update(id: string, workspaceId: string, updateData: any): Promise<IBBQ | null> {
+    return this.model.findOneAndUpdate(
+      { _id: id, workspaceId },
+      updateData,
       { new: true }
     ).exec();
   }

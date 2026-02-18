@@ -38,9 +38,9 @@ export class GamesController {
     });
   });
 
-  getGameDetail = asyncHandler(async (req: Request, res: Response) => {
+  getGameDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
-    const gameDetail = await this.gameService.getGameDetail(gameId as string);
+    const gameDetail = await this.gameService.getGameDetail(gameId as string, req.workspaceId!);
 
     res.json({
       success: true,
@@ -60,11 +60,11 @@ export class GamesController {
     });
   });
 
-  updateGame = asyncHandler(async (req: Request, res: Response) => {
+  updateGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
     const dto: UpdateGameDto = req.body;
 
-    const game = await this.gameService.updateGame(gameId as string, dto);
+    const game = await this.gameService.updateGame(gameId as string, req.workspaceId!, dto);
 
     res.json({
       success: true,
@@ -73,9 +73,9 @@ export class GamesController {
     });
   });
 
-  closeGame = asyncHandler(async (req: Request, res: Response) => {
+  closeGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
-    const game = await this.gameService.closeGame(gameId as string);
+    const game = await this.gameService.closeGame(gameId as string, req.workspaceId!);
 
     res.json({
       success: true,
@@ -84,9 +84,9 @@ export class GamesController {
     });
   });
 
-  cancelGame = asyncHandler(async (req: Request, res: Response) => {
+  cancelGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
-    await this.gameService.cancelGame(gameId as string);
+    await this.gameService.cancelGame(gameId as string, req.workspaceId!);
 
     res.json({
       success: true,
@@ -98,7 +98,7 @@ export class GamesController {
     const { gameId } = req.params;
     const dto: AddPlayerToGameDto = req.body;
 
-    await this.gameService.addPlayer(gameId as string, dto);
+    await this.gameService.addPlayer(gameId as string, req.workspaceId!, dto);
 
     res.status(201).json({
       success: true,
@@ -106,11 +106,11 @@ export class GamesController {
     });
   });
 
-  removePlayer = asyncHandler(async (req: Request, res: Response) => {
+  removePlayer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId, playerId } = req.params;
 
     // Legacy support for DELETE /:gameId/players/:playerId
-    await this.gameService.removePlayer(gameId as string, playerId as string);
+    await this.gameService.removePlayer(gameId as string, req.workspaceId!, playerId as string);
 
     res.json({
       success: true,
@@ -118,7 +118,7 @@ export class GamesController {
     });
   });
 
-  removePlayerFromBody = asyncHandler(async (req: Request, res: Response) => {
+  removePlayerFromBody = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
     const { userId } = req.body;
 
@@ -127,12 +127,12 @@ export class GamesController {
       throw new Error("userId is required");
     }
 
-    await this.gameService.removePlayer(gameId as string, userId as string);
+    await this.gameService.removePlayer(gameId as string, req.workspaceId!, userId as string);
 
     res.json({ success: true, message: 'Player removed from game' });
   });
 
-  removeGuest = asyncHandler(async (req: Request, res: Response) => {
+  removeGuest = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
     const { slot } = req.body;
 
@@ -141,7 +141,7 @@ export class GamesController {
       throw new Error("slot is required");
     }
 
-    await this.gameService.removeGuest(gameId as string, parseInt(slot, 10));
+    await this.gameService.removeGuest(gameId as string, req.workspaceId!, parseInt(slot, 10));
 
     res.json({
       success: true,
@@ -149,12 +149,12 @@ export class GamesController {
     });
   });
 
-  markPayment = asyncHandler(async (req: Request, res: Response) => {
+  markPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
     const slot = parseInt(req.params.slot as string, 10);
     const { isPaid }: MarkPaymentDto = req.body;
 
-    await this.gameService.markPayment(gameId as string, slot, isPaid);
+    await this.gameService.markPayment(gameId as string, req.workspaceId!, slot, isPaid);
 
     res.json({
       success: true,
@@ -162,10 +162,10 @@ export class GamesController {
     });
   });
 
-  sendReminder = asyncHandler(async (req: Request, res: Response) => {
+  sendReminder = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
 
-    await this.gameService.sendReminder(gameId as string);
+    await this.gameService.sendReminder(gameId as string, req.workspaceId!);
 
     res.json({
       success: true,
@@ -173,9 +173,9 @@ export class GamesController {
     });
   });
 
-  exportCSV = asyncHandler(async (req: Request, res: Response) => {
+  exportCSV = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
-    const gameDetail = await this.gameService.getGameDetail(gameId as string);
+    const gameDetail = await this.gameService.getGameDetail(gameId as string, req.workspaceId!);
 
     const csv = this.generateCSV(gameDetail);
 
@@ -197,8 +197,8 @@ export class GamesController {
     return rows.map((row) => row.join(',')).join('\n');
   }
 
-  getStats = asyncHandler(async (req: Request, res: Response) => {
-    const stats = await this.gameService.getStats();
+  getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const stats = await this.gameService.getStats(req.workspaceId!);
 
     res.json({
       success: true,
@@ -206,11 +206,11 @@ export class GamesController {
     });
   });
 
-  updateStatus = asyncHandler(async (req: Request, res: Response) => {
+  updateStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
     const { status } = req.body;
 
-    const game = await this.gameService.updateStatus(gameId as string, status);
+    const game = await this.gameService.updateStatus(gameId as string, req.workspaceId!, status);
 
     res.json({
       success: true,
@@ -219,10 +219,10 @@ export class GamesController {
     });
   });
 
-  deleteGame = asyncHandler(async (req: Request, res: Response) => {
+  deleteGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
 
-    await this.gameService.cancelGame(gameId as string);
+    await this.gameService.cancelGame(gameId as string, req.workspaceId!);
 
     res.json({
       success: true,
@@ -230,9 +230,9 @@ export class GamesController {
     });
   });
 
-  generateTeams = asyncHandler(async (req: Request, res: Response) => {
+  generateTeams = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
-    const game = await this.gameService.getGameById(gameId as string);
+    const game = await this.gameService.getGameById(gameId as string, req.workspaceId!);
 
     if (!game) {
       throw new ApiError(404, 'Game not found');
@@ -302,7 +302,7 @@ export class GamesController {
     });
   });
 
-  saveTeamAssignments = asyncHandler(async (req: Request, res: Response) => {
+  saveTeamAssignments = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { gameId } = req.params;
     const { assignments } = req.body;
 
@@ -310,7 +310,7 @@ export class GamesController {
       throw new ApiError(400, 'Invalid assignments format');
     }
 
-    await this.gameService.saveTeamAssignments(gameId as string, assignments);
+    await this.gameService.saveTeamAssignments(gameId as string, req.workspaceId!, assignments);
 
     res.json({
       success: true,

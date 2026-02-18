@@ -71,7 +71,7 @@ export class PaymentCommand implements Command {
             return;
         }
 
-        const res = await this.gameSvc.markAsPaid(game._id, slot);
+        const res = await this.gameSvc.markAsPaid(game, slot);
 
         if (!res.updated || !res.game) {
             const errorMsg = res.reason

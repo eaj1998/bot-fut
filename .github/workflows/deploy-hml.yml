@@ -47,7 +47,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           # ⚠️ ATENÇÃO: Substitua o caminho abaixo pela pasta real onde está o seu docker-compose.yml na EC2
-          cd /home/ubuntu/bot-fut 
+          cd /home/ubuntu/bot-fut-app 
           
           echo "Fazendo login no ECR na EC2..."
           aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 872095123176.dkr.ecr.us-east-2.amazonaws.com

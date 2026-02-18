@@ -3,10 +3,6 @@
  */
 
 export interface ChatSettingsDto {
-    language?: string;
-    autoCreateGame?: boolean;
-    autoCreateDaysBefore?: number;
-    allowGuests?: boolean;
     requirePaymentProof?: boolean;
     sendReminders?: boolean;
 }
@@ -15,7 +11,6 @@ export interface ChatFinancialsDto {
     defaultPriceCents?: number;
     pixKey?: string;
     pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
-    acceptsCash?: boolean;
 }
 
 export interface ChatScheduleDto {
@@ -66,18 +61,12 @@ export interface ChatResponseDto {
 
     // Nested objects
     settings: {
-        language: string;
-        autoCreateGame: boolean;
-        autoCreateDaysBefore: number;
-        allowGuests: boolean;
-        requirePaymentProof: boolean;
         sendReminders: boolean;
     };
     financials: {
         defaultPriceCents: number;
         pixKey?: string;
         pixKeyType?: string;
-        acceptsCash: boolean;
     };
     schedule: {
         weekday?: number;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { PlayersController } from '../controllers/players.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { ensureWorkspace } from '../middleware/ensureWorkspace';
 import { requireAdmin } from '../middleware/role.middleware';
 
 const router = Router();
@@ -9,6 +10,7 @@ const controller = container.resolve(PlayersController);
 
 // Rotas protegidas (requerem autenticação)
 router.use(authenticate);
+router.use(ensureWorkspace);
 
 /**
  * @swagger

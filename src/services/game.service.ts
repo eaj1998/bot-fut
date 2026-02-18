@@ -132,12 +132,12 @@ export class GameService {
     };
   }
 
-  async getGameById(gameId: string): Promise<IGame | null> {
-    return this.gameModel.findById(gameId).exec();
+  async getGameById(gameId: string, workspaceId: string): Promise<IGame | null> {
+    return this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
   }
 
-  async getGameDetail(gameId: string): Promise<GameDetailResponseDto> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async getGameDetail(gameId: string, workspaceId: string): Promise<GameDetailResponseDto> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -280,7 +280,7 @@ export class GameService {
     const game = await this.gameModel.create({
       title: data.name,
       gameType: data.type,
-      date: new Date(data.date + 'T' + data.time),
+      date: new Date(data.date + 'T' + data.time + ':00.000Z'),
       location: data.location,
       maxPlayers: data.maxPlayers,
       priceCents: data.pricePerPlayer,
@@ -303,8 +303,8 @@ export class GameService {
     return this.mapToGameResponse(game);
   }
 
-  async cancelGame(gameId: string): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async cancelGame(gameId: string, workspaceId: string): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -323,8 +323,8 @@ export class GameService {
     }
   }
 
-  async closeGame(gameId: string): Promise<GameResponseDto> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async closeGame(gameId: string, workspaceId: string): Promise<GameResponseDto> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -503,8 +503,8 @@ export class GameService {
     }
   }
 
-  async addPlayer(gameId: string, data: AddPlayerToGameDto): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async addPlayer(gameId: string, workspaceId: string, data: AddPlayerToGameDto): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Jogo não encontrado');
     }
@@ -533,22 +533,24 @@ export class GameService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Verificação 2: Early Access (only ACTIVE members can join future games)
+    const workspace = await this.workspaceRepo.findById(game.workspaceId.toString());
+    const enableMemberPriority = workspace?.settings?.enableMemberPriority ?? false;
+
     const isFutureGame = gameDate > today;
     const isActiveMember = membership?.status === MembershipStatus.ACTIVE;
+    const isSuspended = membership?.status === MembershipStatus.SUSPENDED;
 
-    if (isFutureGame && !isActiveMember && !game.allowCasualsEarly) {
-
-      if (membership?.status === MembershipStatus.SUSPENDED) {
-        throw new ApiError(
-          403,
-          '🚫 Ação bloqueada. Sua mensalidade está cancelada!. Regularize para jogar.'
-        );
-      }
-
+    if (isSuspended) {
       throw new ApiError(
         403,
-        '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo. Para se tornar mensalista contate o administrador do grupo.'
+        '🚫 Ação bloqueada. Sua mensalidade está suspensa! Regularize para jogar.'
+      );
+    }
+
+    if (enableMemberPriority && isFutureGame && !isActiveMember && !game.allowCasualsEarly) {
+      throw new ApiError(
+        403,
+        '🔒 Apenas mensalistas podem entrar na lista antecipadamente. Avulsos apenas no dia do jogo.'
       );
     }
 
@@ -590,8 +592,8 @@ export class GameService {
     }
   }
 
-  async removePlayer(gameId: string, playerId: string): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async removePlayer(gameId: string, workspaceId: string, playerId: string): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -615,8 +617,8 @@ export class GameService {
     await this.removePlayerAtIndex(game, idx);
   }
 
-  async removeGuest(gameId: string, slot: number): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async removeGuest(gameId: string, workspaceId: string, slot: number): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -909,8 +911,8 @@ export class GameService {
     return { placed: false, finalName: label, role: "outfield" };
   }
 
-  async markPayment(gameId: string, slot: number, isPaid: boolean): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async markPayment(gameId: string, workspaceId: string, slot: number, isPaid: boolean): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Jogo não encontrado');
     }
@@ -922,7 +924,7 @@ export class GameService {
     }
 
     if (isPaid) {
-      await this.markAsPaid(game._id, slot);
+      await this.markAsPaid(game, slot);
     } else {
       await this.unmarkAsPaid(game, slot);
     }
@@ -995,14 +997,14 @@ export class GameService {
   }
 
   async markAsPaid(
-    gameId: Types.ObjectId,
+    game: IGame,
     slot?: number,
     opts?: { method?: "pix" | "dinheiro" | "transf" | "ajuste" }
   ): Promise<{ updated: boolean; reason?: string; game: IGame | null }> {
     if (typeof slot !== "number") {
       return { updated: false, reason: "Slot inválido", game: null };
     }
-    const game = await this.gameRepo.findById(gameId);
+    // const game = await this.gameRepo.findById(gameId); // Removed fetch
 
     if (!game) {
       return { updated: false, reason: `Game nao encontrado!`, game: null }
@@ -1218,8 +1220,8 @@ export class GameService {
     }
   }
 
-  async updateGame(gameId: string, dto: UpdateGameDto): Promise<GameResponseDto> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async updateGame(gameId: string, workspaceId: string, dto: UpdateGameDto): Promise<GameResponseDto> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -1241,8 +1243,8 @@ export class GameService {
   /**
    * Save team assignments for players in a game
    */
-  async saveTeamAssignments(gameId: string, assignments: { rosterId: string; team: 'A' | 'B' }[]): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async saveTeamAssignments(gameId: string, workspaceId: string, assignments: { rosterId: string; team: 'A' | 'B' }[]): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -1276,8 +1278,8 @@ export class GameService {
   }
 
 
-  async sendReminder(gameId: string): Promise<void> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async sendReminder(gameId: string, workspaceId: string): Promise<void> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }
@@ -1454,8 +1456,8 @@ export class GameService {
 
     const chat = await ChatModel.findOne({ chatId: game.chatId, workspaceId: game.workspaceId });
 
-    const titulo = game?.title ?? "⚽ CAMPO DO VIANA";
-    const pix = chat?.financials?.pixKey ?? "fcjogasimples@gmail.com";
+    const titulo = game?.title;
+    const pix = chat?.financials?.pixKey;
     const valor = `${Utils.formatCentsToReal(game?.priceCents ?? 0)}`;
 
     const maxPlayers = game.maxPlayers ?? 16;
@@ -1487,7 +1489,7 @@ export class GameService {
       }
     }
 
-    let texto = `${titulo}\n${dia}/${mes} às ${horario}\nPix: ${pix}\nValor: ${valor}\n\n`;
+    let texto = `${titulo}\n${dia}/${mes} às ${horario}\n${pix ? `Pix: ${pix}\n` : ''}${valor ? `Valor: ${valor}\n` : ''}\n\n`;
 
     for (let i = 0; i < maxPlayers; i++) {
       const pos = i + 1;
@@ -1916,50 +1918,43 @@ export class GameService {
   /**
    * Obtém estatísticas gerais de jogos
    */
-  async getStats(): Promise<any> {
+  async getStats(workspaceId: string): Promise<any> {
+    const total = await this.gameModel.countDocuments({ workspaceId });
+    const open = await this.gameModel.countDocuments({ workspaceId, status: 'open' });
+    const closed = await this.gameModel.countDocuments({ workspaceId, status: 'closed' });
+    const finished = await this.gameModel.countDocuments({ workspaceId, status: 'finished' });
+    const cancelled = await this.gameModel.countDocuments({ workspaceId, status: 'cancelled' });
+
     const now = getNowInSPAsUTC();
     const next7Days = getNowInSPAsUTC();
     next7Days.setUTCDate(now.getUTCDate() + 7);
 
-    const [stats] = await this.gameModel.aggregate([
-      {
-        $facet: {
-          total: [{ $count: 'count' }],
-          open: [{ $match: { status: 'open' } }, { $count: 'count' }],
-          closed: [{ $match: { status: 'closed' } }, { $count: 'count' }],
-          finished: [{ $match: { status: 'finished' } }, { $count: 'count' }],
-          cancelled: [{ $match: { status: 'cancelled' } }, { $count: 'count' }],
-          upcoming: [
-            {
-              $match: {
-                date: { $gte: now, $lte: next7Days },
-                status: { $in: ['open'] }
-              }
-            },
-            { $count: 'count' }
-          ]
-        }
-      }
-    ]);
+    const upcoming = await this.gameModel.countDocuments({
+      workspaceId,
+      date: { $gte: now, $lte: next7Days },
+      status: { $in: ['open', 'scheduled'] }
+    });
 
-    const activePlayers = await this.userModel.countDocuments({ status: 'active' });
+    // Calculate active players (active memberships)
+    const activeMembers = await this.membershipRepo.findActiveMemberships(workspaceId);
+    const activePlayers = activeMembers.length;
 
     return {
-      total: stats.total[0]?.count || 0,
-      open: stats.open[0]?.count || 0,
-      closed: stats.closed[0]?.count || 0,
-      finished: stats.finished[0]?.count || 0,
-      cancelled: stats.cancelled[0]?.count || 0,
-      upcoming: stats.upcoming[0]?.count || 0,
-      activePlayers,
+      total,
+      open,
+      closed,
+      finished,
+      cancelled,
+      upcoming,
+      activePlayers
     };
   }
 
   /**
    * Atualiza o status de um jogo
    */
-  async updateStatus(gameId: string, status: string): Promise<GameResponseDto> {
-    const game = await this.gameModel.findById(gameId).exec();
+  async updateStatus(gameId: string, workspaceId: string, status: string): Promise<GameResponseDto> {
+    const game = await this.gameModel.findOne({ _id: gameId, workspaceId }).exec();
     if (!game) {
       throw new ApiError(404, 'Game not found');
     }

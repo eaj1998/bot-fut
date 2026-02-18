@@ -224,6 +224,13 @@ export class TransactionRepository {
     }
 
     /**
+     * Busca transação por ID e Workspace
+     */
+    async findOneByIdAndWorkspace(transactionId: string, workspaceId: string): Promise<ITransaction | null> {
+        return this.model.findOne({ _id: transactionId, workspaceId: new Types.ObjectId(workspaceId) }).exec();
+    }
+
+    /**
      * Calcula o total de transações por workspace
      */
     async calculateWorkspaceBalance(
@@ -485,13 +492,19 @@ export class TransactionRepository {
     /**
      * Obtém estatísticas de débitos (usuários com débito e valor total)
      */
-    async getDebtStats(): Promise<{ count: number; totalAmount: number }> {
+    async getDebtStats(workspaceId?: string): Promise<{ count: number; totalAmount: number }> {
+        const matchStage: any = {
+            type: TransactionType.INCOME,
+            status: TransactionStatus.PENDING
+        };
+
+        if (workspaceId) {
+            matchStage.workspaceId = new Types.ObjectId(workspaceId);
+        }
+
         const result = await this.model.aggregate([
             {
-                $match: {
-                    type: TransactionType.INCOME,
-                    status: TransactionStatus.PENDING
-                }
+                $match: matchStage
             },
             {
                 $group: {

@@ -16,6 +16,7 @@ import { CHAT_MODEL_TOKEN, ChatDoc } from "../core/models/chat.model";
 import { GAME_MODEL_TOKEN, IGame } from "../core/models/game.model";
 import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from "../core/models/workspace-member.model";
 import { EncryptionUtil } from "../utils/encryption.util";
+import { UserRepository, USER_REPOSITORY_TOKEN } from "../core/repositories/user.repository";
 
 @injectable()
 export class WorkspaceService {
@@ -23,7 +24,8 @@ export class WorkspaceService {
         @inject(WorkspaceRepository) private readonly repo: WorkspaceRepository,
         @inject(CHAT_MODEL_TOKEN) private readonly chatModel: Model<ChatDoc>,
         @inject(GAME_MODEL_TOKEN) private readonly gameModel: Model<IGame>,
-        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
+        @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>,
+        @inject(USER_REPOSITORY_TOKEN) private readonly userRepo: UserRepository
     ) { }
 
     async resolveWorkspaceFromMessage(message: Message) {
@@ -443,6 +445,23 @@ export class WorkspaceService {
 
         const updatedWorkspace = await this.repo.findById(workspaceId);
         return this.toResponseDto(updatedWorkspace);
+    }
+
+    /**
+     * Adiciona ou atualiza um membro no workspace
+     */
+    async addMember(workspaceId: string, userId: string, roles: string[]): Promise<void> {
+        await this.workspaceMemberModel.findOneAndUpdate(
+            { workspaceId, userId },
+            {
+                $set: {
+                    status: 'ACTIVE',
+                    joinedAt: new Date(),
+                    roles: roles,
+                },
+            },
+            { upsert: true, new: true }
+        );
     }
 }
 

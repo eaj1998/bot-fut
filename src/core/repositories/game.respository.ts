@@ -184,8 +184,8 @@ export class GameRepository {
         });
     }
 
-    async findOpenGamesForUser(userId: Types.ObjectId) {
-        return this.model.find({
+    async findOpenGamesForUser(userId: Types.ObjectId, workspaceId?: string) {
+        const query: any = {
             'roster.players': {
                 $elemMatch: {
                     $or: [
@@ -195,7 +195,13 @@ export class GameRepository {
                 }
             },
             status: 'open'
-        }).lean();
+        };
+
+        if (workspaceId) {
+            query.workspaceId = new Types.ObjectId(workspaceId);
+        }
+
+        return this.model.find(query).lean();
     }
 }
 

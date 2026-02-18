@@ -17,7 +17,7 @@ export class TransactionsController {
      * Retorna todas as transações do workspace (para admin)
      */
     getAll = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const workspaceId = req.query.workspaceId as string;
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
         const type = req.query.type as any;
@@ -46,7 +46,7 @@ export class TransactionsController {
      * Retorna estatísticas financeiras do workspace
      */
     getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const workspaceId = req.query.workspaceId as string;
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
 
         if (!workspaceId) {
             return res.status(400).json({
@@ -64,7 +64,7 @@ export class TransactionsController {
      * Retorna dados para gráficos
      */
     getChartData = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const workspaceId = req.query.workspaceId as string;
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
         const days = parseInt(req.query.days as string) || 30;
 
         if (!workspaceId) {
@@ -84,7 +84,7 @@ export class TransactionsController {
      */
     getMyBalance = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
-        const workspaceId = req.query.workspaceId as string;
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
 
         if (!workspaceId) {
             return res.status(400).json({
@@ -107,7 +107,13 @@ export class TransactionsController {
      */
     getMyTransactions = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
-        const workspaceId = req.query.workspaceId as string;
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
+        if (!workspaceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Workspace ID não encontrado para o usuário'
+            });
+        }
         const stats = await this.financialService.getBalance(userId, workspaceId);
         res.json({
             transactions: stats.transactions,
@@ -124,13 +130,7 @@ export class TransactionsController {
         const { method = 'pix' } = req.body;
 
         // Buscar a transaction
-        const transaction = await this.financialService['transactionRepo'].findById(id as string);
-        if (!transaction) {
-            return res.status(404).json({
-                success: false,
-                message: 'Transação não encontrada'
-            });
-        }
+        const transaction = await this.financialService.getTransactionById(id as string, req.workspaceId!);
 
         // Verificar se já está paga
         if (transaction.status === 'COMPLETED') {
@@ -141,8 +141,9 @@ export class TransactionsController {
         }
 
         // Marcar como paga
-        await this.financialService['transactionRepo'].markAsPaid(
+        await this.financialService.markAsPaid(
             id as string,
+            req.workspaceId!,
             new Date(),
             method as 'pix' | 'dinheiro' | 'transf' | 'ajuste'
         );
@@ -150,7 +151,7 @@ export class TransactionsController {
         // Se for transaction de jogo, marcar jogador como pago no roster
         if (transaction.gameId && transaction.userId) {
             try {
-                const game = await this.gameService.getGameById(transaction.gameId.toString());
+                const game = await this.gameService.getGameById(transaction.gameId.toString(), transaction.workspaceId.toString());
 
                 if (game) {
                     const transactionUserId = transaction.userId.toString();
@@ -164,7 +165,7 @@ export class TransactionsController {
 
                     if (player && typeof player.slot === 'number') {
                         await this.gameService.markAsPaid(
-                            game._id,
+                            game,
                             player.slot,
                             { method: method as 'pix' | 'dinheiro' | 'transf' | 'ajuste' }
                         );
@@ -228,7 +229,7 @@ export class TransactionsController {
             return res.status(400).json({ success: false, message: 'ID da transação é obrigatório' });
         }
 
-        const result = await this.financialService.updateTransaction(id as string, {
+        const result = await this.financialService.updateTransaction(id as string, req.workspaceId!, {
             status,
             description
         });

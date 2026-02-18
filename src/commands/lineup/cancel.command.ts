@@ -31,7 +31,7 @@ export class CancelCommand implements Command {
             return;
         }
 
-        await this.gameService.cancelGame(game._id.toString());
+        await this.gameService.cancelGame(game._id.toString(), game.workspaceId.toString());
 
 
     }

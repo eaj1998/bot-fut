@@ -30,6 +30,7 @@ import { TRANSACTION_MODEL_TOKEN, TransactionModel } from './core/models/transac
 import { MEMBERSHIP_MODEL_TOKEN, MembershipModel } from './core/models/membership.model';
 import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from './core/repositories/transaction.repository';
 import { MembershipRepository, MEMBERSHIP_REPOSITORY_TOKEN } from './core/repositories/membership.repository';
+import { WorkspaceMemberRepository, WORKSPACE_MEMBER_REPOSITORY_TOKEN } from './core/repositories/workspace-member.repository';
 import { MembershipService, MEMBERSHIP_SERVICE_TOKEN } from './services/membership.service';
 import { FinancialService, FINANCIAL_SERVICE_TOKEN } from './services/financial.service';
 
@@ -60,6 +61,7 @@ const main = async () => {
   container.register(BBQ_REPOSITORY_TOKEN, { useClass: BBQRepository });
   container.register(TRANSACTION_REPOSITORY_TOKEN, { useClass: TransactionRepository });
   container.register(MEMBERSHIP_REPOSITORY_TOKEN, { useClass: MembershipRepository });
+  container.register(WORKSPACE_MEMBER_REPOSITORY_TOKEN, { useClass: WorkspaceMemberRepository });
 
   // Register services
   container.register(USER_SERVICE_TOKEN, { useClass: UserService });

@@ -93,9 +93,14 @@ export class UserRepository {
         limit?: number;
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
+        userIds?: string[] | Types.ObjectId[];
     }) {
-        const { status, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = filters;
+        const { status, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc', userIds } = filters;
         const query: any = {};
+
+        if (userIds) {
+            query._id = { $in: userIds };
+        }
 
         if (status) {
             query.status = status;
@@ -150,12 +155,17 @@ export class UserRepository {
         return this.model.find({ _id: { $in: ids } }).lean() as unknown as IUser[];
     }
 
-    async getStats() {
-        const total = await this.model.countDocuments();
-        const admins = await this.model.countDocuments({ role: 'admin' });
-        const users = await this.model.countDocuments({ role: 'user' });
-        const active = await this.model.countDocuments({ status: 'active' });
-        const inactive = await this.model.countDocuments({ status: 'inactive' });
+    async getStats(userIds?: string[] | Types.ObjectId[]) {
+        const query: any = {};
+        if (userIds) {
+            query._id = { $in: userIds };
+        }
+
+        const total = await this.model.countDocuments(query);
+        const admins = await this.model.countDocuments({ ...query, role: 'admin' });
+        const users = await this.model.countDocuments({ ...query, role: 'user' });
+        const active = await this.model.countDocuments({ ...query, status: 'active' });
+        const inactive = await this.model.countDocuments({ ...query, status: 'inactive' });
 
         return {
             total,

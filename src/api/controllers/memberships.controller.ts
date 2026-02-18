@@ -40,7 +40,7 @@ export class MembershipsController {
      */
     getMyMembership = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
-        const workspaceId = req.query.workspaceId as string;
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
 
         if (!workspaceId) {
             return res.status(400).json({
@@ -64,7 +64,7 @@ export class MembershipsController {
     createMembership = asyncHandler(async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
         const { planValue }: CreateMembershipDto = req.body;
-        const workspaceId = req.body.workspaceId as string;
+        const workspaceId = req.workspaceId || req.body.workspaceId as string;
 
         if (!workspaceId) {
             return res.status(400).json({
@@ -97,8 +97,8 @@ export class MembershipsController {
      * GET /api/memberships/admin/list
      * Lista todas as memberships (admin)
      */
-    getAdminList = asyncHandler(async (req: Request, res: Response) => {
-        const workspaceId = req.query.workspaceId as string;
+    getAdminList = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const workspaceId = req.workspaceId || req.query.workspaceId as string;
         const page = req.query.page ? parseInt(req.query.page as string) : 1;
         const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
         const filter = req.query.filter as string | undefined;
@@ -123,8 +123,9 @@ export class MembershipsController {
      * POST /api/memberships/admin/create
      * Criar membership para um usuário específico (admin)
      */
-    createMembershipAdmin = asyncHandler(async (req: Request, res: Response) => {
-        const { userId, planValue, workspaceId, billingDay } = req.body;
+    createMembershipAdmin = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const { userId, planValue, billingDay } = req.body;
+        const workspaceId = req.workspaceId || req.body.workspaceId;
 
         if (!userId || !workspaceId || planValue === undefined) {
             return res.status(400).json({
@@ -225,8 +226,8 @@ export class MembershipsController {
      * POST /api/memberships/admin/process-billing
      * Processa a cobrança mensal de assinaturas ativas
      */
-    processMonthlyBilling = asyncHandler(async (req: Request, res: Response) => {
-        const { workspaceId } = req.body;
+    processMonthlyBilling = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const workspaceId = req.workspaceId || req.body.workspaceId;
 
         if (!workspaceId) {
             return res.status(400).json({

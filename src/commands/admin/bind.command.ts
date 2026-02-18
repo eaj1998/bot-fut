@@ -1,33 +1,49 @@
 import { injectable, inject } from "tsyringe";
 import { Message } from "whatsapp-web.js";
+import { Types } from "mongoose";
 import { IBotServerPort, BOT_CLIENT_TOKEN } from "../../server/type";
 import { WorkspaceRepository } from "../../core/repositories/workspace.repository";
 import { ChatModel } from "../../core/models/chat.model";
 import { IRole } from "../type";
+import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from "../../services/workspace.service";
+import { UserService, USER_SERVICE_TOKEN } from "../../services/user.service";
 
 @injectable()
 export class BindCommand {
-  role = IRole.ADMIN;
+  role = IRole.USER;
 
   constructor(
     @inject(BOT_CLIENT_TOKEN) private server: IBotServerPort,
-    @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository
+    @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
+    @inject(WORKSPACES_SERVICE_TOKEN) private readonly workspaceService: WorkspaceService,
+    @inject(USER_SERVICE_TOKEN) private readonly userService: UserService
   ) { }
 
   async handle(message: Message) {
     const parts = message.body.trim().split(/\s+/);
-    // Ex: ["/bind", "campo-do-viana", "2", "20:30"]
-    const [, slug, weekdayRaw, timeRaw] = parts;
+    const [, param1, weekdayRaw, timeRaw] = parts;
 
-    if (!slug) {
-      await this.server.sendMessage(message.from, "Uso: /bind <slug> [diaSemana] [horário]");
+    if (!param1) {
+      await this.server.sendMessage(message.from, "Uso: /bind <workspaceId_ou_slug> [diaSemana] [horário]");
       return;
     }
 
     const chat = await message.getChat();
     const chatId = chat.id._serialized;
 
-    const ws = await this.workspaceRepo.ensureWorkspaceBySlug(slug);
+    let ws;
+    let isNewWorkspace = false;
+
+    if (Types.ObjectId.isValid(param1)) {
+      ws = await this.workspaceRepo.findById(param1);
+      if (!ws) {
+        await this.server.sendMessage(message.from, "❌ Workspace não encontrado com este ID.");
+        return;
+      }
+    } else {
+      ws = await this.workspaceRepo.ensureWorkspaceBySlug(param1);
+      isNewWorkspace = true;
+    }
 
     let weekday: number | undefined;
     if (weekdayRaw && !isNaN(Number(weekdayRaw))) {
@@ -53,11 +69,11 @@ export class BindCommand {
           schedule: {
             weekday: weekday ?? 2,
             time,
-            title: ws.name ?? slug,
+            title: ws.name ?? (isNewWorkspace ? param1 : "Meu Jogo"),
           },
           financials: {
-            defaultPriceCents: ws.settings?.pricePerGameCents ?? 1400,
-            pixKey: ws.settings?.pix ?? "fcjogasimples@gmail.com",
+            defaultPriceCents: ws.settings?.pricePerGameCents,
+            pixKey: ws.settings?.pix,
             acceptsCash: true
           }
         },
@@ -67,14 +83,24 @@ export class BindCommand {
 
     const dias = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
     const diaTxt = dias[chatDoc.schedule?.weekday ?? 2];
+
+    try {
+      const user = await this.userService.resolveUserFromMessage(message, ws._id);
+      if (user) {
+        await this.workspaceService.addMember(ws._id.toString(), user._id.toString(), ['ADMIN']);
+      }
+    } catch (error) {
+      console.error("Error linking user to workspace:", error);
+    }
+
     await this.server.sendMessage(
       message.from,
-      `✅ Grupo vinculado!\n` +
-      `Workspace: ${ws.name}\n` +
+      `✅ Grupo vinculado com sucesso!\n\n` +
+      `Workspace: *${ws.name}*\n` +
       `Dia: ${diaTxt}\n` +
       `Horário: ${time}\n` +
-      `Pix: ${chatDoc.financials?.pixKey}\n` +
-      `Valor: R$ ${(ws.settings?.pricePerGameCents ?? 1400) / 100}`
+      `Pix: ${chatDoc.financials?.pixKey ?? 'Não definido'}\n` +
+      `Valor: R$ ${((ws.settings?.pricePerGameCents ?? 0) / 100).toFixed(2)}`
     );
   }
 }

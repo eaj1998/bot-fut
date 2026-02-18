@@ -42,18 +42,12 @@ export class ChatService {
             label: chat.label,
 
             settings: {
-                language: settings.language || 'pt-BR',
-                autoCreateGame: settings.autoCreateGame !== undefined ? settings.autoCreateGame : true,
-                autoCreateDaysBefore: settings.autoCreateDaysBefore || 2,
-                allowGuests: settings.allowGuests !== undefined ? settings.allowGuests : true,
-                requirePaymentProof: settings.requirePaymentProof || false,
                 sendReminders: settings.sendReminders !== undefined ? settings.sendReminders : true,
             },
             financials: {
                 defaultPriceCents: financials.defaultPriceCents || 0,
                 pixKey: financials.pixKey,
                 pixKeyType: financials.pixKeyType,
-                acceptsCash: financials.acceptsCash !== undefined ? financials.acceptsCash : true,
             },
             schedule: {
                 weekday: schedule.weekday,

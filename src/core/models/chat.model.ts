@@ -13,11 +13,6 @@ export enum PlatformType {
 }
 
 export interface ChatSettings {
-  language: string;
-  autoCreateGame: boolean;
-  autoCreateDaysBefore: number;
-  allowGuests: boolean;
-  requirePaymentProof: boolean;
   sendReminders: boolean;
 }
 
@@ -25,7 +20,6 @@ export interface ChatFinancials {
   defaultPriceCents: number;
   pixKey?: string;
   pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
-  acceptsCash: boolean;
 }
 
 export interface ChatSchedule {
@@ -55,11 +49,6 @@ export interface ChatDoc extends Document {
 }
 
 const ChatSettingsSchema = new Schema<ChatSettings>({
-  language: { type: String, default: 'pt-BR' },
-  autoCreateGame: { type: Boolean, default: true },
-  autoCreateDaysBefore: { type: Number, default: 2 },
-  allowGuests: { type: Boolean, default: true },
-  requirePaymentProof: { type: Boolean, default: false },
   sendReminders: { type: Boolean, default: true }
 }, { _id: false });
 
@@ -67,7 +56,6 @@ const ChatFinancialsSchema = new Schema<ChatFinancials>({
   defaultPriceCents: { type: Number, default: 0 },
   pixKey: { type: String },
   pixKeyType: { type: String, enum: ['CPF', 'CNPJ', 'EMAIL', 'PHONE', 'EVP'] },
-  acceptsCash: { type: Boolean, default: true }
 }, { _id: false });
 
 const ChatScheduleSchema = new Schema<ChatSchedule>({

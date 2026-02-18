@@ -1,5 +1,9 @@
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+
+// Cria uma função que checa se o ambiente é local/desenvolvimento
+const isLocal = () => {
+    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'local';
+};
 
 /**
  * Rate limiter geral para todas as requisições
@@ -7,6 +11,7 @@ import { Request, Response } from 'express';
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
+    skip: isLocal,
     message: {
         success: false,
         message: 'Too many requests, please try again later',
@@ -22,6 +27,7 @@ export const generalLimiter = rateLimit({
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
+    skip: isLocal,
     message: {
         success: false,
         message: 'Too many authentication attempts, please try again later',
@@ -36,8 +42,9 @@ export const authLimiter = rateLimit({
  * Rate limiter para criação de recursos (moderado)
  */
 export const createLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 10,
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    skip: isLocal,
     message: {
         success: false,
         message: 'Too many creation requests, please slow down',

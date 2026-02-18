@@ -34,7 +34,7 @@ export class CommandFactory {
   public create(command: string): Command | undefined {
     switch (command) {
 
-      case '/signup': return container.resolve(SignupCommand);
+      case '/cadastrar': return container.resolve(SignupCommand);
       case '/lista': return container.resolve(LineUpCreateCommand);
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);

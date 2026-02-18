@@ -12,6 +12,7 @@ export interface WorkspaceDoc extends Document {
         pix?: string;
         title?: string;
         logoUrl?: string;
+        enableMemberPriority?: boolean;
         courtCostCents?: number;
         refereeCostCents?: number;
         monthlyFeeCents?: number;
@@ -40,6 +41,7 @@ const WorkspaceSchema = new Schema({
         pix: { type: String },
         title: { type: String },
         logoUrl: { type: String },
+        enableMemberPriority: { type: Boolean, default: false },
         courtCostCents: { type: Number, default: 0 },
         refereeCostCents: { type: Number, default: 0 },
         monthlyFeeCents: { type: Number, default: 0 },

@@ -11,9 +11,10 @@ export class PlayersController {
         @inject(PLAYERS_SERVICE_TOKEN) private readonly playersService: PlayersService
     ) { }
 
-    listPlayers = async (req: Request, res: Response, next: NextFunction) => {
+    listPlayers = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const filters: ListPlayersDto = {
+                workspaceId: req.workspaceId!,
                 status: req.query.status as any,
                 search: req.query.search as string,
                 page: parseInt(req.query.page as string) || 1,
@@ -29,10 +30,10 @@ export class PlayersController {
         }
     };
 
-    getPlayerById = async (req: Request, res: Response, next: NextFunction) => {
+    getPlayerById = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const player = await this.playersService.getPlayerById(id as string);
+            const player = await this.playersService.getPlayerById(id as string, req.workspaceId!);
             res.json(player);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -43,14 +44,10 @@ export class PlayersController {
         }
     };
 
-    createPlayer = async (req: Request, res: Response, next: NextFunction) => {
+    createPlayer = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const data: CreatePlayerDto = req.body;
-
-            // WorkspaceId deve vir no body do request
-            if (!data.workspaceId) {
-                return next(new ApiError(400, 'Workspace ID é obrigatório'));
-            }
+            data.workspaceId = req.workspaceId!; // Enforce workspace context
 
             const player = await this.playersService.createPlayer(data);
             res.status(201).json(player);
@@ -69,11 +66,11 @@ export class PlayersController {
         }
     };
 
-    updatePlayer = async (req: Request, res: Response, next: NextFunction) => {
+    updatePlayer = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
             const data: UpdatePlayerDto = req.body;
-            const player = await this.playersService.updatePlayer(id as string, data);
+            const player = await this.playersService.updatePlayer(id as string, req.workspaceId!, data);
             res.json(player);
         } catch (error) {
             if (error instanceof Error) {
@@ -90,10 +87,10 @@ export class PlayersController {
         }
     };
 
-    deletePlayer = async (req: Request, res: Response, next: NextFunction) => {
+    deletePlayer = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            await this.playersService.deletePlayer(id as string);
+            await this.playersService.deletePlayer(id as string, req.workspaceId!);
             res.status(204).send();
         } catch (error) {
             if (error instanceof Error) {
@@ -110,10 +107,10 @@ export class PlayersController {
         }
     };
 
-    suspendPlayer = async (req: Request, res: Response, next: NextFunction) => {
+    suspendPlayer = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const player = await this.playersService.suspendPlayer(id as string);
+            const player = await this.playersService.suspendPlayer(id as string, req.workspaceId!);
             res.json(player);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -124,10 +121,10 @@ export class PlayersController {
         }
     };
 
-    activatePlayer = async (req: Request, res: Response, next: NextFunction) => {
+    activatePlayer = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const player = await this.playersService.activatePlayer(id as string);
+            const player = await this.playersService.activatePlayer(id as string, req.workspaceId!);
             res.json(player);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -138,19 +135,19 @@ export class PlayersController {
         }
     };
 
-    getStats = async (req: Request, res: Response, next: NextFunction) => {
+    getStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
-            const stats = await this.playersService.getStats();
+            const stats = await this.playersService.getStats(req.workspaceId!);
             res.json(stats);
         } catch (error) {
             next(error);
         }
     };
 
-    getPlayerDebts = async (req: Request, res: Response, next: NextFunction) => {
+    getPlayerDebts = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const debts = await this.playersService.getPlayerDebts(id as string);
+            const debts = await this.playersService.getPlayerDebts(id as string, req.workspaceId!);
             res.json(debts);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -161,10 +158,10 @@ export class PlayersController {
         }
     };
 
-    getPlayerGames = async (req: Request, res: Response, next: NextFunction) => {
+    getPlayerGames = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const games = await this.playersService.getPlayerGames(id as string);
+            const games = await this.playersService.getPlayerGames(id as string, req.workspaceId!);
             res.json(games);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -175,13 +172,13 @@ export class PlayersController {
         }
     };
 
-    getPlayerTransactions = async (req: Request, res: Response, next: NextFunction) => {
+    getPlayerTransactions = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
 
-            const result = await this.playersService.getPlayerTransactions(id as string, page, limit);
+            const result = await this.playersService.getPlayerTransactions(id as string, req.workspaceId!, page, limit);
             res.json(result);
         } catch (error) {
             if (error instanceof Error && error.message === 'Jogador não encontrado') {
@@ -192,9 +189,10 @@ export class PlayersController {
         }
     };
 
-    exportPlayers = async (req: Request, res: Response, next: NextFunction) => {
+    exportPlayers = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const filters: ListPlayersDto = {
+                workspaceId: req.workspaceId!,
                 status: req.query.status as any,
                 search: req.query.search as string,
                 page: 1,
@@ -228,13 +226,14 @@ export class PlayersController {
         }
     };
 
-    addCredit = async (req: Request, res: Response, next: NextFunction) => {
+    addCredit = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            const { workspaceId, amountCents, note, method, category } = req.body;
+            const { amountCents, note, method, category } = req.body;
+            const workspaceId = req.workspaceId!;
 
-            if (!workspaceId || !amountCents) {
-                throw new Error('workspaceId e amountCents são obrigatórios');
+            if (!amountCents) {
+                throw new Error('amountCents é obrigatório');
             }
 
             const player = await this.playersService.addCredit(id as string, {
@@ -291,7 +290,7 @@ export class PlayersController {
     getRateablePlayers = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const userId = req.user!.id;
-            const players = await this.playersService.getRateablePlayers(userId);
+            const players = await this.playersService.getRateablePlayers(userId, req.workspaceId!);
             res.json(players);
         } catch (error) {
             next(error);

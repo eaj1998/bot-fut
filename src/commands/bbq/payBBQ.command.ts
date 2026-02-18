@@ -12,6 +12,7 @@ import { LoggerService } from '../../logger/logger.service';
 import Utils from '../../utils/utils';
 import { tryParseDDMM } from '../../utils/date';
 import axios from 'axios';
+import { FinancialService, FINANCIAL_SERVICE_TOKEN } from '../../services/financial.service';
 
 @injectable()
 export class PayBBQCommand implements Command {
@@ -22,6 +23,7 @@ export class PayBBQCommand implements Command {
         @inject(WorkspaceService) private readonly workspaceSvc: WorkspaceService,
         @inject(UserRepository) private readonly userRepo: UserRepository,
         @inject(TRANSACTION_REPOSITORY_TOKEN) private readonly transactionRepo: TransactionRepository,
+        @inject(FINANCIAL_SERVICE_TOKEN) private readonly financialService: FinancialService,
         @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
         @inject(LoggerService) private readonly loggerService: LoggerService,
         @inject(Utils) private util: Utils
@@ -72,22 +74,28 @@ export class PayBBQCommand implements Command {
         const date = dateResult.start;
 
         // 1. Try to find debt in Transactions (Primary System)
-        // We need a method to find by user and date/category
         const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
 
-        const transactions = await this.transactionRepo['model'].find({
-            workspaceId: workspace._id,
-            userId: user._id,
-            type: TransactionType.INCOME,
-            category: TransactionCategory.BBQ_REVENUE,
-            status: TransactionStatus.PENDING,
-            dueDate: { $gte: startOfDay, $lte: endOfDay }
-        });
+        const transactions = await this.transactionRepo.findByUserId(
+            user._id.toString(),
+            workspace._id.toString(),
+            {
+                category: TransactionCategory.BBQ_REVENUE,
+                status: TransactionStatus.PENDING,
+                dateFrom: startOfDay,
+                dateTo: endOfDay
+            }
+        );
 
         if (transactions.length > 0) {
             const tx = transactions[0];
-            await this.transactionRepo.markAsPaid(tx._id.toString(), new Date(), 'pix');
+            await this.financialService.markAsPaid(
+                tx._id.toString(),
+                workspace._id.toString(),
+                new Date(),
+                'pix'
+            );
             await message.reply(`✅ Pagamento confirmado para ${user.name} (Transaction ID: ${tx._id})`);
             return;
         }

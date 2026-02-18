@@ -1,24 +1,3 @@
-const groupId = '120363146006960373@g.us';
-const groupId2 = '999999999999999999@g.us';
-const PARTICIPANTS = [{ id: 1, name: 'Luquinhas', phone: '+5549988124389', groupId: groupId },
-{ id: 2, name: 'Edipão', phone: '5549992007299@c.us', groupId: groupId },
-{ id: 3, name: 'Mikelongelo', phone: '+554187770278', groupId: groupId },
-{ id: 4, name: 'Sabrina', phone: '+5547998542231', groupId: groupId },
-{ id: 5, name: 'Vitinho', phone: '+5547997334122', groupId: groupId },
-{ id: 6, name: 'Carlinhos', phone: '+5548998893012', groupId: groupId },
-{ id: 7, name: 'Joãozinho', phone: '+5547988776655', groupId: groupId },
-{ id: 8, name: 'Pedrão', phone: '+5547999123456', groupId: groupId },
-{ id: 9, name: 'Tainá', phone: '+5548998456723', groupId: groupId },
-{ id: 10, name: 'Aninha', phone: '+5547998012345', groupId: groupId },
-{ id: 11, name: 'Felipão', phone: '+5541999123456', groupId: groupId },
-{ id: 12, name: 'Gui', phone: '+5547999456123', groupId: groupId },
-{ id: 13, name: 'Léo', phone: '+5548999654321', groupId: groupId },
-{ id: 14, name: 'Biel', phone: '+5541999988776', groupId: groupId },
-{ id: 15, name: 'Thay', phone: '+5547999332211', groupId: groupId },
-{ id: 16, name: 'Rafa', phone: '+5541998877665', groupId: groupId },
-{ id: 17, name: 'Val', phone: '+5541998877265', groupId: groupId },
-{ id: 18, name: 'Andrei', phone: '+5541992877665', groupId: groupId },]
-
 // USERS will be loaded from the database
 let USERS = [];
 
@@ -154,7 +133,7 @@ $(document).ready(() => {
       USERS.map((user, index) => {
         const $contact = $(templates.contact);
 
-        $contact.find('.name').text(user.name);
+        $contact.find('.name').text(user.name + ' (' + user.groupId + ')');
 
         if (index === 0) {
           setUserChat(user, $contact);

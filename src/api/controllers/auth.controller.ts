@@ -60,6 +60,13 @@ export class AuthController {
   getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = await this.authService.getMe(req.user!.id);
 
+    if (req.workspaceId && req.memberRoles) {
+      const isWorkspaceAdmin = req.memberRoles.some(r => ['admin', 'owner'].includes(r.toLowerCase()));
+      if (isWorkspaceAdmin) {
+        user.role = 'admin';
+      }
+    }
+
     res.json({
       success: true,
       data: user,

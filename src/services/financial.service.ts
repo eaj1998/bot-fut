@@ -188,15 +188,26 @@ export class FinancialService {
     }
 
     /**
-     * Atualiza uma transação existente (Status, Descrição)
+     * Busca uma transação por ID e Workspace
      */
-    async updateTransaction(transactionId: string, updates: { status?: TransactionStatus; description?: string }): Promise<TransactionResponseDto> {
-        const transaction = await this.transactionRepo.findById(transactionId);
+    async getTransactionById(transactionId: string, workspaceId: string): Promise<any> {
+        const transaction = await this.transactionRepo.findOneByIdAndWorkspace(transactionId, workspaceId);
         if (!transaction) {
             throw new ApiError(404, 'Transação não encontrada');
         }
+        return transaction;
+    }
 
-        if (transaction.category == 'MEMBERSHIP') {
+    /**
+     * Atualiza uma transação existente (Status, Descrição)
+     */
+    async updateTransaction(transactionId: string, workspaceId: string, updates: { status?: TransactionStatus; description?: string }): Promise<TransactionResponseDto> {
+        const transaction = await this.transactionRepo.findOneByIdAndWorkspace(transactionId, workspaceId);
+        if (!transaction) {
+            throw new ApiError(404, 'Transação não encontrada ou inválida para o workspace');
+        }
+
+        if (transaction.category === 'MEMBERSHIP') {
             throw new ApiError(400, 'Não é possível atualizar transação de mensalidade');
         }
 
@@ -316,6 +327,33 @@ export class FinancialService {
             createdAt: transaction.createdAt.toISOString(),
             updatedAt: transaction.updatedAt.toISOString(),
         };
+    }
+
+    /**
+     * Marca transação como paga (Wrapper seguro)
+     */
+    async markAsPaid(
+        transactionId: string,
+        workspaceId: string,
+        paidAt: Date,
+        method: "pix" | "dinheiro" | "transf" | "ajuste"
+    ): Promise<TransactionResponseDto> {
+        const transaction = await this.transactionRepo.findOneByIdAndWorkspace(transactionId, workspaceId);
+        if (!transaction) {
+            throw new ApiError(404, 'Transação não encontrada ou inválida para o workspace');
+        }
+
+        const updated = await this.transactionRepo.updateTransaction(transactionId, {
+            status: TransactionStatus.COMPLETED,
+            paidAt,
+            method
+        });
+
+        if (!updated) {
+            throw new ApiError(500, 'Falha ao atualizar transação');
+        }
+
+        return this.toResponseDto(updated);
     }
 }
 

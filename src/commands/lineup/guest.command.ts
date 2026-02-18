@@ -48,7 +48,7 @@ export class GuestCommand implements Command {
         const user = await this.userService.resolveUserFromMessage(message, workspace._id);
 
         try {
-            await this.gameService.addPlayer(game._id.toString(), {
+            await this.gameService.addPlayer(game._id.toString(), game.workspaceId.toString(), {
                 phone: user.phoneE164 || user.lid!,
                 name: user.name,
                 guestName: guestName,
@@ -56,7 +56,7 @@ export class GuestCommand implements Command {
             });
 
             // Refetch game to get updated roster
-            const updatedGame = await this.gameService.getGameById(game._id.toString());
+            const updatedGame = await this.gameService.getGameById(game._id.toString(), game.workspaceId.toString());
 
             if (updatedGame) {
                 const texto = await this.gameService.formatGameList(updatedGame);

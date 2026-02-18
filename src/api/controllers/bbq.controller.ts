@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
 import { TransactionStatus } from '../../core/models/transaction.model';
+import { FinancialService, FINANCIAL_SERVICE_TOKEN } from '../../services/financial.service';
 import { inject, singleton, injectable } from 'tsyringe';
 import { BBQService, BBQ_SERVICE_TOKEN } from '../../services/bbq.service';
 import { asyncHandler } from '../middleware/error.middleware';
@@ -26,6 +28,7 @@ export class BBQController {
         @inject(BBQ_SERVICE_TOKEN) private bbqService: BBQService,
         @inject(BBQ_REPOSITORY_TOKEN) private bbqRepository: BBQRepository,
         @inject(TRANSACTION_REPOSITORY_TOKEN) private transactionRepository: TransactionRepository,
+        @inject(FINANCIAL_SERVICE_TOKEN) private financialService: FinancialService,
         @inject(WorkspaceRepository) private workspaceRepository: WorkspaceRepository,
         @inject(LoggerService) private loggerService: LoggerService,
     ) { }
@@ -67,18 +70,18 @@ export class BBQController {
         };
     }
 
-    listBBQs = asyncHandler(async (req: Request, res: Response) => {
+    listBBQs = asyncHandler(async (req: AuthRequest, res: Response) => {
         const filters: BBQFilterDto = {
             status: req.query.status as BBQStatus,
             chatId: req.query.chatId as string,
-            workspaceId: req.query.workspaceId as string,
+            workspaceId: req.workspaceId!,
             dateFrom: req.query.dateFrom as string,
             dateTo: req.query.dateTo as string,
             page: req.query.page ? parseInt(req.query.page as string) : 1,
             limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
         };
 
-        const query: any = {};
+        const query: any = { workspaceId: req.workspaceId! };
 
         if (filters.status) {
             query.status = filters.status;
@@ -86,10 +89,6 @@ export class BBQController {
 
         if (filters.chatId) {
             query.chatId = filters.chatId;
-        }
-
-        if (filters.workspaceId) {
-            query.workspaceId = filters.workspaceId;
         }
 
         if (filters.dateFrom || filters.dateTo) {
@@ -145,9 +144,9 @@ export class BBQController {
         });
     });
 
-    getBBQById = asyncHandler(async (req: Request, res: Response) => {
+    getBBQById = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         if (!bbq) {
             res.status(404).json({
@@ -163,13 +162,10 @@ export class BBQController {
         });
     });
 
-    getStats = asyncHandler(async (req: Request, res: Response) => {
-        const workspaceId = req.query.workspaceId as string;
+    getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const workspaceId = req.workspaceId!;
 
-        const query: any = {};
-        if (workspaceId) {
-            query.workspaceId = workspaceId;
-        }
+        const query: any = { workspaceId };
 
         const [total, open, closed, finished, cancelled] = await Promise.all([
             this.bbqRepository['model'].countDocuments(query),
@@ -193,7 +189,7 @@ export class BBQController {
         });
     });
 
-    createBBQ = asyncHandler(async (req: Request, res: Response) => {
+    createBBQ = asyncHandler(async (req: AuthRequest, res: Response) => {
         const dto: CreateBBQDto = req.body;
 
         let date: Date;
@@ -205,17 +201,16 @@ export class BBQController {
         }
 
         const bbq = await this.bbqRepository.create(
-            dto.workspaceId,
+            req.workspaceId!,
             dto.chatId,
             date
         );
 
         if (dto.description) {
-            // Simple update for description if needed, or add to create method
-            await this.bbqRepository['model'].findByIdAndUpdate(bbq._id, { description: dto.description });
+            await this.bbqRepository.update(bbq._id.toString(), req.workspaceId!, { description: dto.description });
         }
 
-        const updatedBBQ = await this.bbqRepository.findById(bbq._id.toString());
+        const updatedBBQ = await this.bbqRepository.findOneByIdAndWorkspace(bbq._id.toString(), req.workspaceId!);
 
         res.status(201).json({
             success: true,
@@ -224,7 +219,7 @@ export class BBQController {
         });
     });
 
-    togglePayment = asyncHandler(async (req: Request, res: Response) => {
+    togglePayment = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id, userId } = req.params;
         const { isPaid } = req.body;
 
@@ -233,7 +228,7 @@ export class BBQController {
             return;
         }
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
         if (!bbq) {
             res.status(404).json({ success: false, message: 'BBQ não encontrado' });
             return;
@@ -253,14 +248,21 @@ export class BBQController {
         // If closed, transaction exists. Toggle status.
         if (bbq.status === 'closed' && participant.transactionId) {
             if (isPaid) {
-                await this.transactionRepository.markAsPaid(participant.transactionId, new Date(), 'ajuste');
+                await this.financialService.markAsPaid(
+                    participant.transactionId,
+                    req.workspaceId!,
+                    new Date(),
+                    'ajuste'
+                );
             } else {
+                // Ensure we can access transaction first
+                await this.financialService.getTransactionById(participant.transactionId, req.workspaceId!);
                 await this.transactionRepository.updateTransaction(participant.transactionId, { status: TransactionStatus.PENDING, paidAt: undefined });
             }
         }
 
         // Update BBQ model state
-        const updatedBBQ = await this.bbqRepository.updateParticipantPaymentStatus(id as string, userId as string, isPaid);
+        const updatedBBQ = await this.bbqRepository.updateParticipantPaymentStatus(id as string, req.workspaceId!, userId as string, isPaid);
 
         res.json({
             success: true,
@@ -269,11 +271,11 @@ export class BBQController {
         });
     });
 
-    updateBBQ = asyncHandler(async (req: Request, res: Response) => {
+    updateBBQ = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const dto: UpdateBBQDto = req.body;
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         if (!bbq) {
             res.status(404).json({
@@ -287,7 +289,6 @@ export class BBQController {
 
         if (dto.date) {
             const date = new Date(dto.date);
-
             updateData.date = date;
         }
 
@@ -309,24 +310,24 @@ export class BBQController {
             }
         }
 
-        const updatedBBQ = await this.bbqRepository['model'].findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true }
-        ).lean();
+        const updatedBBQ = await this.bbqRepository.update(
+            id as string,
+            req.workspaceId!,
+            updateData
+        );
 
         res.json({
             success: true,
-            data: this.mapBBQToResponse(updatedBBQ as IBBQ),
+            data: this.mapBBQToResponse(updatedBBQ!),
             message: 'BBQ atualizado com sucesso',
         });
     });
 
-    updateStatus = asyncHandler(async (req: Request, res: Response) => {
+    updateStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { status }: UpdateBBQStatusDto = req.body;
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         if (!bbq) {
             res.status(404).json({
@@ -344,23 +345,23 @@ export class BBQController {
             updateData.finishedAt = new Date();
         }
 
-        const updatedBBQ = await this.bbqRepository['model'].findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true }
-        ).lean();
+        const updatedBBQ = await this.bbqRepository.update(
+            id as string,
+            req.workspaceId!,
+            updateData
+        );
 
         res.json({
             success: true,
-            data: this.mapBBQToResponse(updatedBBQ as IBBQ),
+            data: this.mapBBQToResponse(updatedBBQ!),
             message: 'Status do BBQ atualizado com sucesso',
         });
     });
 
-    closeBBQ = asyncHandler(async (req: Request, res: Response) => {
+    closeBBQ = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         if (!bbq) {
             res.status(404).json({
@@ -401,9 +402,8 @@ export class BBQController {
             return;
         }
 
-        const updatedBBQ = await this.bbqRepository.findById(id as string);
-        const totalParticipants = updatedBBQ!.participants.length;
-        const totalValue = (updatedBBQ!.financials.ticketPrice / 100) * totalParticipants; // Logic check on service
+        const updatedBBQ = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
+        // Note: Logic for totalValue was previously just calculation, not responding field. Keeping response simple.
 
         res.json({
             success: true,
@@ -412,9 +412,9 @@ export class BBQController {
         });
     });
 
-    cancelBBQ = asyncHandler(async (req: Request, res: Response) => {
+    cancelBBQ = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
         if (!bbq) {
             res.status(404).json({ success: false, message: 'BBQ não encontrado' });
             return;
@@ -427,7 +427,7 @@ export class BBQController {
             return;
         }
 
-        const updatedBBQ = await this.bbqRepository.findById(id as string);
+        const updatedBBQ = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         res.json({
             success: true,
@@ -436,7 +436,7 @@ export class BBQController {
         });
     });
 
-    addParticipant = asyncHandler(async (req: Request, res: Response) => {
+    addParticipant = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { userId, userName, invitedBy, guestName } = req.body;
 
@@ -456,7 +456,7 @@ export class BBQController {
             }
         }
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
         if (!bbq) {
             res.status(404).json({ success: false, message: 'BBQ não encontrado' });
             return;
@@ -464,7 +464,6 @@ export class BBQController {
 
         let result;
         if (invitedBy) {
-            // "Inviter" placeholder for name, or fetch if needed. Service usually just needs ID.
             result = await this.bbqService.addGuest(bbq.workspaceId, bbq.chatId, invitedBy, "Inviter", name, id as string);
         } else {
             result = await this.bbqService.joinBBQ(bbq.workspaceId, bbq.chatId, userId, name, id as string);
@@ -475,7 +474,7 @@ export class BBQController {
             return;
         }
 
-        const updatedBBQ = await this.bbqRepository.findById(id as string);
+        const updatedBBQ = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         res.json({
             success: true,
@@ -484,28 +483,23 @@ export class BBQController {
         });
     });
 
-    removeParticipant = asyncHandler(async (req: Request, res: Response) => {
+    removeParticipant = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id, userId } = req.params;
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         if (!bbq) {
             res.status(404).json({ success: false, message: 'BBQ não encontrado' });
             return;
         }
 
-        // Logic split: is it a guest removal or self removal?
-        // Using generic leaveBBQ for user, but we might need removeGuest if it's a guest ID format
-        // Simulating simple removal for API parity
         const result = await this.bbqService.leaveBBQ(bbq.workspaceId, bbq.chatId, userId as string, "User", id as string);
 
         if (!result.success) {
-            // Fallback: try removing as guest logic if implemented distinctly or force repo removal
-            // For now assume service handles it
             res.status(400).json(result);
             return;
         }
 
-        const updatedBBQ = await this.bbqRepository.findById(id as string);
+        const updatedBBQ = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         res.json({
             success: true,
@@ -514,7 +508,7 @@ export class BBQController {
         });
     });
 
-    toggleParticipantPayment = asyncHandler(async (req: Request, res: Response) => {
+    toggleParticipantPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id, userId } = req.params;
         const { isPaid } = req.body;
 
@@ -523,7 +517,7 @@ export class BBQController {
             return;
         }
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
         if (!bbq) {
             res.status(404).json({ success: false, message: 'BBQ não encontrado' });
             return;
@@ -543,14 +537,20 @@ export class BBQController {
         // If closed, transaction exists. Toggle status.
         if (bbq.status === 'closed' && participant.transactionId) {
             if (isPaid) {
-                await this.transactionRepository.markAsPaid(participant.transactionId, new Date(), 'ajuste');
+                await this.financialService.markAsPaid(
+                    participant.transactionId,
+                    req.workspaceId!,
+                    new Date(),
+                    'ajuste'
+                );
             } else {
+                await this.financialService.getTransactionById(participant.transactionId, req.workspaceId!);
                 await this.transactionRepository.updateTransaction(participant.transactionId, { status: TransactionStatus.PENDING, paidAt: undefined });
             }
         }
 
         // Update BBQ model state
-        const updatedBBQ = await this.bbqRepository.updateParticipantPaymentStatus(id as string, userId as string, isPaid);
+        const updatedBBQ = await this.bbqRepository.updateParticipantPaymentStatus(id as string, req.workspaceId!, userId as string, isPaid);
 
         res.json({
             success: true,
@@ -558,7 +558,7 @@ export class BBQController {
             message: `${participant.userName} marcado como ${isPaid ? 'pago' : 'pendente'}`,
         });
     });
-    toggleParticipantIsFree = asyncHandler(async (req: Request, res: Response) => {
+    toggleParticipantIsFree = asyncHandler(async (req: AuthRequest, res: Response) => {
         const { id, userId } = req.params;
         const { isFree } = req.body;
 
@@ -567,14 +567,14 @@ export class BBQController {
             return;
         }
 
-        const bbq = await this.bbqRepository.findById(id as string);
+        const bbq = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
         if (!bbq) {
             res.status(404).json({ success: false, message: 'BBQ não encontrado' });
             return;
         }
 
         const result = await this.bbqService.toggleParticipantFree(
-            bbq.workspaceId,
+            req.workspaceId!,
             bbq.chatId,
             userId as string,
             isFree,
@@ -586,7 +586,7 @@ export class BBQController {
             return;
         }
 
-        const updatedBBQ = await this.bbqRepository.findById(id as string);
+        const updatedBBQ = await this.bbqRepository.findOneByIdAndWorkspace(id as string, req.workspaceId!);
 
         res.json({
             success: true,

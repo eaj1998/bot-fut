@@ -45,7 +45,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
       if (!bbq) {
         return { success: false, message: '❌ Churrasco não encontrado.' };
       }
@@ -95,7 +95,7 @@ export class BBQService {
       isFree
     };
 
-    const updatedBBQ = await this.bbqRepository.addParticipant(bbq._id.toString(), participant);
+    const updatedBBQ = await this.bbqRepository.addParticipant(bbq._id.toString(), workspaceId, participant);
 
     return {
       success: true,
@@ -108,7 +108,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
     } else {
       const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
       bbq = await this.bbqRepository.findBBQForDate(workspaceId, chatId, gameDate);
@@ -122,7 +122,7 @@ export class BBQService {
       return { success: false, message: '❌ A lista do churrasco já está fechada!' };
     }
 
-    const updatedBBQ = await this.bbqRepository.removeParticipant(bbq._id.toString(), userId);
+    const updatedBBQ = await this.bbqRepository.removeParticipant(bbq._id.toString(), workspaceId, userId);
 
     return {
       success: true,
@@ -135,7 +135,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
       if (!bbq) return { success: false, message: '❌ Churrasco não encontrado.' };
     } else {
       bbq = await this.getOrCreateBBQForGameDay(workspaceId, chatId);
@@ -154,7 +154,7 @@ export class BBQService {
       isFree: false
     };
 
-    await this.bbqRepository.addParticipant(bbq._id.toString(), guest);
+    await this.bbqRepository.addParticipant(bbq._id.toString(), workspaceId, guest);
 
     return {
       success: true,
@@ -166,7 +166,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
     } else {
       const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
       bbq = await this.bbqRepository.findBBQForDate(workspaceId, chatId, gameDate);
@@ -186,7 +186,7 @@ export class BBQService {
       return { success: false, message: `❌ Convidado *${guestName}* não encontrado na sua lista.` };
     }
 
-    await this.bbqRepository.removeParticipant(bbq._id.toString(), guest.userId);
+    await this.bbqRepository.removeParticipant(bbq._id.toString(), workspaceId, guest.userId);
 
     return {
       success: true,
@@ -202,7 +202,7 @@ export class BBQService {
       return { success: false, message: '❌ Não existe lista de churrasco hoje.' };
     }
 
-    await this.bbqRepository.setFinancials(bbq._id.toString(), financials);
+    await this.bbqRepository.setFinancials(bbq._id.toString(), workspaceId, financials);
 
     return {
       success: true,
@@ -214,7 +214,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
       if (!bbq) return { success: false, message: '❌ Churrasco não encontrado.' };
     } else {
       const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
@@ -292,7 +292,7 @@ export class BBQService {
       );
     }
 
-    await this.bbqRepository.close(bbq._id.toString());
+    await this.bbqRepository.close(bbq._id.toString(), workspaceId);
 
     const totalCollected = payingCount * bbq.financials.ticketPrice;
 
@@ -311,7 +311,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
     } else {
       const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
       bbq = await this.bbqRepository.findBBQForDate(workspaceId, chatId, gameDate);
@@ -321,7 +321,7 @@ export class BBQService {
       return { success: false, message: '❌ A lista do churrasco já está fechada ou não encontrada!' };
     }
 
-    await this.bbqRepository.cancel(bbq._id.toString());
+    await this.bbqRepository.cancel(bbq._id.toString(), workspaceId);
 
     return { success: true, message: '✅ Lista de churrasco cancelada!' };
   }
@@ -370,7 +370,7 @@ export class BBQService {
     let bbq: IBBQ | null;
 
     if (bbqId) {
-      bbq = await this.bbqRepository.findById(bbqId);
+      bbq = await this.bbqRepository.findOneByIdAndWorkspace(bbqId, workspaceId);
     } else {
       const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
       bbq = await this.bbqRepository.findBBQForDate(workspaceId, chatId, gameDate);
@@ -390,7 +390,7 @@ export class BBQService {
     }
 
     // Update isFree status
-    bbq = await this.bbqRepository.updateParticipantIsFree(bbq._id.toString(), userId, isFree);
+    bbq = await this.bbqRepository.updateParticipantIsFree(bbq._id.toString(), workspaceId, userId, isFree);
 
     if (!bbq) {
       return { success: false, message: '❌ Erro ao atualizar participante.' };

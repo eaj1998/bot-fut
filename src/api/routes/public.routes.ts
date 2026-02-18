@@ -59,12 +59,18 @@ router.get('/users', async (req, res) => {
             .limit(50)
             .exec();
 
+        const validGroups = [
+            '120363146006960373@g.us',
+            '120363385759902376@g.us',
+            '120363390493860577@g.us'
+        ];
+
         const formattedUsers = users.map((user, index) => ({
             id: index + 1,
             name: user.name,
             phone: user.phoneE164?.replace('@c.us', '') || '',
             lid: user.lid || undefined,
-            groupId: '120363146006960373@g.us' // Default group ID for test
+            groupId: validGroups[Math.floor(Math.random() * validGroups.length)]
         }));
 
         res.json(formattedUsers);

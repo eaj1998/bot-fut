@@ -1,10 +1,14 @@
 import { singleton } from 'tsyringe';
 
-type IEnv = 'production' | 'development';
+type IEnv = 'production' | 'staging' | 'development';
 
 @singleton()
 export class ConfigService {
-  env: IEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+  env: IEnv = process.env.NODE_ENV === 'production'
+    ? 'production'
+    : process.env.NODE_ENV === 'staging'
+      ? 'staging'
+      : 'development';
 
   localServer = {
     port: process.env.PORT || 3000,

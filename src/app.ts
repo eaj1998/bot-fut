@@ -40,7 +40,7 @@ export class App {
       throw new Error('Cannot initialize app more than once');
     }
 
-    if (this.configService.env === 'production') {
+    if (this.configService.env === 'production' || this.configService.env === 'staging') {
       this.server = container.resolve(BotServer);
     } else {
       const { HttpServer } = await import('./server/http');

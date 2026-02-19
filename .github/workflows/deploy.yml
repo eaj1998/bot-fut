@@ -67,7 +67,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Fazendo login no ECR na EC2..."
-            aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin ${{ needs.build.outputs.registry }}
+            aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 872095123176.dkr.ecr.us-east-2.amazonaws.com
             
             # Entrar na pasta do projeto
             cd /home/ubuntu/bot-fut-app

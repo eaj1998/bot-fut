@@ -8,6 +8,7 @@ import { TransactionType, TransactionCategory, TransactionStatus } from '../core
 import { ChatModel } from '../core/models/chat.model';
 import { getNextWeekday, getNowInSPAsUTC } from '../utils/date';
 import { formatDateBR } from '../utils/date';
+import { BBQStatus } from '../api/dto/bbq.dto';
 
 @injectable()
 export class BBQService {
@@ -30,11 +31,11 @@ export class BBQService {
   }
 
   async getOrCreateBBQForGameDay(workspaceId: string, chatId: string): Promise<IBBQ> {
-    const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
 
-    let bbq = await this.bbqRepository.findBBQForDate(workspaceId, chatId, gameDate);
+    let bbq = await this.bbqRepository.findRecentBBQByStatus(workspaceId, chatId, BBQStatus.OPEN);
 
     if (!bbq) {
+      const gameDate = await this.getGameDateFromSchedule(workspaceId, chatId);
       bbq = await this.bbqRepository.create(workspaceId, chatId, gameDate);
     }
 

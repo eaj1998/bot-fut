@@ -1,12 +1,23 @@
 import { inject, injectable } from 'tsyringe';
 import { Model } from 'mongoose';
 import { BBQ_MODEL_TOKEN, IBBQ, IBBQParticipant } from '../models/bbq.model';
+import { BBQStatus } from '../../api/dto/bbq.dto';
 
 @injectable()
 export class BBQRepository {
   constructor(
     @inject(BBQ_MODEL_TOKEN) private readonly model: Model<IBBQ>
   ) { }
+
+  async findRecentBBQByStatus(workspaceId: string, chatId: string, status: BBQStatus
+  ): Promise<IBBQ | null> {
+
+    return this.model.findOne({
+      workspaceId,
+      chatId,
+      status: status,
+    }).exec();
+  }
 
   async findBBQForDate(workspaceId: string, chatId: string, targetDate: Date): Promise<IBBQ | null> {
     const startOfDay = new Date(targetDate);

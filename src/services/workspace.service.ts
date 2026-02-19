@@ -220,7 +220,6 @@ export class WorkspaceService {
             throw new Error("Já existe um workspace com este slug");
         }
 
-        // Create workspace and membership in a transaction
         const session = await this.repo["model"].db.startSession();
 
         try {
@@ -232,11 +231,10 @@ export class WorkspaceService {
                     settings: data.settings || {},
                 }], { session });
 
-                // Create WorkspaceMember record for the creator
                 await this.workspaceMemberModel.create([{
                     userId,
                     workspaceId: workspace[0]._id,
-                    roles: ['OWNER', 'ADMIN'],
+                    roles: ['ADMIN'],
                     status: 'ACTIVE',
                 }], { session });
 
@@ -261,10 +259,8 @@ export class WorkspaceService {
             throw new Error("Workspace não encontrado");
         }
 
-        // Validate user has ADMIN or OWNER role
         await this.validateUserAccess(userId, id, ['ADMIN', 'OWNER']);
 
-        // Verifica se o novo slug já está em uso
         if (data.slug && data.slug !== workspace.slug) {
             const existing = await this.repo.findBySlug(data.slug);
             if (existing) {

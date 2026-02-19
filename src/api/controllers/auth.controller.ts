@@ -74,6 +74,30 @@ export class AuthController {
   });
 
   /**
+   * PUT /api/auth/me
+   * Update current user's global profile (no workspace required)
+   */
+  updateMe = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { name } = req.body as { name?: string };
+
+    if (!name || !name.trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'O campo "name" é obrigatório e não pode estar vazio.',
+      });
+      return;
+    }
+
+    const user = await this.authService.updateMe(req.user!.id, { name });
+
+    res.json({
+      success: true,
+      data: user,
+      message: 'Perfil atualizado com sucesso.',
+    });
+  });
+
+  /**
    * POST /api/auth/logout
    * Logout (client-side token deletion)
    */

@@ -184,6 +184,32 @@ export class AuthService {
         };
     }
 
+    async updateMe(userId: string, data: { name: string }): Promise<{
+        id: string;
+        name: string;
+        phone: string;
+        role: string;
+        status?: string;
+    }> {
+        const user = await this.userModel.findByIdAndUpdate(
+            userId,
+            { $set: { name: data.name.trim() } },
+            { new: true, runValidators: true },
+        ).exec();
+
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
+        return {
+            id: user._id.toString(),
+            name: user.name,
+            phone: user.phoneE164 || user.lid || '',
+            role: user.role || 'user',
+            status: user.status,
+        };
+    }
+
     private generateOTP(): string {
         const numbers = '0123456789';
         let otp = '';

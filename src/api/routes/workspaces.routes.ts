@@ -258,7 +258,7 @@ router.get('/:id/stats', controller.getWorkspaceStats);
  *       403:
  *         description: Sem permissão de admin
  */
-router.post('/', requireAdmin, controller.createWorkspace);
+router.post('/', controller.createWorkspace);
 
 /**
  * @swagger

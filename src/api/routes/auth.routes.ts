@@ -163,6 +163,60 @@ router.get('/me', authenticate, controller.getMe);
 
 /**
  * @swagger
+ * /api/auth/me:
+ *   put:
+ *     summary: Atualiza dados do usuário global
+ *     description: Permite que o usuário autenticado atualize seu nome antes de possuir um Workspace (onboarding). Não requer ensureWorkspace.
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome do usuário
+ *                 example: "João Silva"
+ *     responses:
+ *       200:
+ *         description: Perfil atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                 message:
+ *                   type: string
+ *                   example: "Perfil atualizado com sucesso."
+ *       400:
+ *         description: Nome inválido ou vazio
+ *       401:
+ *         description: Não autenticado
+ */
+router.put('/me', authenticate, controller.updateMe);
+
+/**
+ * @swagger
  * /api/auth/logout:
  *   post:
  *     summary: Faz logout do usuário

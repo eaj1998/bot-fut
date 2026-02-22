@@ -12,6 +12,10 @@ export class WorkspaceMemberRepository {
         return this.model.findOne({ workspaceId, userId }).exec();
     }
 
+    async findByWorkspaceAndUsers(workspaceId: string | Types.ObjectId, userIds: (string | Types.ObjectId)[]): Promise<IWorkspaceMember[]> {
+        return this.model.find({ workspaceId, userId: { $in: userIds } }).exec();
+    }
+
     async findByUserId(userId: string | Types.ObjectId): Promise<IWorkspaceMember[]> {
         return this.model.find({ userId }).exec();
     }

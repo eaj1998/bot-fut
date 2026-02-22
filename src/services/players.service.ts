@@ -90,7 +90,7 @@ export class PlayersService {
      */
     async listPlayers(filters: ListPlayersDto): Promise<PaginationResponseDto> {
         const { data, totalCount, currentPage, totalPages } = await this.playerRepository.listPlayers({
-            workspaceId: filters.workspaceId,
+            workspaceId: filters.workspaceId as string,
             page: filters.page,
             limit: filters.limit,
             search: filters.search,

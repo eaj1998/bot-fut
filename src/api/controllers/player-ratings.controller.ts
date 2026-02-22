@@ -13,7 +13,12 @@ export class PlayerRatingsController {
     createRating = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const raterId = req.user!.id;
+            const workspaceId = req.workspaceId;
             const { targetUserId, score } = req.body;
+
+            if (!workspaceId) {
+                throw new ApiError(400, 'WorkspaceId is required');
+            }
 
             if (!targetUserId || !score) {
                 throw new ApiError(400, 'targetUserId and score are required');
@@ -23,7 +28,7 @@ export class PlayerRatingsController {
                 throw new ApiError(400, 'Score must be between 1 and 5');
             }
 
-            await this.ratingService.ratePlayer(raterId, targetUserId, score);
+            await this.ratingService.ratePlayer(workspaceId, raterId, targetUserId, score);
 
             res.status(201).json({
                 success: true,
@@ -41,7 +46,13 @@ export class PlayerRatingsController {
     getUserRatings = async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const raterId = req.user!.id;
-            const ratings = await this.ratingService.getRatingsByRater(raterId);
+            const workspaceId = req.workspaceId;
+
+            if (!workspaceId) {
+                throw new ApiError(400, 'WorkspaceId is required');
+            }
+
+            const ratings = await this.ratingService.getRatingsByRater(workspaceId, raterId);
 
             res.json({
                 success: true,

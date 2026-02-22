@@ -358,6 +358,7 @@ export class GameService {
                 ? player.invitedByUserId?.toString()
                 : player.userId?.toString();
 
+              console.log("Target user id", targetUserId);
               if (!targetUserId) {
                 return {
                   success: false,
@@ -386,7 +387,7 @@ export class GameService {
               let transactionId: string | undefined;
               let ledgerOk = false;
 
-              const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
+              const finalAmount = amountCents;
 
               if (finalAmount > 0) {
                 const isPaid = player.paid || false;
@@ -410,28 +411,17 @@ export class GameService {
                 ledgerOk = true;
               }
 
-              let organizzeOk = false;
-              try {
-                const org = await this.criarMovimentacaoOrganizze(
-                  player,
-                  game.date,
-                  finalAmount,
-                  game.workspaceId.toString()
-                );
-                organizzeOk = !!org.added;
-              } catch {
-                // Organizze é opcional
-              }
-
               return {
                 success: ledgerOk,
                 playerName,
                 ledger: ledgerOk,
-                organizze: organizzeOk,
+                organizze: false,
                 transactionId,
                 isMember: false,
               };
             } catch (err: any) {
+              console.log("Error", err);
+
               return {
                 success: false,
                 playerName,
@@ -454,39 +444,6 @@ export class GameService {
               error: r.reason?.message ?? String(r.reason)
             }
         );
-
-        const fieldCost = (workspace as any)?.defaultFieldCost || 0;
-        const refereeCost = (workspace as any)?.defaultRefereeCost || 0;
-
-        if (fieldCost > 0) {
-          await this.transactionRepo.createTransaction({
-            workspaceId: game.workspaceId.toString(),
-            gameId: game._id.toString(),
-            type: TransactionType.EXPENSE,
-            category: TransactionCategory.FIELD_RENTAL,
-            status: TransactionStatus.COMPLETED,
-            amount: fieldCost,
-            dueDate: game.date,
-            paidAt: new Date(),
-            description: `Aluguel quadra - ${game.title} - ${formatDateBR(game.date)}`,
-            method: 'transf',
-          });
-        }
-
-        if (refereeCost > 0) {
-          await this.transactionRepo.createTransaction({
-            workspaceId: game.workspaceId.toString(),
-            gameId: game._id.toString(),
-            type: TransactionType.EXPENSE,
-            category: TransactionCategory.REFEREE,
-            status: TransactionStatus.COMPLETED,
-            amount: refereeCost,
-            dueDate: game.date,
-            paidAt: new Date(),
-            description: `Árbitro - ${game.title} - ${formatDateBR(game.date)}`,
-            method: 'dinheiro',
-          });
-        }
 
         game.status = "closed";
         if (typeof game.save === "function") {
@@ -655,24 +612,31 @@ export class GameService {
     // Remove
     players.splice(index, 1);
 
-    // Promotion logic
     let promotedMessage = "";
     let mentions: string[] = [];
 
     if (removedSlot >= goalieSlots + 1 && waitlist.length > 0) {
       const promovido = waitlist.shift()!;
 
+      console.log("Promovido", promovido);
+      let isPaid = false;
+      if (promovido.userId) {
+        const membership = await this.membershipRepo.findByUserId(
+          promovido.userId.toString(),
+          game.workspaceId.toString()
+        );
+        isPaid = membership?.status === MembershipStatus.ACTIVE;
+      }
       const promotedPlayer = {
         slot: removedSlot,
         userId: promovido.userId,
         name: promovido.name ?? "Jogador",
         phoneE164: promovido.phoneE164,
-        paid: false,
+        paid: isPaid,
       };
 
       players.push(promotedPlayer);
 
-      // Prepare notifications
       if (promovido?.phoneE164) {
         const e164 = promovido.phoneE164.replace(/@c\.us$/i, "");
         const jid = `${e164.replace(/\D/g, "")}@c.us`;
@@ -757,7 +721,7 @@ export class GameService {
     user: IUser,
     nomeAutor: string,
   ): Promise<{ removed: boolean, message: string, mentions?: string[] }> {
-    const goalieSlots = Math.max(0, game.roster?.goalieSlots ?? 2);
+
     const players = Array.isArray(game.roster?.players) ? game.roster.players : [];
     const waitlist = Array.isArray(game.roster?.waitlist) ? game.roster.waitlist : [];
 
@@ -1030,7 +994,7 @@ export class GameService {
     const now = new Date();
     const payMethod = opts?.method ?? "pix";
     const amountCents = game.priceCents ?? this.configService.organizze.valorJogo;
-    const finalAmount = this.configService.whatsApp.adminNumbers.includes(player?.phoneE164 ?? "") ? 0 : amountCents;
+    const finalAmount = amountCents;
 
 
 

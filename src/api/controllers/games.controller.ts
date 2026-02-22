@@ -3,6 +3,7 @@ import { injectable } from 'tsyringe';
 import { GameService } from '../../services/game.service';
 import { UserService } from '../../services/user.service';
 import { TeamBalancerService } from '../../services/team-balancer.service';
+import { WorkspaceMemberRepository } from '../../core/repositories/workspace-member.repository';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler, ApiError } from '../middleware/error.middleware';
 import { CreateGameDto, UpdateGameDto, AddPlayerToGameDto, MarkPaymentDto, GameFilterDto, GameStatus } from '../dto/game.dto';
@@ -12,7 +13,8 @@ export class GamesController {
   constructor(
     private gameService: GameService,
     private userService: UserService,
-    private teamBalancer: TeamBalancerService
+    private teamBalancer: TeamBalancerService,
+    private workspaceMemberRepo: WorkspaceMemberRepository
   ) { }
 
   listGames = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -244,9 +246,14 @@ export class GamesController {
       .filter((id): id is string => !!id);
 
     const usersMap = new Map<string, any>();
+    const memberRatingsMap = new Map<string, number>();
+
     if (userIds.length > 0) {
       const users = await this.userService.findUsersByIds(userIds);
       users.forEach(u => usersMap.set(u._id.toString(), u));
+
+      const members = await this.workspaceMemberRepo.findByWorkspaceAndUsers(req.workspaceId!, userIds);
+      members.forEach(m => memberRatingsMap.set(m.userId.toString(), m.rating ?? 3.0));
     }
 
     // 2. Map ALL roster players to IUser-like structure for the balancer
@@ -266,7 +273,8 @@ export class GamesController {
         const clonedUser = {
           ...user,
           _id: rosterId,
-          name: player.name || user.name // Prefer roster name if available? Or user name? Roster name usually snapshot.
+          name: player.name || user.name, // Prefer roster name if available? Or user name? Roster name usually snapshot.
+          workspaceRating: memberRatingsMap.get(player.userId.toString()) ?? 3.0
         };
 
         // Enforce GOL position
@@ -286,6 +294,7 @@ export class GamesController {
         name: player.name,
         phoneE164: player.phoneE164,
         roles: ['guest'],
+        workspaceRating: 3.0,
         profile: {
           mainPosition: isGoalkeeperSlot ? 'GOL' : 'MEI',
           rating: 3.0,

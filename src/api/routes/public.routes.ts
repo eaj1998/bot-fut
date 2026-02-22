@@ -61,8 +61,8 @@ router.get('/users', async (req, res) => {
 
         const validGroups = [
             '120363146006960373@g.us',
-            '120363385759902376@g.us',
-            '120363390493860577@g.us'
+            // '120363385759902376@g.us',
+            // '120363390493860577@g.us'
         ];
 
         const formattedUsers = users.map((user, index) => ({

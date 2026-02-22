@@ -8,6 +8,8 @@ export interface IWorkspaceMember extends Document {
     nickname?: string;
     status: 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'INACTIVE';
     joinedAt: Date;
+    rating: number;
+    ratingCount: number;
 }
 
 const WorkspaceMemberSchema = new Schema({
@@ -16,6 +18,8 @@ const WorkspaceMemberSchema = new Schema({
     roles: [{ type: String }],
     nickname: { type: String },
     status: { type: String, enum: ['ACTIVE', 'INVITED', 'SUSPENDED', 'INACTIVE'], default: 'ACTIVE' },
+    rating: { type: Number, default: 3.0 },
+    ratingCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 WorkspaceMemberSchema.index({ workspaceId: 1, userId: 1 }, { unique: true });

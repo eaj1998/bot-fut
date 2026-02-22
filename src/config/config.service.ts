@@ -20,8 +20,6 @@ export class ConfigService {
     terca: process.env.ID_GRUPO_TERCA,
     quinta: process.env.ID_GRUPO_QUINTA,
     test: process.env.ID_GRUPO_TESTE,
-
-    adminNumbers: (process.env.ADMIN_NUMBERS || '').split(','),
   };
 
   youtube = {

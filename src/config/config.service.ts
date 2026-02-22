@@ -57,7 +57,7 @@ export class ConfigService {
   api = {
     port: parseInt(process.env.API_PORT || '3001', 10),
     cors: {
-      origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'],
+      origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'https://hml.fazosimplesfc.app', 'https://fazosimplesfc.app'],
     },
   };
 

@@ -14,6 +14,7 @@ export enum PlatformType {
 
 export interface ChatSettings {
   sendReminders: boolean;
+  maxPlayersPerGame?: number;
 }
 
 export interface ChatFinancials {
@@ -49,7 +50,8 @@ export interface ChatDoc extends Document {
 }
 
 const ChatSettingsSchema = new Schema<ChatSettings>({
-  sendReminders: { type: Boolean, default: true }
+  sendReminders: { type: Boolean, default: true },
+  maxPlayersPerGame: { type: Number, default: 16 }
 }, { _id: false });
 
 const ChatFinancialsSchema = new Schema<ChatFinancials>({

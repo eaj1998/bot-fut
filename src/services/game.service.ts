@@ -1509,6 +1509,7 @@ export class GameService {
         title,
         priceCents,
         roster: { goalieSlots: 2, players: [], waitlist: [] },
+        maxPlayers: chat.settings?.maxPlayersPerGame || 16,
       });
     } else {
 

@@ -43,6 +43,7 @@ export class ChatService {
 
             settings: {
                 sendReminders: settings.sendReminders !== undefined ? settings.sendReminders : true,
+                maxPlayersPerGame: settings.maxPlayersPerGame || 1,
             },
             financials: {
                 defaultPriceCents: financials.defaultPriceCents || 0,

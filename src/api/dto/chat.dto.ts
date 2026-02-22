@@ -5,6 +5,7 @@
 export interface ChatSettingsDto {
     requirePaymentProof?: boolean;
     sendReminders?: boolean;
+    maxPlayersPerGame?: number;
 }
 
 export interface ChatFinancialsDto {
@@ -62,6 +63,7 @@ export interface ChatResponseDto {
     // Nested objects
     settings: {
         sendReminders: boolean;
+        maxPlayersPerGame: number;
     };
     financials: {
         defaultPriceCents: number;

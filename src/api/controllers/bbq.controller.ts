@@ -12,7 +12,6 @@ import {
     BBQResponseDto,
     BBQFilterDto,
     BBQStatus,
-    BBQStatsDto
 } from '../dto/bbq.dto';
 import { IBBQ } from '../../core/models/bbq.model';
 import { BBQRepository, BBQ_REPOSITORY_TOKEN } from '../../core/repositories/bbq.repository';
@@ -20,7 +19,6 @@ import { BBQRepository, BBQ_REPOSITORY_TOKEN } from '../../core/repositories/bbq
 import { TransactionRepository, TRANSACTION_REPOSITORY_TOKEN } from '../../core/repositories/transaction.repository';
 import { WorkspaceRepository } from '../../core/repositories/workspace.repository';
 import { LoggerService } from '../../logger/logger.service';
-import axios from 'axios';
 
 @injectable()
 export class BBQController {
@@ -175,7 +173,7 @@ export class BBQController {
             this.bbqRepository['model'].countDocuments({ ...query, status: 'cancelled' }),
         ]);
 
-        const stats: BBQStatsDto = {
+        const stats = {
             total,
             open,
             closed,

@@ -1,6 +1,6 @@
 import { IsString, IsNumber, IsEnum, IsOptional, IsBoolean, IsArray } from 'class-validator';
 
-export enum GameType {
+enum GameType {
   FUTEBOL = 'futebol',
   BASQUETE = 'basquete',
   VOLEI = 'volei',

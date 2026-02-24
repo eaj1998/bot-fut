@@ -80,22 +80,6 @@ export class BBQResponseDto {
     participantCount!: number;
 }
 
-export class BBQListResponseDto {
-    bbqs!: BBQResponseDto[];
-    total!: number;
-    page!: number;
-    totalPages!: number;
-    limit!: number;
-}
-
-export class BBQStatsDto {
-    total!: number;
-    open!: number;
-    closed!: number;
-    finished!: number;
-    cancelled!: number;
-}
-
 export class BBQFilterDto {
     @IsEnum(BBQStatus)
     @IsOptional()

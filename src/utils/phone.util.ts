@@ -42,28 +42,6 @@ export function isValidBrazilianPhone(phone: string): boolean {
     return normalized.length === 13 || normalized.length === 12;
 }
 
-/**
- * Formats phone for display: (11) 99999-9999
- * @param phone - E.164 format phone
- * @returns Formatted phone
- */
-export function formatPhoneDisplay(phone: string): string {
-    const digits = phone.replace(/\D/g, '');
-
-    // Remove country code if present
-    const localDigits = digits.startsWith('55') ? digits.slice(2) : digits;
-
-    if (localDigits.length === 11) {
-        // Mobile: (11) 99999-9999
-        return `(${localDigits.slice(0, 2)}) ${localDigits.slice(2, 7)}-${localDigits.slice(7)}`;
-    } else if (localDigits.length === 10) {
-        // Landline: (11) 9999-9999
-        return `(${localDigits.slice(0, 2)}) ${localDigits.slice(2, 6)}-${localDigits.slice(6)}`;
-    }
-
-    return phone;
-}
-
 export function removeNonNumeric(numeros: string): string {
     return numeros.replace(/\D/g, '');
 }

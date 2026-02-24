@@ -2,19 +2,19 @@
  * DTOs para gerenciamento de Chats
  */
 
-export interface ChatSettingsDto {
+interface ChatSettingsDto {
     requirePaymentProof?: boolean;
     sendReminders?: boolean;
     maxPlayersPerGame?: number;
 }
 
-export interface ChatFinancialsDto {
+interface ChatFinancialsDto {
     defaultPriceCents?: number;
     pixKey?: string;
     pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
 }
 
-export interface ChatScheduleDto {
+interface ChatScheduleDto {
     weekday?: number;
     time?: string;
     durationMinutes?: number;

@@ -20,6 +20,4 @@ export async function connectMongo(uri: string, db: string) {
   }
 }
 
-export async function disconnectMongo() {
-  await mongoose.disconnect();
-}
+

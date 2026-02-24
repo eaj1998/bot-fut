@@ -1,7 +1,7 @@
 import { IsString, IsEnum, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class TeamAssignmentDto {
+class TeamAssignmentDto {
     @IsString()
     rosterId!: string;
 

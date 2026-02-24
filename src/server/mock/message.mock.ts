@@ -1,7 +1,7 @@
 import type { Message, Chat, Contact, GroupChat } from 'whatsapp-web.js';
 import type { IBotServerPort } from '../type';
 
-export type SyntheticUser = {
+type SyntheticUser = {
     id: string;
     phone?: string;
     lid?: string;

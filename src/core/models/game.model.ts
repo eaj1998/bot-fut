@@ -20,14 +20,14 @@ export interface GamePlayer {
 /**
  * Subdocumento: suplente (roster.waitlist)
  */
-export interface GameWaitlistEntry {
+interface GameWaitlistEntry {
   userId?: Types.ObjectId;
   name?: string;
   phoneE164?: string;
   createdAt: Date;
 }
 
-export interface GameOutlistEntry {
+interface GameOutlistEntry {
   userId?: Types.ObjectId;
   name?: string;
   phoneE164?: string;

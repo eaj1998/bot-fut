@@ -3,7 +3,7 @@ import { Model, FilterQuery } from "mongoose";
 import { USER_MODEL_TOKEN, IUser } from "../models/user.model";
 import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from "../models/workspace-member.model";
 
-export interface ListPlayersOptions {
+interface ListPlayersOptions {
     workspaceId: string;
     page?: number;
     limit?: number;
@@ -13,7 +13,7 @@ export interface ListPlayersOptions {
     sortOrder?: 'asc' | 'desc';
 }
 
-export interface PaginatedResult<T> {
+interface PaginatedResult<T> {
     data: T[];
     totalCount: number;
     currentPage: number;

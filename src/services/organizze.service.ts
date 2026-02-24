@@ -4,14 +4,14 @@ import { LoggerService } from "../logger/logger.service";
 import { todayISOyyyy_mm_dd } from "../utils/date";
 import axios from "axios";
 
-export interface CreateTransactionParams {
+interface CreateTransactionParams {
     description: string;
     amountCents: number;
     categoryId: number;
     paid?: boolean;
 }
 
-export interface TransactionResult {
+interface TransactionResult {
     added: boolean;
     error?: string;
     transactionId?: number;

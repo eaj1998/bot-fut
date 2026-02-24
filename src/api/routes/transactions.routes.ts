@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { TransactionsController } from '../controllers/transactions.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { requireAdmin } from '../middleware/role.middleware';
+import { validateDto } from '../middleware/validation.middleware';
+import { CreateTransactionDto, UpdateTransactionDto } from '../dto/transaction.dto';
 
 const router = Router();
 const controller = container.resolve(TransactionsController);
@@ -216,7 +219,7 @@ router.get('/', controller.getAll);
  *       400:
  *         description: Dados inválidos
  */
-router.post('/', controller.create);
+router.post('/', requireAdmin, validateDto(CreateTransactionDto), controller.create);
 
 // GET /api/transactions/my
 // Retorna lista de transações (filtros e paginação podem ser implementados no futuro)
@@ -322,7 +325,7 @@ router.post('/:id/pay', controller.payTransaction);
  *             schema:
  *               $ref: '#/components/schemas/TransactionResponseDto'
  */
-router.put('/:id', controller.update);
+router.put('/:id', requireAdmin, validateDto(UpdateTransactionDto), controller.update);
 
 // POST /api/transactions/:workspaceId/notify-singles
 // Dispara cobrança de pendências avulsas (não mensais)

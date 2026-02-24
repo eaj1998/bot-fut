@@ -4,6 +4,9 @@ import { GamesController } from '../controllers/games.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { ensureWorkspace } from '../middleware/ensureWorkspace';
 import { requireAdmin } from '../middleware/role.middleware';
+import { validateDto } from '../middleware/validation.middleware';
+import { CreateGameDto, UpdateGameDto, AddPlayerToGameDto, MarkPaymentDto } from '../dto/game.dto';
+import { SaveTeamAssignmentsDto } from '../dto/team-assignment.dto';
 
 const router = Router();
 const controller = container.resolve(GamesController);
@@ -214,7 +217,7 @@ router.post('/:gameId/teams/generate', controller.generateTeams);
  *       403:
  *         description: Sem permissão de admin
  */
-router.put('/:gameId/teams', requireAdmin, controller.saveTeamAssignments);
+router.put('/:gameId/teams', requireAdmin, validateDto(SaveTeamAssignmentsDto), controller.saveTeamAssignments);
 
 
 /**
@@ -250,7 +253,7 @@ router.put('/:gameId/teams', requireAdmin, controller.saveTeamAssignments);
  *       403:
  *         description: Sem permissão de admin
  */
-router.post('/', requireAdmin, controller.createGame);
+router.post('/', requireAdmin, validateDto(CreateGameDto), controller.createGame);
 
 /**
  * @swagger
@@ -288,7 +291,7 @@ router.post('/', requireAdmin, controller.createGame);
  *       403:
  *         description: Sem permissão de admin
  */
-router.put('/:gameId', requireAdmin, controller.updateGame);
+router.put('/:gameId', requireAdmin, validateDto(UpdateGameDto), controller.updateGame);
 
 /**
  * @swagger
@@ -494,7 +497,7 @@ router.get('/:gameId/export', requireAdmin, controller.exportCSV);
  *       401:
  *         description: Não autenticado
  */
-router.post('/:gameId/players', controller.addPlayer);
+router.post('/:gameId/players', validateDto(AddPlayerToGameDto), controller.addPlayer);
 
 /**
  * @swagger
@@ -647,6 +650,6 @@ router.post('/:gameId/remove-player', controller.removePlayerFromBody);
  *       401:
  *         description: Não autenticado
  */
-router.patch('/:gameId/players/:slot/payment', controller.markPayment);
+router.patch('/:gameId/players/:slot/payment', validateDto(MarkPaymentDto), controller.markPayment);
 
 export default router;

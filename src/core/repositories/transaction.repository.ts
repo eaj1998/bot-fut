@@ -9,7 +9,7 @@ import {
     TransactionStatus
 } from "../models/transaction.model";
 
-export interface CreateTransactionInput {
+interface CreateTransactionInput {
     workspaceId: string;
     userId?: string;
     gameId?: string;
@@ -25,7 +25,7 @@ export interface CreateTransactionInput {
     organizzeId?: number;
 }
 
-export interface UpdateTransactionInput {
+interface UpdateTransactionInput {
     status?: TransactionStatus;
     paidAt?: Date;
     description?: string;
@@ -33,7 +33,7 @@ export interface UpdateTransactionInput {
     amount?: number;
 }
 
-export interface FindTransactionsFilters {
+interface FindTransactionsFilters {
     type?: TransactionType;
     category?: TransactionCategory;
     status?: TransactionStatus;

@@ -73,17 +73,6 @@ export interface PaginationResponseDto {
     totalPages: number;
 }
 
-export interface PaginatedPlayersResponseDto {
-    players: PlayerResponseDto[];
-    total: number;
-    page: number;
-    totalPages: number;
-    limit: number;
-    activeCount: number;
-    withDebtsCount: number;
-    inactiveCount: number;
-}
-
 export interface PlayersStatsDto {
     total: number;
     active: number;

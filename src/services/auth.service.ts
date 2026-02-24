@@ -275,7 +275,7 @@ export class AuthService {
         };
     }
 
-    async isAdmin(message: any): Promise<boolean> {
+    async isAdmin(message: any, workspaceId?: string): Promise<boolean> {
         try {
             const id = message.author ?? message.from ?? null;
             if (!id) {
@@ -300,10 +300,12 @@ export class AuthService {
                 return true;
             }
 
-            const memberships = await this.workspaceMemberModel.find({
-                userId: user._id,
-                status: 'ACTIVE'
-            }).exec();
+            const query: any = { userId: user._id, status: 'ACTIVE' };
+            if (workspaceId) {
+                query.workspaceId = workspaceId;
+            }
+
+            const memberships = await this.workspaceMemberModel.find(query).exec();
 
             const hasAdminRole = memberships.some(m =>
                 m.roles && m.roles.some(r => ['admin', 'owner'].includes(r.toLowerCase()))

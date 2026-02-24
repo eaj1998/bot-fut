@@ -1,7 +1,6 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import { inject, injectable } from 'tsyringe';
 import { ConfigService } from '../config/config.service';
 import { LoggerService } from '../logger/logger.service';
@@ -29,16 +28,6 @@ export class ApiServer {
             cors({
                 origin: this.config.api.cors.origin,
                 credentials: true,
-            }),
-        );
-
-        this.app.use(
-            rateLimit({
-                windowMs: 15 * 60 * 1000,
-                max: 100,
-                standardHeaders: true,
-                legacyHeaders: false,
-                skipSuccessfulRequests: false,
             }),
         );
 

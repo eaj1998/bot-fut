@@ -12,18 +12,18 @@ export enum PlatformType {
   TELEGRAM = 'TELEGRAM'
 }
 
-export interface ChatSettings {
+interface ChatSettings {
   sendReminders: boolean;
   maxPlayersPerGame?: number;
 }
 
-export interface ChatFinancials {
+interface ChatFinancials {
   defaultPriceCents: number;
   pixKey?: string;
   pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
 }
 
-export interface ChatSchedule {
+interface ChatSchedule {
   weekday?: number;       // 0 = Dom, 1 = Seg, ..., 6 = Sáb
   time?: string;          // "HH:mm"
   durationMinutes?: number;

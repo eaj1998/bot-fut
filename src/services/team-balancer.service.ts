@@ -1,11 +1,11 @@
 import { injectable } from "tsyringe";
 import { IUser, PlayerPosition } from "../core/models/user.model";
 
-export interface IPlayerWithRating extends IUser {
+interface IPlayerWithRating extends IUser {
     workspaceRating?: number;
 }
 
-export interface TeamResult {
+interface TeamResult {
     teamA: IPlayerWithRating[];
     teamB: IPlayerWithRating[];
     stats: {

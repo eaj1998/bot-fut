@@ -8,7 +8,7 @@ export enum PlayerPosition {
     ATA = 'ATA'
 }
 
-export interface IUserProfile {
+interface IUserProfile {
     mainPosition: PlayerPosition;
     secondaryPositions?: PlayerPosition[];
     dominantFoot?: 'LEFT' | 'RIGHT' | 'BOTH';

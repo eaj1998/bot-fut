@@ -192,7 +192,8 @@ export class TransactionsController {
      * Cria uma nova transação (receita ou despesa)
      */
     create = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const { workspaceId, userId, amount, type, category, description, dueDate, method, status } = req.body;
+        const { userId, amount, type, category, description, dueDate, method, status } = req.body;
+        const workspaceId = req.workspaceId || req.body.workspaceId;
 
         if (!workspaceId) {
             return res.status(400).json({

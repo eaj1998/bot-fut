@@ -1,7 +1,7 @@
 
 import { injectable } from 'tsyringe';
 
-export interface CommandHelp {
+interface CommandHelp {
     command: string;
     description: string;
     usage: string;

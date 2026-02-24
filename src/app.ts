@@ -78,12 +78,12 @@ export class App {
         return;
       }
 
+      const chat = await message.getChat();
+      const chatId = chat.id._serialized;
+
+      const chatDoc = await ChatModel.findOne({ chatId }).lean();
+
       if (command !== '/bind') {
-        const chat = await message.getChat();
-        const chatId = chat.id._serialized;
-
-        const chatDoc = await ChatModel.findOne({ chatId }).lean();
-
         if (chatDoc && chatDoc.status !== ChatStatus.ACTIVE) {
           const now = Date.now();
           const lastWarning = this.inactiveChatsCache.get(chatId);
@@ -105,7 +105,7 @@ export class App {
         return;
       }
 
-      const isAdmin = await this.authService.isAdmin(message);
+      const isAdmin = await this.authService.isAdmin(message, chatDoc?.workspaceId?.toString());
 
       if (handler.role === IRole.ADMIN && !isAdmin) {
         return;

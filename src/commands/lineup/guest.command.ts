@@ -22,10 +22,15 @@ export class GuestCommand implements Command {
 
     async handle(message: Message): Promise<void> {
         const groupId = message.from;
-        let nomeConvidado = this.gameService.argsFromMessage(message).join(' ');
+        let nomeConvidado = this.gameService.argsFromMessage(message).join(' ').trim();
 
         if (!nomeConvidado) {
             message.reply('Uso correto: /convidado <nome do convidado>');
+            return;
+        }
+
+        if (nomeConvidado.length > 50) {
+            message.reply('❌ O nome do convidado é muito longo. Máximo de 50 caracteres.');
             return;
         }
 

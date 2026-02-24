@@ -30,7 +30,7 @@ export async function getUserNameFromMessage(message: Message): Promise<string> 
 /**
  * Gets both LID and phone number using WhatsApp's official method
  */
-export async function getLidAndPhoneFromMessage(message: Message): Promise<{ lid?: string; phone?: string }> {
+async function getLidAndPhoneFromMessage(message: Message): Promise<{ lid?: string; phone?: string }> {
     try {
         const userId = message.author || message.from;
         if (!userId) {

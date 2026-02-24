@@ -1,6 +1,6 @@
 import { UserModel } from "../models/user.model";
 
-export async function ensureUser(workspaceId: string, phoneE164: string, name?: string, lid?: string) {
+async function ensureUser(workspaceId: string, phoneE164: string, name?: string, lid?: string) {
   if (lid) lid = lid.replace(/\D/g, '');
   let u = await UserModel.findOne({ workspaceId, phoneE164 });
   if (!u && lid) {

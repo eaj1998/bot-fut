@@ -41,9 +41,3 @@ export const requireAdmin = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const requireUser = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    throw new ApiError(401, 'Authentication required');
-  }
-  next();
-};

@@ -7,7 +7,7 @@ type IEventType = {
   group_join: (notification: GroupNotification) => void;
   group_leave: (notification: GroupNotification) => void;
   sendMessage(chatId: string, message: string): Promise<any>;
-  getContactById(contactId: string): Promise<any>; 
+  getContactById(contactId: string): Promise<any>;
 };
 
 export abstract class IBotServerPort {
@@ -39,7 +39,7 @@ export abstract class IBotServerPort {
   getContactById(contactId: string): Promise<any> {
     throw new Error('Not implemented');
   }
-  
+
   onMessage(handler: (message: Message) => Promise<void>): void {
     this.events['message'] = handler;
   }
@@ -53,7 +53,5 @@ export abstract class IBotServerPort {
   }
 
 }
-
-export const BOT_SERVER_TOKEN = Symbol('BOT_SERVER_TOKEN');
 
 export const BOT_CLIENT_TOKEN = Symbol('BOT_CLIENT_TOKEN');

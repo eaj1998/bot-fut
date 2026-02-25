@@ -12,7 +12,7 @@ export class HelpCommand implements Command {
   ) { }
 
   async handle(message: Message): Promise<void> {
-    const helpText = `Você pode ver a lista de comandos em: <a href="https://fazosimplesfc.app/help" target="_blank">fazosimplesfc.app/help</a>`;
+    const helpText = `Você pode ver a lista de comandos em: https://fazosimplesfc.app/help`;
 
     await this.server.sendMessage(message.from, helpText);
 

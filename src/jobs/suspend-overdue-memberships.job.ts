@@ -79,14 +79,13 @@ export class SuspendOverdueMembershipsJob {
             );
 
             if (overdueTransaction) {
-                this.logger.info(`Canceling user ${membership.user.name} (${membership._id}) due to overdue transaction ${overdueTransaction._id} (Due: ${overdueTransaction.dueDate})`);
+                this.logger.info(`Marking user ${membership.user.name} (${membership._id}) as OVERDUE due to overdue transaction ${overdueTransaction._id} (Due: ${overdueTransaction.dueDate})`);
 
                 // Mark transaction as overdue
                 await this.transactionRepo.updateStatus(overdueTransaction._id, TransactionStatus.OVERDUE);
 
-                await this.membershipService.cancelMembership(
-                    membership._id.toString(),
-                    true
+                await this.membershipService.markAsOverdue(
+                    membership._id.toString()
                 );
             }
 

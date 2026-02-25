@@ -180,7 +180,14 @@ export class AuthService {
             status: user.status,
             isGoalie: user.isGoalie,
             createdAt: user.createdAt,
-            workspaces
+            workspaces,
+            profile: user.profile ? {
+                mainPosition: user.profile.mainPosition,
+                secondaryPositions: user.profile.secondaryPositions,
+                dominantFoot: user.profile.dominantFoot,
+                rating: user.profile.rating,
+                ratingCount: user.profile.ratingCount || 0
+            } : undefined
         };
     }
 
@@ -270,7 +277,15 @@ export class AuthService {
                 role: user.role || 'user',
                 createdAt: user.createdAt,
                 status: user.status || 'active',
-                workspaces
+                isGoalie: user.isGoalie,
+                workspaces,
+                profile: user.profile ? {
+                    mainPosition: user.profile.mainPosition,
+                    secondaryPositions: user.profile.secondaryPositions,
+                    dominantFoot: user.profile.dominantFoot,
+                    rating: user.profile.rating,
+                    ratingCount: user.profile.ratingCount || 0
+                } : undefined
             },
         };
     }

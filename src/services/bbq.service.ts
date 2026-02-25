@@ -51,7 +51,11 @@ export class BBQService {
         return { success: false, message: '❌ Churrasco não encontrado.' };
       }
     } else {
-      bbq = await this.getOrCreateBBQForGameDay(workspaceId, chatId);
+      bbq = await this.bbqRepository.findRecentBBQByStatus(workspaceId, chatId, BBQStatus.OPEN);
+    }
+
+    if (!bbq) {
+      return { success: false, message: '❌ Não existe churrasco agendado.' };
     }
 
     if (bbq.status === 'closed') {

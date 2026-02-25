@@ -332,7 +332,7 @@ export class TransactionRepository {
         const [transactions, total] = await Promise.all([
             this.model
                 .find(query)
-                .sort({ dueDate: -1, createdAt: -1 })
+                .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
                 .populate('userId', 'name phone')

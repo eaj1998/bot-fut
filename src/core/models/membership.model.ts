@@ -3,7 +3,8 @@ import { Schema, model, Types, Model, Document } from "mongoose";
 export enum MembershipStatus {
     PENDING = "PENDING",
     ACTIVE = "ACTIVE",
-    SUSPENDED = "SUSPENDED",
+    OVERDUE = "OVERDUE", // Jogador não paga, vira avulso com dívida
+    SUSPENDED = "SUSPENDED", // Suspensão disciplinar real
     CANCELED_SCHEDULED = "CANCELED_SCHEDULED",
     INACTIVE = "INACTIVE"
 }

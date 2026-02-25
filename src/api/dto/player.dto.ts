@@ -53,6 +53,7 @@ export interface PlayerResponseDto {
         secondaryPositions?: string[];
         dominantFoot?: string;
         rating?: number;
+        ratingCount?: number;
     };
 }
 

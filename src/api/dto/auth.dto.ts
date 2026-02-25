@@ -35,11 +35,19 @@ export class AuthResponseDto {
     role: 'admin' | 'user';
     createdAt: Date;
     status: 'active' | 'inactive';
+    isGoalie?: boolean;
     workspaces?: {
       id: string;
       name: string;
       role: string;
     }[];
+    profile?: {
+      mainPosition?: string;
+      secondaryPositions?: string[];
+      dominantFoot?: string;
+      rating?: number;
+      ratingCount?: number;
+    };
   };
 }
 

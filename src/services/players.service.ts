@@ -77,7 +77,8 @@ export class PlayersService {
                 mainPosition: user.profile.mainPosition,
                 secondaryPositions: user.profile.secondaryPositions,
                 dominantFoot: user.profile.dominantFoot,
-                rating: user.profile.rating
+                rating: user.profile.rating,
+                ratingCount: user.profile.ratingCount || 0
             } : undefined
         };
     }
@@ -173,24 +174,7 @@ export class PlayersService {
                 playerType: data.type,
                 stars: data.stars,
             });
-
-            const memberExists = await this.workspaceMemberModel.exists({
-                workspaceId: data.workspaceId,
-                userId: user._id
-            });
-
-            if (!memberExists) {
-                await this.workspaceMemberModel.create({
-                    workspaceId: data.workspaceId,
-                    userId: user._id,
-                    roles: ['PLAYER'],
-                    status: 'ACTIVE',
-                    nickname: data.name
-                });
-            }
-
         } else {
-            // Atualizar dados se usuário já existe
             user.name = data.name;
             user.nick = data.nick || user.nick;
             user.position = data.position || user.position;
@@ -200,7 +184,21 @@ export class PlayersService {
             await user.save();
         }
 
-        // Se for MENSALISTA, criar membership automaticamente
+        const memberExists = await this.workspaceMemberModel.exists({
+            workspaceId: data.workspaceId,
+            userId: user._id
+        });
+
+        if (!memberExists) {
+            await this.workspaceMemberModel.create({
+                workspaceId: data.workspaceId,
+                userId: user._id,
+                roles: ['PLAYER'],
+                status: 'ACTIVE',
+                nickname: data.name
+            });
+        }
+
         if (data.type === 'MENSALISTA') {
             const today = new Date();
             const nextDueDate = MembershipRepository.calculateNextDueDate(today);
@@ -250,9 +248,6 @@ export class PlayersService {
             const normalized = normalizePhone(userData.phoneE164);
             if (normalized) userData.phoneE164 = normalized;
         }
-
-        // ... (Profile update logic remains the same, I will keep it mostly implicitly if possible? 
-        // No, I have to reproduce the logic or keep the chunk large. I'll reproduce/keep logic)
 
         if (data.profile) {
             if (!userData.profile) {

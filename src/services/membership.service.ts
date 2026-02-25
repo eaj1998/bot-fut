@@ -26,6 +26,7 @@ interface AdminMembershipListResponse {
     summary: {
         totalActive: number;
         totalSuspended: number;
+        totalOverdue: number;
         totalPending: number;
         mrr: number; // Monthly Recurring Revenue in cents
     };
@@ -127,6 +128,9 @@ export class MembershipService {
                 statusFilter = MembershipStatus.ACTIVE;
                 break;
             case 'overdue':
+                statusFilter = MembershipStatus.OVERDUE;
+                break;
+            case 'suspended':
                 statusFilter = MembershipStatus.SUSPENDED;
                 break;
             case 'cancelled':
@@ -142,6 +146,7 @@ export class MembershipService {
         const summary = {
             totalActive: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.ACTIVE).length,
             totalSuspended: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.SUSPENDED).length,
+            totalOverdue: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.OVERDUE).length,
             totalPending: allMemberships.memberships.filter((m: any) => m.status === MembershipStatus.PENDING).length,
             mrr: allMemberships.memberships
                 .filter((m: any) => m.status === MembershipStatus.ACTIVE)
@@ -300,7 +305,7 @@ export class MembershipService {
             }
         }
 
-        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING || membership.status === MembershipStatus.INACTIVE || membership.status === MembershipStatus.CANCELED_SCHEDULED)) {
+        if (shouldActivate && (membership.status === MembershipStatus.SUSPENDED || membership.status === MembershipStatus.PENDING || membership.status === MembershipStatus.INACTIVE || membership.status === MembershipStatus.CANCELED_SCHEDULED || membership.status === MembershipStatus.OVERDUE)) {
             await this.membershipRepo.reactivateMembership(membershipId);
         }
 
@@ -349,6 +354,25 @@ export class MembershipService {
 
     async findById(id: string): Promise<IMembership | null> {
         return this.membershipRepo.findById(id);
+    }
+
+    /**
+     * Marcar membership como inadimplente (OVERDUE)
+     */
+    async markAsOverdue(membershipId: string): Promise<IMembership> {
+        const membership = await this.membershipRepo.findById(membershipId);
+
+        if (!membership) {
+            throw new ApiError(404, 'Membership não encontrado');
+        }
+
+        const updated = await this.membershipRepo.updateStatus(membershipId, MembershipStatus.OVERDUE);
+
+        if (!updated) {
+            throw new ApiError(500, 'Erro ao marcar membership como overdue');
+        }
+
+        return updated;
     }
 
     /**

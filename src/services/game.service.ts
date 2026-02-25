@@ -467,7 +467,6 @@ export class GameService {
     }
 
 
-
     let user = await this.userModel.findOne({ phoneE164: data.phone }).exec();
     if (!user) {
       if (!data.name) {
@@ -584,14 +583,13 @@ export class GameService {
     const idx = players.findIndex(p => p.slot === slot);
 
     if (idx === -1) {
-      throw new ApiError(404, 'Player not found in this slot');
+      throw new ApiError(404, 'Jogador não encontrado na posição');
     }
 
     const player = players[idx];
 
-    // Verification: Must be a guest
     if (!player.guest) {
-      throw new ApiError(400, 'Player in this slot is not a guest');
+      throw new ApiError(400, 'O jogador não é um convidado');
     }
 
 
@@ -620,19 +618,20 @@ export class GameService {
 
       console.log("Promovido", promovido);
       let isPaid = false;
-      if (promovido.userId) {
+      const isGuest = (promovido.name ?? "").toLowerCase().includes('(conv.');
+
+      if (promovido.userId && !isGuest) {
         const membership = await this.membershipRepo.findByUserId(
           promovido.userId.toString(),
           game.workspaceId.toString()
         );
         isPaid = membership?.status === MembershipStatus.ACTIVE;
       }
-      const promotedPlayer = {
+      const promotedPlayer: GamePlayer = {
         slot: removedSlot,
-        userId: promovido.userId,
         name: promovido.name ?? "Jogador",
-        phoneE164: promovido.phoneE164,
         paid: isPaid,
+        ...(isGuest ? { guest: true, invitedByUserId: promovido.userId } : { guest: false, userId: promovido.userId, phoneE164: promovido.phoneE164 })
       };
 
       players.push(promotedPlayer);
@@ -661,9 +660,10 @@ export class GameService {
   async addOutfieldPlayer(
     game: IGame,
     user: IUser,
-    maxPlayers = 16,
+    maxPlayersArg?: number,
     paid = false
   ): Promise<{ added: boolean; suplentePos?: number }> {
+    const maxPlayers = maxPlayersArg ?? game.maxPlayers ?? 16;
     game.roster.players = game.roster.players ?? [];
     game.roster.waitlist = game.roster.waitlist ?? [];
 
@@ -872,6 +872,14 @@ export class GameService {
         return { placed: true, slot, finalName: label, role: "outfield" };
       }
     }
+
+    if (!Array.isArray(game.roster.waitlist)) game.roster.waitlist = [];
+    game.roster.waitlist.push({
+      userId: inviter._id,
+      name: label,
+      createdAt: new Date(),
+    });
+
     return { placed: false, finalName: label, role: "outfield" };
   }
 
@@ -918,10 +926,24 @@ export class GameService {
       return { updated: false, reason: 'User nao encontrado' };
     }
 
-    const transactions = await this.transactionRepo.findByGameId(game._id.toString());
-    const tx = transactions.find((t: any) => t.userId?.toString() === userId.toString() && t.type === TransactionType.INCOME);
-    if (tx) {
-      await this.transactionRepo.updateStatus(tx._id, TransactionStatus.PENDING);
+    const transactions = await this.transactionRepo.find({
+      gameId: game._id.toString(),
+      userId: userId.toString(),
+      status: TransactionStatus.COMPLETED,
+      type: TransactionType.INCOME
+    });
+
+    let targetTx = null;
+    const searchName = player.name;
+
+    if (player.guest) {
+      targetTx = transactions.find((t: any) => t.description && t.description.includes(searchName));
+    } else {
+      targetTx = transactions.find((t: any) => t.description && !t.description.includes('(convidado:'));
+    }
+
+    if (targetTx) {
+      await this.transactionRepo.updateStatus(targetTx._id.toString(), TransactionStatus.PENDING);
     }
 
     const isDeleted = true;

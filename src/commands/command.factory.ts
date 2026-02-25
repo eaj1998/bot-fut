@@ -13,6 +13,7 @@ import { StickerCommand } from './entertainment/sticker.command';
 import { HelpCommand } from './help/help.command';
 import { WeatherCommand } from './weather/weather.command';
 import { BindCommand } from './admin/bind.command';
+import { UnbindCommand } from './admin/unbind.command';
 import { CloseCommand } from './lineup/close.command';
 import { ScheduleCommand } from './admin/schedule.command';
 import { CancelCommand } from './lineup/cancel.command';
@@ -28,6 +29,7 @@ import { CancelBBQCommand } from './bbq/cancelBBQ.command';
 import { RandomizeTeamsCommand } from './lineup/randomizeTeams.command';
 import { DebtsCommand } from './payment/debts.command';
 import { SignupCommand } from './admin/signup.command';
+import { RemoveCommand } from './lineup/remove.command';
 
 @injectable()
 export class CommandFactory {
@@ -39,6 +41,7 @@ export class CommandFactory {
       case '/bora': return container.resolve(LineUpAddCommand);
       case '/goleiro': return container.resolve(GoalKeeperAddCommand);
       case '/desistir': return container.resolve(GiveUpCommand);
+      case '/remover': return container.resolve(RemoveCommand);
       case '/convidado': return container.resolve(GuestCommand);
       case '/fora': return container.resolve(OutCommand);
       case '/pago': return container.resolve(PaymentCommand);
@@ -58,6 +61,7 @@ export class CommandFactory {
       case '/help': return container.resolve(HelpCommand);
       case '/previsao': return container.resolve(WeatherCommand);
       case '/bind': return container.resolve(BindCommand);
+      case '/unbind': return container.resolve(UnbindCommand);
       case '/fechar': return container.resolve(CloseCommand);
       case '/cancelar': return container.resolve(CancelCommand);
       case '/debitos': return container.resolve(DebtsCommand);

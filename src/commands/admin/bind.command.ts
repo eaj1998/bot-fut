@@ -31,6 +31,19 @@ export class BindCommand {
     const chat = await message.getChat();
     const chatId = chat.id._serialized;
 
+
+    const existingChat = await ChatModel.findOne({ chatId });
+    if (existingChat && existingChat.workspaceId) {
+      const existingWorkspace = await this.workspaceRepo.findById(existingChat.workspaceId.toString());
+      if (existingWorkspace) {
+        await this.server.sendMessage(
+          message.from,
+          `⚠️ Este grupo já está vinculado ao workspace *'${existingWorkspace.name}'*.\n\nSe deseja alterar o dia e horário do jogo, use o comando */schedule*.\nSe deseja trocar este grupo para outro workspace, use o comando */unbind* primeiro.`
+        );
+        return;
+      }
+    }
+
     let ws;
     let isNewWorkspace = false;
 

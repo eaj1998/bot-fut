@@ -5,13 +5,13 @@ meta {
 }
 
 post {
-  url: http://localhost:3000/api/webhooks/youtube
+  url: {{baseUrl}}/api/webhooks/youtube
   body: xml
   auth: inherit
 }
 
 headers {
-  Content-Type:  application/atom+xml
+  Content-Type: application/atom+xml
 }
 
 body:xml {

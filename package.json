@@ -20,7 +20,8 @@
     "migrate:ledger": "ts-node scripts/migrate-ledger-to-transactions.ts",
     "test:suspension": "ts-node scripts/test-suspension-job.ts",
     "test:invoice": "ts-node scripts/test-invoice-job.ts",
-    "export-openapi": "ts-node src/export-openapi.ts"
+    "export-openapi": "ts-node src/export-openapi.ts",
+    "fix:rate-index": "ts-node scripts/fix-rating-index.ts"
   },
   "keywords": [],
   "author": "",

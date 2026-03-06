@@ -1,6 +1,28 @@
-FROM node:18-bullseye
+# ─────────────────────────────────────────────
+# Stage 1 – Builder: install all deps and compile TS
+# ─────────────────────────────────────────────
+FROM node:18-bullseye AS builder
 
-# Instala dependências necessárias pro Chromium rodar em ambiente headless
+WORKDIR /app
+
+COPY package*.json ./
+
+ENV HUSKY=0
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Use npm ci for reproducible installs (faster than npm install in CI)
+RUN npm ci
+
+COPY . .
+
+RUN npm run build
+
+# ─────────────────────────────────────────────
+# Stage 2 – Production: lean image with only what's needed at runtime
+# ─────────────────────────────────────────────
+FROM node:18-bullseye-slim AS production
+
+# Install only Chromium runtime deps (bullseye-slim is much smaller than bullseye)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     libnss3 \
@@ -25,31 +47,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copia apenas os arquivos de dependência primeiro (cache de build)
+# Copy only package files and install production deps only
 COPY package*.json ./
 
 ENV HUSKY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV NODE_ENV=production
 
-RUN npm install
+RUN npm ci --omit=dev
 
-# Copia o restante do projeto
-COPY . .
+# Copy compiled output from the builder stage
+COPY --from=builder /app/dist ./dist
 
-# Build do projeto (se usar TypeScript ou bundler)
-RUN npm run build
-
-# 🔥 Caminho do Chromium para o Puppeteer
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# 🔥 Pasta onde a sessão do WhatsApp será salva
+# Persistence folder for WhatsApp session
 RUN mkdir -p /app/.wwebjs_auth
 
-# remove dev deps depois do build
-RUN npm prune --omit=dev
-
-# Porta padrão (Railway define automaticamente, mas não atrapalha)
 EXPOSE 3000
 
 CMD ["npm", "start"]

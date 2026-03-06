@@ -10,8 +10,7 @@ COPY package*.json ./
 ENV HUSKY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Use npm ci for reproducible installs (faster than npm install in CI)
-RUN npm ci
+RUN npm install
 
 COPY . .
 

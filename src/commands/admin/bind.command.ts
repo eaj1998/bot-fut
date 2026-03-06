@@ -7,6 +7,7 @@ import { ChatModel } from "../../core/models/chat.model";
 import { IRole } from "../type";
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from "../../services/workspace.service";
 import { UserService, USER_SERVICE_TOKEN } from "../../services/user.service";
+import { AuthService } from "../../services/auth.service";
 
 @injectable()
 export class BindCommand {
@@ -16,7 +17,8 @@ export class BindCommand {
     @inject(BOT_CLIENT_TOKEN) private server: IBotServerPort,
     @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
     @inject(WORKSPACES_SERVICE_TOKEN) private readonly workspaceService: WorkspaceService,
-    @inject(USER_SERVICE_TOKEN) private readonly userService: UserService
+    @inject(USER_SERVICE_TOKEN) private readonly userService: UserService,
+    @inject(AuthService) private readonly authService: AuthService
   ) { }
 
   async handle(message: Message) {
@@ -53,9 +55,29 @@ export class BindCommand {
         await this.server.sendMessage(message.from, "❌ Workspace não encontrado com este ID.");
         return;
       }
+      // Binding by ID always targets an existing workspace
+      isNewWorkspace = false;
     } else {
-      ws = await this.workspaceRepo.ensureWorkspaceBySlug(param1);
-      isNewWorkspace = true;
+      const existing = await this.workspaceRepo.findBySlug(param1);
+      if (existing) {
+        ws = existing;
+        isNewWorkspace = false;
+      } else {
+        ws = await this.workspaceRepo.ensureWorkspaceBySlug(param1);
+        isNewWorkspace = true;
+      }
+    }
+
+    // If the workspace already exists, only its admins/owners can bind it to a group
+    if (!isNewWorkspace) {
+      const isWorkspaceAdmin = await this.authService.isAdmin(message, ws._id.toString());
+      if (!isWorkspaceAdmin) {
+        await this.server.sendMessage(
+          message.from,
+          '❌ Você não tem permissão para vincular este workspace. Apenas administradores do workspace podem fazer isso.'
+        );
+        return;
+      }
     }
 
     let weekday: number | undefined;

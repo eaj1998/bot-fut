@@ -1,13 +1,13 @@
 import { injectable, inject } from "tsyringe";
 import { Message } from "whatsapp-web.js";
-import { Types } from "mongoose";
+import { Types, Model } from "mongoose";
 import { IBotServerPort, BOT_CLIENT_TOKEN } from "../../server/type";
 import { WorkspaceRepository } from "../../core/repositories/workspace.repository";
 import { ChatModel } from "../../core/models/chat.model";
 import { IRole } from "../type";
 import { WorkspaceService, WORKSPACES_SERVICE_TOKEN } from "../../services/workspace.service";
 import { UserService, USER_SERVICE_TOKEN } from "../../services/user.service";
-import { AuthService } from "../../services/auth.service";
+import { WORKSPACE_MEMBER_MODEL_TOKEN, IWorkspaceMember } from "../../core/models/workspace-member.model";
 
 @injectable()
 export class BindCommand {
@@ -18,7 +18,7 @@ export class BindCommand {
     @inject(WorkspaceRepository) private readonly workspaceRepo: WorkspaceRepository,
     @inject(WORKSPACES_SERVICE_TOKEN) private readonly workspaceService: WorkspaceService,
     @inject(USER_SERVICE_TOKEN) private readonly userService: UserService,
-    @inject(AuthService) private readonly authService: AuthService
+    @inject(WORKSPACE_MEMBER_MODEL_TOKEN) private readonly workspaceMemberModel: Model<IWorkspaceMember>
   ) { }
 
   async handle(message: Message) {
@@ -68,13 +68,29 @@ export class BindCommand {
       }
     }
 
-    // If the workspace already exists, only its admins/owners can bind it to a group
     if (!isNewWorkspace) {
-      const isWorkspaceAdmin = await this.authService.isAdmin(message, ws._id.toString());
-      if (!isWorkspaceAdmin) {
+      try {
+        const sender = await this.userService.resolveUserFromMessage(message);
+        const membership = await this.workspaceMemberModel.findOne({
+          userId: sender._id,
+          workspaceId: ws._id,
+          status: 'ACTIVE',
+        });
+        const isWorkspaceAdmin = !!membership && membership.roles.some(
+          r => ['admin', 'owner'].includes(r.toLowerCase())
+        );
+        if (!isWorkspaceAdmin) {
+          await this.server.sendMessage(
+            message.from,
+            '❌ Você não tem permissão para vincular este workspace. Apenas administradores do workspace podem fazer isso.'
+          );
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking workspace admin for /bind:', error);
         await this.server.sendMessage(
           message.from,
-          '❌ Você não tem permissão para vincular este workspace. Apenas administradores do workspace podem fazer isso.'
+          '❌ Não foi possível verificar suas permissões. Tente novamente.'
         );
         return;
       }

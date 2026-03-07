@@ -44,6 +44,15 @@ jobs:
           --push \
           .
 
+    - name: Copiar docker-compose.hml.yml para a EC2
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "docker-compose.hml.yml"
+        target: "/home/ubuntu/bot-fut-app"
+
     - name: Deploy na EC2 via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -57,7 +66,10 @@ jobs:
           aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 872095123176.dkr.ecr.us-east-2.amazonaws.com
 
           echo "Baixando a nova imagem de homologação..."
-          docker compose pull bot-fut-hml
+          docker compose -f docker-compose.hml.yml pull
+
+          echo "Reiniciando o container com a nova imagem..."
+          docker compose -f docker-compose.hml.yml up -d
 
           echo "Limpando imagens antigas para não lotar o disco..."
           docker image prune -f

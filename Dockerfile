@@ -56,8 +56,9 @@ ENV NODE_ENV=production
 
 RUN npm ci --omit=dev --ignore-scripts
 
-# Copy compiled output from the builder stage
+# Copy compiled output and static assets from the builder stage
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/assets ./assets
 
 # Persistence folder for WhatsApp session
 RUN mkdir -p /app/.wwebjs_auth

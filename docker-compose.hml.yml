@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  bot-fut-hml:
+    image: 872095123176.dkr.ecr.us-east-2.amazonaws.com/bot-fut:hml
+    container_name: bot-fut-hml
+    restart: unless-stopped
+    env_file: .env.hml
+    volumes:
+      # Persists WhatsApp session so the bot doesn't need to re-scan QR on every deploy
+      - bot-fut-hml-auth:/app/wwebjs_auth
+    ports:
+      - "3001:3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  bot-fut-hml-auth:

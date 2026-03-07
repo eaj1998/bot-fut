@@ -1,0 +1,71 @@
+name: BOT Cron Jobs (HML)
+
+on:
+  schedule:
+    # 03:00 AM (BRT) is 06:00 AM (UTC) -> Suspend Overdue Memberships on the 11th of every month
+    - cron: '0 6 11 * *'
+    
+    # 06:00 AM (BRT) is 09:00 AM (UTC) -> Generate Monthly Invoices on the 1st of every month
+    - cron: '0 9 1 * *'
+
+  # Allow manual trigger from GitHub UI for testing
+  workflow_dispatch:
+    inputs:
+      job_name:
+        description: 'Which job to run?'
+        required: true
+        default: 'GenerateMonthlyInvoicesJob'
+        type: choice
+        options:
+          - GenerateMonthlyInvoicesJob
+          - SuspendOverdueMembershipsJob
+
+jobs:
+  run-scheduled-job:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build TypeScript
+      run: npm run build
+
+    - name: Run Job
+      env:
+        # Use HML Secrets
+        MONGO_URI: ${{ secrets.MONGO_URI_HML }}
+        # Add any other required environment variables here
+      run: |
+        # Determine which job to run based on the cron schedule or manual trigger
+        
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Manual trigger execution
+          echo "Running manually triggered job: ${{ inputs.job_name }}"
+          node dist/run-job.js ${{ inputs.job_name }}
+          
+        else
+          # Cron schedule execution
+          # UTC 09:00 AM on the 1st = Generate Invoices
+          if [ "$(date +'%d')" = "01" ]; then
+            echo "Running GenerateMonthlyInvoicesJob..."
+            node dist/run-job.js GenerateMonthlyInvoicesJob
+            
+          # UTC 06:00 AM on the 11th = Suspend Memberships
+          elif [ "$(date +'%d')" = "11" ]; then
+            echo "Running SuspendOverdueMembershipsJob..."
+            node dist/run-job.js SuspendOverdueMembershipsJob
+            
+          else
+            echo "No matching job for today."
+          fi
+        fi

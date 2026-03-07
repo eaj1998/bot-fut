@@ -10,7 +10,7 @@ COPY package*.json ./
 ENV HUSKY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-RUN npm install
+RUN npm install --ignore-scripts
 
 COPY . .
 
